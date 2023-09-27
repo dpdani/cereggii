@@ -6,7 +6,9 @@
 from typing import Callable, Iterable, NewType
 
 
-Key, Value, Cancel = NewType('Key', object), NewType('Value', object), NewType('Cancel', object)
+Key = NewType('Key', object)
+Value = NewType('Value', object)
+Cancel = NewType('Cancel', object)
 
 
 class AtomicDict:
@@ -20,6 +22,7 @@ class AtomicDict:
             Inserts that spill over this size, will not fail, but may require
             re-allocations. Usage of this parameter is especially useful when the
             maximal required size is known.
+
         :param kwargs: key-value pairs with which to initialize the dictionary.
             This follows the behavior of built-in dictionary, but slightly differs:
             keys that are already parameters to this ``__init__`` method will not be
@@ -49,22 +52,26 @@ class AtomicDict:
             raise KeyError(item)
         return dummy_batch[item]
 
-    # def __hash__(self):  # leave it to the default hash implementation (identity)
+    # def __hash__(self):
+    #     # leave it to the default hash implementation (identity)
     #     pass
 
-    def __ior__(self, other) -> None:  # return None, modify self with elements from self | other
+    def __ior__(self, other) -> None:
+        # return None, modify self with elements from self | other
         pass
 
     def __iter__(self):
         pass
 
-    def __len__(self):  # should this be precise?
+    def __len__(self):
+        # should this be precise?
         pass
 
     def __eq__(self, other):
         pass
 
-    def __or__(self, other) -> 'AtomicDict':  # return a new AtomicDict, with elements from self | other
+    def __or__(self, other) -> 'AtomicDict':
+        # return a new AtomicDict, with elements from self | other
         pass
 
     def __ror__(self, other) -> 'AtomicDict':
@@ -76,7 +83,8 @@ class AtomicDict:
     def __reversed__(self):
         pass
 
-    def __setitem__(self, key, value):  # will there be need for single-item updates?
+    def __setitem__(self, key, value):
+        # will there be need for single-item updates?
         self.update({key: value})
 
     def __sizeof__(self):
@@ -93,10 +101,10 @@ class AtomicDict:
 
         Whatever the values provided in :param:`batch`, they will be substituted with
         the found values, or ``KeyError``. Notice no exception is thrown: the
-        ``KeyError`` object instead is the returned value for a non-found key.
-        If you have ``KeyError`` values in your :class:`AtomicDict`, you may have trouble
-        distinguishing between a ``KeyError`` that implies a lookup failure, and a
-        ``KeyError`` that was indeed found.
+        ``KeyError`` object instead is the returned value for a non-found key. If you
+        have ``KeyError`` values in your :class:`AtomicDict`, you may have trouble
+        distinguishing between a ``KeyError`` that implies a lookup failure,
+        and a ``KeyError`` that was indeed found.
 
         The values themselves, provided in :param:`batch`, will always be substituted.
 
@@ -156,9 +164,12 @@ class AtomicDict:
         """See ``help(dict.update)``.
 
         The only difference with the built-in update method is that ``other`` cannot
-        be used as a key, when calling in the ``**kwargs`` style, as for
-        :method:`__init__`, because of the limitations of the ``**kwargs``
-        behavior.
+        be used as a key when calling in the ``**kwargs`` style, as for
+        :method:`__init__`, because of the limitations of the ``**kwargs`` behavior.
+
+        Note that this is also batched, like :method:`batch_lookup`, in the sense
+        that ``other`` will be inserted into the dictionary in whole inside the C
+        extension code, before returning to the Python interpreter.
 
         :returns: None
         """
@@ -173,8 +184,8 @@ class AtomicDict:
             foo.update_fn(lambda key, value, cancel: value + 1)
             assert foo == {'a': 2, 'b': 3, 'c': 4}
 
-        Updates can be canceled by having :param:`fn` return the special
-        ``cancel`` value instead::
+        Updates can be canceled by having :param:`fn` return the special ``cancel``
+        value instead::
 
             foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
 
@@ -187,8 +198,7 @@ class AtomicDict:
             assert foo == {'a': 1, 'b': 3, 'c': 4}
 
         Note that having :param:`fn` return ``cancel`` instead of the unchanged
-        ``value`` may be more efficient: it avoids a redundant atomic write to
-        memory.
+        ``value`` may be more efficient: it avoids a redundant atomic write to memory.
 
         :returns: None
         """
