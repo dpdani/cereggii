@@ -5,10 +5,11 @@
 import sys
 import warnings
 
-from .__about__ import *
-from .atomic_dict import AtomicDict
-from .atomic_ref import AtomicRef
+from cereggii.__about__ import *
+from cereggii.atomic_dict import AtomicDict
+from cereggii.atomic_ref import AtomicRef
 
 
 if not getattr(sys.flags, 'nogil', False):
-    warnings.warn("this library is meant to be used with nogil python: https://github.com/colesbury/nogil")
+    warnings.warn("this library is meant to be used with nogil python: "
+                  "https://github.com/colesbury/nogil")

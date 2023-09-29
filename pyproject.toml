@@ -9,7 +9,7 @@ name = "cereggii"
 version = "0.0.1"
 description = "Concurrent threading utilities for Python"
 readme = "README.md"
-requires-python = "==3.9.10"
+requires-python = "~=3.9"
 license = { file = "LICENSE" }
 authors = [
   { name = "dpdani", email = "git@danieleparmeggiani.me" },
