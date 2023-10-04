@@ -12,16 +12,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - python-arch: x64
-            python-version: nogil-3.9
+        python-version: ["nogil-3.9"]
 
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: colesbury/setup-python@nogil
       with:
-        architecture: ${{ matrix.python-arch }}
         python-version: ${{ matrix.python-version }}
     - name: Check nogil
       run: |
