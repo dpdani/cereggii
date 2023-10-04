@@ -99,8 +99,6 @@ ignore = [
   "S105", "S106", "S107",
   # Ignore complexity
   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
-  # Relative imports required at build time
-  "TID252"
 ]
 unfixable = [
   # Don't touch unused imports
@@ -109,9 +107,6 @@ unfixable = [
 
 [tool.ruff.isort]
 known-first-party = ["cereggii"]
-
-[tool.ruff.flake8-tidy-imports]
-ban-relative-imports = "all"
 
 [tool.ruff.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports

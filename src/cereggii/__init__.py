@@ -11,7 +11,7 @@ Concurrent threading utilities for Python
 import sys
 import warnings
 
-from .__about__ import *  # noqa: F403
+from .__about__ import __license__, __version__, __version_tuple__  # noqa: F401
 from .atomic_dict import AtomicDict  # noqa: F401
 from .atomic_ref import AtomicRef  # noqa: F401
 
