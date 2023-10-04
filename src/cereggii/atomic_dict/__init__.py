@@ -3,23 +3,24 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Callable, Iterable, NewType
+from collections.abc import Iterable
+from typing import Callable, NewType, Optional
+
 
 try:
     from cereggii import _atomic_dict
 except ImportError:  # building sdist (without compiled modules)
     pass
 
-
-Key = NewType('Key', object)
-Value = NewType('Value', object)
-Cancel = NewType('Cancel', object)
+Key = NewType("Key", object)
+Value = NewType("Value", object)
+Cancel = NewType("Cancel", object)
 
 
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: Iterable = None, *, initial_size: int = None, **kwargs):
+    def __init__(self, iterable: Optional[Iterable] = None, *, initial_size: Optional[int] = None, **kwargs):
         """Constructor method
 
         :param initial_size: the size initially allocated. Using this
@@ -37,7 +38,7 @@ class AtomicDict:
         """
         self._dict = object()
         if iterable is not None:
-            d = {k: v for k, v in iterable}
+            d = dict(iterable)
             self.update(d)
         if kwargs:
             self.update(kwargs)
@@ -47,7 +48,7 @@ class AtomicDict:
         self.batch_lookup(dummy_batch)
         return dummy_batch[item] != KeyError
 
-    def __delitem__(self):
+    def __delitem__(self, item):
         pass
 
     # def __getitem__(self, item):
@@ -78,11 +79,11 @@ class AtomicDict:
     def __eq__(self, other):
         pass
 
-    def __or__(self, other) -> 'AtomicDict':
+    def __or__(self, other) -> "AtomicDict":
         # return a new AtomicDict, with elements from self | other
         pass
 
-    def __ror__(self, other) -> 'AtomicDict':
+    def __ror__(self, other) -> "AtomicDict":
         return self | other
 
     def __repr__(self):
