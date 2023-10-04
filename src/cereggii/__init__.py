@@ -17,5 +17,5 @@ from .atomic_ref import AtomicRef  # noqa: F401
 
 if not getattr(sys.flags, "nogil", False):
     warnings.warn(
-        "this library is meant to be used with nogil python: " "https://github.com/colesbury/nogil", stacklevel=1
+        "this library is meant to be used with nogil python: https://github.com/colesbury/nogil", stacklevel=1
     )
