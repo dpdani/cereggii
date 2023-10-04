@@ -16,17 +16,17 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: colesbury/setup-python@nogil
+    - name: set up python ${{ matrix.python-version }}
+      uses: dpdani/setup-python@nogil
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Check nogil
+    - name: check nogil
       run: |
         python -c "import sys; print(sys.flags.nogil);"
-    - name: Install dependencies
+    - name: install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install .[dev]
-    - name: Test with pytest
+    - name: test with pytest
       run: |
         pytest
