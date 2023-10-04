@@ -29,7 +29,7 @@ jobs:
         pip install .[dev]
     - name: test with pytest
       run: |
-        pytest
+        pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
     - name: upload pytest test results
       uses: actions/upload-artifact@v3
       with:
