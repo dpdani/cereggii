@@ -14,9 +14,3 @@ def test_import():
 
     assert type(getattr(cereggii, "__version__", None)) == str
     assert type(getattr(cereggii, "__version_tuple__", None)) == tuple
-
-
-def test_spam():
-    import cereggii.spam as spam
-
-    spam.system("ls")

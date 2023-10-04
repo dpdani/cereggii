@@ -1,13 +1,11 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["py-build-cmake"]
+build-backend = "py_build_cmake.build"
 
 
 [project]
 name = "cereggii"
-#dynamic = ["version"]
-version = "0.0.1"
-description = "Concurrent threading utilities for Python"
+dynamic = ["version", "description"]
 readme = "README.md"
 requires-python = "~=3.9"
 license = { file = "LICENSE" }
@@ -35,82 +33,18 @@ Documentation = "https://github.com/dpdani/cereggii#readme"
 Issues = "https://github.com/dpdani/cereggii/issues"
 Source = "https://github.com/dpdani/cereggii"
 
+[tool.py-build-cmake.module]
+directory = "src"
 
-#[tool.hatch.version]
-#path = "./src/cereggii/__about__.py"
-# fixme: relative path works with hatch, but not with python -m build. why?
-#     ...
-#       File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/build.py", line 56, in build_wheel
-#    return os.path.basename(next(builder.build(wheel_directory, ['standard'])))
-#  File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/builders/plugin/interface.py", line 93, in build
-#    self.metadata.validate_fields()
-#  File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/metadata/core.py", line 243, in validate_fields
-#    _ = self.version
-#  File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/metadata/core.py", line 128, in version
-#    self._version = self._get_version()
-#  File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/metadata/core.py", line 226, in _get_version
-#    version = self.hatch.version.cached
-#  File "/tmp/build-env-b4uoz1_c/lib/python3.9/site-packages/hatchling/metadata/core.py", line 1415, in cached
-#    raise type(e)(message) from None
-#  OSError: Error getting the version from source `regex`: file does not exist: ./src/cereggii/__about__.py
+[tool.py-build-cmake.sdist]
+include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
 
-[tool.hatch.build.targets.sdist]
-packages = ["src/cereggii"]
-exclude = [
-  "/.github",
-]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/cereggii"]
-
-
-[tool.hatch.envs.default]
-dependencies = [
-  "coverage[toml]>=6.5",
-  "pytest",
-  "black>=23.1.0",
-  "mypy>=1.0.0",
-  "ruff>=0.0.290",
-]
-[tool.hatch.envs.default.scripts]
-test = "pytest {args:tests}"
-test-cov = "coverage run -m pytest {args:tests}"
-cov-report = [
-  "- coverage combine",
-  "coverage report",
-]
-cov = [
-  "test-cov",
-  "cov-report",
-]
-
-[[tool.hatch.envs.all.matrix]]
-python = ["==3.9"]
-
-
-[tool.hatch.envs.lint]
-detached = true
-dependencies = [
-  "black>=23.1.0",
-  "mypy>=1.0.0",
-  "ruff>=0.0.290",
-]
-
-[tool.hatch.envs.lint.scripts]
-typing = "mypy --install-types --non-interactive {args:src/cereggii tests}"
-style = [
-  "ruff {args:.}",
-  "black --check --diff {args:.}",
-]
-fmt = [
-  "black {args:.}",
-  "ruff --fix {args:.}",
-  "style",
-]
-all = [
-  "style",
-  "typing",
-]
+[tool.py-build-cmake.cmake]
+minimum_version = "3.18"
+build_type = "RelWithDebInfo"
+source_path = "src"
+build_args = ["-j"]
+install_components = ["python_modules"]
 
 
 [tool.black]

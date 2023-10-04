@@ -5,6 +5,11 @@
 
 from typing import Callable, Iterable, NewType
 
+try:
+    from cereggii import _atomic_dict
+except ImportError:  # building sdist (without compiled modules)
+    pass
+
 
 Key = NewType('Key', object)
 Value = NewType('Value', object)
@@ -45,12 +50,15 @@ class AtomicDict:
     def __delitem__(self):
         pass
 
+    # def __getitem__(self, item):
+    #     dummy_batch = {item: None}
+    #     self.batch_lookup(dummy_batch)
+    #     if dummy_batch[item] == KeyError:
+    #         raise KeyError(item)
+    #     return dummy_batch[item]
+
     def __getitem__(self, item):
-        dummy_batch = {item: None}
-        self.batch_lookup(dummy_batch)
-        if dummy_batch[item] == KeyError:
-            raise KeyError(item)
-        return dummy_batch[item]
+        return _atomic_dict.lookup(self._dict, item)
 
     # def __hash__(self):
     #     # leave it to the default hash implementation (identity)

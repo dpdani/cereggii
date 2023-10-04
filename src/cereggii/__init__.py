@@ -2,12 +2,18 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+"""
+
+Concurrent threading utilities for Python
+
+"""
+
 import sys
 import warnings
 
-from cereggii.__about__ import *
-from cereggii.atomic_dict import AtomicDict
-from cereggii.atomic_ref import AtomicRef
+from .__about__ import *
+from .atomic_dict import AtomicDict
+from .atomic_ref import AtomicRef
 
 
 if not getattr(sys.flags, 'nogil', False):
