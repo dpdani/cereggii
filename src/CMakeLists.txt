@@ -4,7 +4,12 @@ project(cereggii)
 set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
 # Find the Python development files
-set(Python3_INCLUDE_DIR "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1/include/python3.9/")
+set(python_base "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1")
+if (DEFINED $ENV{CI})
+    set(python_base "/home/runner/nogil-3.9.10")
+endif ()
+set(Python3_INCLUDE_DIR "${python_base}/include/python3.9/")
+
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
 
 # Add the module to compile
