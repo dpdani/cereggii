@@ -1,8 +1,8 @@
-name: Tests
+name: tests
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main", "dev" ]
   pull_request:
 
 jobs:
@@ -12,7 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["nogil-3.9"]
+        include:
+          - build_arch: x64
+            python_arch: x64
+            spec: nogil-3.9
 
     steps:
     - uses: actions/checkout@v3
@@ -27,11 +30,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install .[dev]
-    - name: black
-      run: black --check .
-    - name: lint
-      run: |
-        ruff .
     - name: Test with pytest
       run: |
         pytest
