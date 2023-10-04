@@ -27,6 +27,14 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+dev = [
+  "build==1.0.3",
+  "pytest==7.4.2",
+  "black==23.9.1",
+  "ruff==0.0.292",
+]
+
 
 [project.urls]
 Documentation = "https://github.com/dpdani/cereggii#readme"
