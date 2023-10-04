@@ -5,8 +5,9 @@ set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
 # Find the Python development files
 set(python_base "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1")
+message("CI=" $ENV{CI})
 if (DEFINED $ENV{CI})
-    set(python_base "/home/runner/nogil-3.9.10")
+    set(python_base "$ENV{HOME}/nogil-3.9.10")
 endif ()
 set(Python3_INCLUDE_DIR "${python_base}/include/python3.9/")
 
