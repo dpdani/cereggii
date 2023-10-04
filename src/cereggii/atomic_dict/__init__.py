@@ -6,7 +6,6 @@
 from collections.abc import Iterable
 from typing import Callable, NewType, Optional
 
-
 try:
     from cereggii import _atomic_dict
 except ImportError:  # building sdist (without compiled modules)
@@ -20,7 +19,7 @@ Cancel = NewType("Cancel", object)
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: Optional[Iterable] = None, *, initial_size: Optional[int] = None, **kwargs):
+    def __init__(self, iterable: Optional[Iterable] = None, *, initial_size: Optional[int] = None, **kwargs):  # noqa
         """Constructor method
 
         :param initial_size: the size initially allocated. Using this
@@ -87,7 +86,7 @@ class AtomicDict:
         return self | other
 
     def __repr__(self):
-        return f"<{self.__class__.__qualname__}({repr(self._dict)})>"
+        return f"<{self.__class__.__qualname__}({self._dict!r})>"
 
     def __reversed__(self):
         pass
