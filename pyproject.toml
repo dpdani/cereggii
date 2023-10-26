@@ -99,6 +99,10 @@ ignore = [
   "S105", "S106", "S107",
   # Ignore complexity
   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  # `print` found
+  "T201",
+  # Import block is un-sorted or un-formatted
+  "I001",
 ]
 unfixable = [
   # Don't touch unused imports

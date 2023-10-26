@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from collections.abc import Iterable
-from typing import Callable, NewType, Optional
+from typing import NewType
+
 
 try:
     from cereggii import _atomic_dict
@@ -25,7 +25,7 @@ Cancel = NewType("Cancel", object)
 # class AtomicDict:
 #     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 #
-#     def __init__(self, iterable: Optional[Iterable] = None, *, initial_size: Optional[int] = None, **kwargs):  # noqa
+#     def __init__(self, iterable: Optional[Iterable] = None, *, initial_size: Optional[int] = None, **kwargs):
 #         """Constructor method
 #
 #         :param initial_size: the size initially allocated. Using this
