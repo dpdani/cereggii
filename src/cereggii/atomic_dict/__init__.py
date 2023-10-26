@@ -9,9 +9,11 @@ from typing import Callable, NewType, Optional
 try:
     from cereggii import _atomic_dict
 except ImportError:  # building sdist (without compiled modules)
+
     class AtomicDict:
         def __init__(self):
             print("dummy")
+
 else:
     AtomicDict = _atomic_dict.AtomicDict
 

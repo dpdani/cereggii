@@ -8,14 +8,19 @@ from pytest import raises
 
 def test_init():
     AtomicDict()
-    AtomicDict({
-        "spam": 42,
-        3: 4,
-    })
+    AtomicDict(
+        {
+            "spam": 42,
+            3: 4,
+        }
+    )
     AtomicDict(spam=42, cheese=True)
-    AtomicDict({
-        "bird": "norwegian blue",
-    }, bird="spam")
+    AtomicDict(
+        {
+            "bird": "norwegian blue",
+        },
+        bird="spam",
+    )
     AtomicDict(initial_size=120)
 
 
