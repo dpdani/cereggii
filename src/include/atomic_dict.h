@@ -2,8 +2,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#ifndef CEREGGII_ATOMIC_DICT_H
+#define CEREGGII_ATOMIC_DICT_H
+
+#define PY_SSIZE_T_CLEAN
+
+
 #include <Python.h>
-#include "structmember.h"
+#include <structmember.h>
 #include "node_sizes_table.h"
 
 
@@ -111,6 +117,28 @@ typedef struct {
 void atomic_dict_search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
                         atomic_dict_search_result *result);
 
+PyObject *atomic_dict_lookup(AtomicDict *self, PyObject *key);
+
 int atomic_dict_insert_or_update(AtomicDict *dk, PyObject *key, PyObject *value);
 
 int atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
+
+PyObject *atomic_dict_debug(AtomicDict *self);
+
+PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+
+int AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+
+// operations on nodes
+
+void atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta);
+
+void atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
+                                        atomic_dict_meta *meta);
+
+void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
+
+int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
+
+#endif //CEREGGII_ATOMIC_DICT_H

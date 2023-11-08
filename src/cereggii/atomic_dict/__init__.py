@@ -2,20 +2,22 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-
+import warnings
 from typing import NewType
 
 
 try:
-    from cereggii import _atomic_dict
-except ImportError:  # building sdist (without compiled modules)
+    from cereggii import _cereggii
+except ImportError as exc:  # building sdist (without compiled modules)
 
     class AtomicDict:
         def __init__(self):
             print("dummy")
 
+    warnings.warn(str(exc))  # "UserWarning: No module named 'cereggii'" is expected during sdist build
+
 else:
-    AtomicDict = _atomic_dict.AtomicDict
+    AtomicDict = _cereggii.AtomicDict
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)

@@ -5,10 +5,9 @@
 #define PY_SSIZE_T_CLEAN
 
 #include "atomic_dict.h"
-#include "atomic_dict_node_ops.c"
 
 
-static PyObject *
+PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     AtomicDict *self;
@@ -21,7 +20,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     return (PyObject *) self;
 }
 
-static int
+int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
     assert(self->metadata == NULL);
@@ -518,60 +517,4 @@ atomic_dict_debug(AtomicDict *dk)
     Py_XDECREF(entry_tuple);
     Py_XDECREF(block_info);
     return NULL;
-}
-
-
-static PyMethodDef AtomicDict_methods[] = {
-    {"lookup",           (PyCFunction) atomic_dict_lookup,           METH_O,       NULL},
-    {"insert_or_update", (PyCFunction) atomic_dict_insert_or_update, METH_VARARGS, NULL},
-    {"debug",            (PyCFunction) atomic_dict_debug,            METH_NOARGS,  NULL},
-    {NULL}
-};
-
-static PyMappingMethods AtomicDict_mapping_methods = {
-    .mp_length = (lenfunc) NULL, // atomic_dict_imprecise_length / atomic_dict_precise_length
-    .mp_subscript = (binaryfunc) atomic_dict_lookup,
-    .mp_ass_subscript = (objobjargproc) atomic_dict_insert_or_update,
-};
-
-static PyTypeObject AtomicDictType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii.AtomicDict",
-    .tp_doc = PyDoc_STR("A thread-safe dictionary (hashmap), that's almost-lock-free™."),
-    .tp_basicsize = sizeof(AtomicDict),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = AtomicDict_new,
-    .tp_init = (initproc) AtomicDict_init,
-    .tp_methods = AtomicDict_methods,
-    .tp_as_mapping = &AtomicDict_mapping_methods,
-};
-
-static PyModuleDef atomic_dict_module = {
-    PyModuleDef_HEAD_INIT,
-    .m_name = "_atomic_dict",
-    .m_doc = NULL,
-    .m_size = -1,
-};
-
-__attribute__((unused)) PyMODINIT_FUNC
-PyInit__atomic_dict(void)
-{
-    PyObject *m;
-
-    if (PyType_Ready(&AtomicDictType) < 0)
-        return NULL;
-
-    m = PyModule_Create(&atomic_dict_module);
-    if (m == NULL)
-        return NULL;
-
-    Py_INCREF(&AtomicDictType);
-    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDictType) < 0) {
-        Py_DECREF(&AtomicDictType);
-        Py_DECREF(m);
-        return NULL;
-    }
-
-    return m;
 }
