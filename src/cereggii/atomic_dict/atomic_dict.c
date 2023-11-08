@@ -5,7 +5,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include "atomic_dict.h"
-
+#include "atomic_ref.h"
 
 PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
@@ -13,17 +13,32 @@ AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     AtomicDict *self;
     self = (AtomicDict *) type->tp_alloc(type, 0);
     if (self != NULL) {
-        self->metadata = NULL;
-        self->new_gen_metadata = NULL;
+        self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
+        if (self->metadata == NULL)
+            goto fail;
+        AtomicRef_init(self->metadata, NULL, NULL);
+
+        self->new_gen_metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
+        if (self->new_gen_metadata == NULL)
+            goto fail;
+        AtomicRef_init(self->new_gen_metadata, NULL, NULL);
+
         self->reservation_buffer_size = 0;
     }
     return (PyObject *) self;
+
+    fail:
+    Py_XDECREF(self->metadata);
+    Py_XDECREF(self->new_gen_metadata);
+    Py_XDECREF(self);
+    return NULL;
 }
 
 int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
-    assert(self->metadata == NULL);
+    assert(atomic_ref_get_ref(self->metadata) == Py_None);
+    assert(atomic_ref_get_ref(self->new_gen_metadata) == Py_None);
     long init_dict_size = 0;
     long initial_size = 0;
     long buffer_size = 4;
@@ -67,8 +82,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         if (init_dict == NULL) {
             init_dict = kwargs;
-        }
-        else {
+        } else {
             // this internally calls Py_BEGIN_CRITICAL_SECTION
             PyDict_Update(init_dict, kwargs);
         }
@@ -113,7 +127,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     meta = atomic_dict_new_meta(log_size, NULL);
     if (meta == NULL)
         goto fail;
-    self->metadata = meta;
+    atomic_ref_set_ref(self->metadata, (PyObject *) meta);
 
     atomic_dict_block *block;
     int i;
@@ -197,7 +211,7 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
     atomic_dict_block **blocks = PyMem_RawRealloc(previous_blocks,
-                                                  sizeof(atomic_dict_block *) * (1 << (log_size >> 6)));
+                                                  sizeof(atomic_dict_block *) * ((1 << log_size) >> 6));
     if (blocks == NULL)
         goto fail;
 
@@ -293,7 +307,7 @@ atomic_dict_search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_has
 
         if (result->node.tag == (hash & meta->tag_mask)) {
             result->entry_p = &(meta
-                ->blocks[result->node.index & ~63]
+                ->blocks[result->node.index >> 6]
                 ->entries[result->node.index & 63]);
             result->entry = *result->entry_p; // READ
 
@@ -339,15 +353,14 @@ atomic_dict_lookup(AtomicDict *self, PyObject *key)
     atomic_dict_search_result result;
     atomic_dict_meta *meta;
     retry:
-    meta = self->metadata;
-    Py_INCREF(meta); // still probably not thread-safe
+    meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
 
     result.entry.value = NULL;
     atomic_dict_search(self, meta, key, hash, &result);
     if (result.error)
         goto fail;
 
-    if (self->metadata != meta) {
+    if (atomic_ref_get_ref(self->metadata) != (PyObject *) meta) {
         Py_DECREF(meta);
         goto retry;
     }
@@ -374,9 +387,10 @@ atomic_dict_lookup(AtomicDict *self, PyObject *key)
 int
 atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
-    atomic_dict_meta meta = *self->metadata;
+    atomic_dict_meta meta;
+    meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
     // pos === node_index
-    atomic_dict_block *block = meta.blocks[pos & ~63];
+    atomic_dict_block *block = meta.blocks[pos >> 6];
     block->entries[pos & 63].flags = ENTRY_FLAGS_RESERVED;
     block->entries[pos & 63].hash = hash;
     block->entries[pos & 63].key = key;
@@ -430,9 +444,10 @@ atomic_dict_insert_or_update(AtomicDict *dk, PyObject *key, PyObject *value)
 }
 
 PyObject *
-atomic_dict_debug(AtomicDict *dk)
+atomic_dict_debug(AtomicDict *self)
 {
-    atomic_dict_meta meta = *dk->metadata;
+    atomic_dict_meta meta;
+    meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
     PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsO}",
                                        "log_size\0", Py_BuildValue("B", meta.log_size),
                                        "generation\0", Py_BuildValue("O", meta.generation),

@@ -11,6 +11,7 @@
 #include <Python.h>
 #include <structmember.h>
 #include "node_sizes_table.h"
+#include "atomic_ref.h"
 
 
 typedef struct {
@@ -100,8 +101,8 @@ int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_d
 typedef struct {
     PyObject_HEAD
 
-    atomic_dict_meta *metadata;
-    atomic_dict_meta *new_gen_metadata;
+    AtomicRef *metadata;
+    AtomicRef *new_gen_metadata;
 
     unsigned char reservation_buffer_size;
 } AtomicDict;
