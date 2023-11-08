@@ -32,16 +32,14 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"lookup",           (PyCFunction) atomic_dict_lookup,           METH_O,       NULL},
-    {"insert_or_update", (PyCFunction) atomic_dict_insert_or_update, METH_VARARGS, NULL},
-    {"debug",            (PyCFunction) atomic_dict_debug,            METH_NOARGS,  NULL},
+    {"debug", (PyCFunction) AtomicDict_Debug, METH_NOARGS, NULL},
     {NULL}
 };
 
 static PyMappingMethods AtomicDict_mapping_methods = {
     .mp_length = (lenfunc) NULL, // atomic_dict_imprecise_length / atomic_dict_precise_length
-    .mp_subscript = (binaryfunc) atomic_dict_lookup,
-    .mp_ass_subscript = (objobjargproc) atomic_dict_insert_or_update,
+    .mp_subscript = (binaryfunc) AtomicDict_GetItem,
+    .mp_ass_subscript = (objobjargproc) AtomicDict_SetItem,
 };
 
 static PyTypeObject AtomicDict_Type = {

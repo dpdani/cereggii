@@ -107,7 +107,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     while (initial_size_tmp >>= 1) {
         log_size++;
     }
-    log_size++;
+    if (initial_size > 1 << log_size) {
+        log_size++;
+    }
     // 64 = 0b1000000
     // 0 -> 0b1000000
     // 1 -> 0b100000
@@ -157,7 +159,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (hash == -1)
                 goto fail;
 
-            if (atomic_dict_unsafe_insert(self, key, hash, value, pos - 1) == -1) {
+            if (AtomicDict_UnsafeInsert(self, key, hash, value, pos - 1) == -1) {
                 Py_DECREF(meta);
                 log_size++;
                 goto create;
@@ -309,8 +311,8 @@ atomic_dict_block_new(atomic_dict_meta *meta)
 }
 
 void
-atomic_dict_search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                   atomic_dict_search_result *result)
+AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
+                  atomic_dict_search_result *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
     unsigned long ix = hash & ((1 << meta->log_size) - 1);
@@ -375,7 +377,7 @@ atomic_dict_search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_has
 }
 
 PyObject *
-atomic_dict_lookup(AtomicDict *self, PyObject *key)
+AtomicDict_GetItem(AtomicDict *self, PyObject *key)
 {
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
@@ -387,7 +389,7 @@ atomic_dict_lookup(AtomicDict *self, PyObject *key)
     meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
 
     result.entry.value = NULL;
-    atomic_dict_search(self, meta, key, hash, &result);
+    AtomicDict_Search(self, meta, key, hash, &result);
     if (result.error)
         goto fail;
 
@@ -416,7 +418,7 @@ atomic_dict_lookup(AtomicDict *self, PyObject *key)
  * calls to this function don't try to insert the same key into the same AtomicDict.
  **/
 int
-atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
+AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
     atomic_dict_meta meta;
     meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
@@ -434,7 +436,7 @@ atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObj
     };
     unsigned long ix = hash & ((1 << meta.log_size) - 1);
 
-    for (int probe = 0; probe < meta.log_size; probe++) {
+    for (int probe = 0; probe < (1 << meta.distance_size); probe++) {
         atomic_dict_read_node_at(ix + probe, &temp, &meta);
 
         if (temp.node == 0) {
@@ -469,13 +471,13 @@ atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObj
 }
 
 int
-atomic_dict_insert_or_update(AtomicDict *dk, PyObject *key, PyObject *value)
+AtomicDict_SetItem(AtomicDict *dk, PyObject *key, PyObject *value)
 {
     return 0;
 }
 
 PyObject *
-atomic_dict_debug(AtomicDict *self)
+AtomicDict_Debug(AtomicDict *self)
 {
     atomic_dict_meta meta;
     meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);

@@ -25,6 +25,18 @@ def test_init():
     AtomicDict(initial_size=120)
 
 
+def test_log_size_bumped():
+    keys = [i * 64 for i in range(10)]
+    d = AtomicDict({k: None for k in keys})
+    for k in keys:
+        assert d[k] is None
+
+    keys = [i * 64 for i in range(26)]
+    d = AtomicDict({k: None for k in keys})
+    for k in keys:
+        assert d[k] is None
+
+
 def test_key_error():
     d = AtomicDict()
     with raises(KeyError):

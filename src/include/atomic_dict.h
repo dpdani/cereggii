@@ -117,16 +117,16 @@ typedef struct {
     atomic_dict_entry entry;
 } atomic_dict_search_result;
 
-void atomic_dict_search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                        atomic_dict_search_result *result);
+void AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
+                       atomic_dict_search_result *result);
 
-PyObject *atomic_dict_lookup(AtomicDict *self, PyObject *key);
+PyObject *AtomicDict_GetItem(AtomicDict *self, PyObject *key);
 
-int atomic_dict_insert_or_update(AtomicDict *dk, PyObject *key, PyObject *value);
+int AtomicDict_SetItem(AtomicDict *dk, PyObject *key, PyObject *value);
 
-int atomic_dict_unsafe_insert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
+int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
-PyObject *atomic_dict_debug(AtomicDict *self);
+PyObject *AtomicDict_Debug(AtomicDict *self);
 
 PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
