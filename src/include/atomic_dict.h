@@ -79,12 +79,14 @@ struct atomic_dict_meta {
     unsigned long reserved_node;
 };
 
+void atomic_dict_meta_dealloc(atomic_dict_meta *self);
+
 static PyTypeObject AtomicDictMeta = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_basicsize = sizeof(atomic_dict_meta),
     .tp_itemsize = 0,
     .tp_new = PyType_GenericNew,
-    // add destructor (need to free index & blocks)
+    .tp_dealloc = (destructor) atomic_dict_meta_dealloc,
 };
 
 atomic_dict_meta *atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta);
@@ -129,6 +131,10 @@ PyObject *atomic_dict_debug(AtomicDict *self);
 PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 int AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg);
+
+void AtomicDict_dealloc(AtomicDict *self);
 
 
 // operations on nodes

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
 #
 # SPDX-License-Identifier: Apache-2.0
-
+import gc
 import threading
 from typing import Union
 
@@ -91,3 +91,13 @@ def test_swap():
     results.remove(None)
     assert results[0] in [obj_0, obj_1]
     assert id(obj_0) == id_0 and id(obj_1) == id_1
+
+
+def test_dealloc():
+    obj = object()
+    id_obj = id(obj)
+    r = AtomicRef(obj)
+    assert r.get() is obj
+    del r
+    gc.collect()
+    assert id(obj) == id_obj

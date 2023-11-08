@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
 #
 # SPDX-License-Identifier: Apache-2.0
+import gc
 
 from cereggii import AtomicDict
 from pytest import raises
@@ -36,3 +37,9 @@ def test_getitem():
     assert d["spam"] == 42
     c = AtomicDict({"spam": 42}, spam=43)
     assert c["spam"] == 43
+
+
+def test_dealloc():
+    d = AtomicDict({"spam": 42})
+    del d
+    gc.collect()

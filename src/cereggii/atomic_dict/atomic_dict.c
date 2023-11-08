@@ -175,6 +175,28 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     return -1;
 }
 
+void
+AtomicDict_dealloc(AtomicDict *self)
+{
+    PyObject_GC_UnTrack(self);
+    atomic_dict_meta *meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    PyMem_RawFree(meta->blocks);
+    Py_DECREF(meta); // decref for the above atomic_ref_get_ref
+    Py_CLEAR(self->metadata);
+    Py_CLEAR(self->new_gen_metadata);
+    // clear this dict's elements (iter XXX)
+    Py_TYPE(self)->tp_free((PyObject *) self);
+}
+
+int
+AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->metadata);
+    Py_VISIT(self->new_gen_metadata);
+    // traverse this dict's elements (iter XXX)
+    return 0;
+}
+
 /**
  * previous_blocks may be NULL.
  */
@@ -261,6 +283,15 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     PyMem_RawFree(index);
     PyMem_RawFree(blocks);
     return NULL;
+}
+
+void
+atomic_dict_meta_dealloc(atomic_dict_meta *self)
+{
+    // not gc tracked (?)
+    PyMem_RawFree(self->index);
+    Py_CLEAR(self->generation);
+    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 atomic_dict_block *
