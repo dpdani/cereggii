@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options("-march=native")
 
 # Find the Python development files
-set(python_base "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1")
+set(python_base "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1-debug")
 message("CI=" $ENV{CI})
 if ("$ENV{CI}" STREQUAL "true")
     set(python_base "$ENV{HOME}/nogil-3.9.10")
