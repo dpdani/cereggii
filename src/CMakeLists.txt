@@ -21,6 +21,7 @@ find_package(Python3 REQUIRED COMPONENTS Development.Module)
 # Add the module to compile
 Python3_add_library(_cereggii MODULE
         "cereggii/cereggii.c"
+        "cereggii/atomic_ref.c"
         "cereggii/atomic_dict/atomic_dict_node_ops.c"
         "cereggii/atomic_dict/node_sizes_table.c"
         "cereggii/atomic_dict/atomic_dict.c"

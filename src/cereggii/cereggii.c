@@ -4,7 +4,31 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "atomic_ref.h"
 #include "atomic_dict.h"
+
+
+static PyMethodDef AtomicRef_methods[] = {
+    {"get",             (PyCFunction) atomic_ref_get_ref,         METH_NOARGS,  NULL},
+    {"set",             (PyCFunction) atomic_ref_set_ref,         METH_O,       NULL},
+    {"compare_and_set", (PyCFunction) atomic_ref_compare_and_set, METH_VARARGS, NULL},
+    {"get_and_set",     (PyCFunction) atomic_ref_get_and_set,     METH_O,       NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicRef_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicRef",
+    .tp_doc = PyDoc_STR("An object reference that may be updated atomically."),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_basicsize = sizeof(AtomicRef),
+    .tp_itemsize = 0,
+    .tp_new = AtomicRef_new,
+    .tp_init = (initproc) AtomicRef_init,
+    .tp_dealloc = (destructor) AtomicRef_dealloc,
+    .tp_traverse = (traverseproc) AtomicRef_traverse,
+    .tp_methods = AtomicRef_methods,
+};
 
 
 static PyMethodDef AtomicDict_methods[] = {
@@ -48,6 +72,8 @@ PyInit__cereggii(void)
 
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicRef_Type) < 0)
+        return NULL;
 
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
@@ -56,6 +82,12 @@ PyInit__cereggii(void)
     Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
         Py_DECREF(&AtomicDict_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicRef_Type);
+    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
+        Py_DECREF(&AtomicRef_Type);
         goto fail;
     }
 
