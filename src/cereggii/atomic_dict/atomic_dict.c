@@ -311,8 +311,8 @@ atomic_dict_block_new(atomic_dict_meta *meta)
 }
 
 void
-AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                  atomic_dict_search_result *result)
+AtomicDict_Search(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
+                  int look_into_reservations, atomic_dict_search_result *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
     unsigned long ix = hash & ((1 << meta->log_size) - 1);
@@ -321,13 +321,19 @@ AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash
     int reservations = 0;
 
     for (probe = 0; probe < meta->log_size; probe++) {
-        atomic_dict_read_node_at(ix + probe + reservations, &result->node, meta);
+        atomic_dict_read_node_at((ix + probe + reservations) % (1 << meta->log_size), &result->node, meta);
 
-        if (result->node.node == meta->reserved_node) {
+        if (atomic_dict_node_is_reservation(&result->node, meta)) {
             probe--;
             reservations++;
-            continue;
+            if (look_into_reservations) {
+                result->is_reservation = 1;
+                goto check_entry;
+            } else {
+                continue;
+            }
         }
+        result->is_reservation = 0;
 
         if (result->node.node == 0) {
             goto not_found;
@@ -339,6 +345,7 @@ AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash
         previous_distance = result->node.distance;
 
         if (result->node.tag == (hash & meta->tag_mask)) {
+            check_entry:
             result->entry_p = &(meta
                 ->blocks[result->node.index >> 6]
                 ->entries[result->node.index & 63]);
@@ -389,7 +396,7 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
 
     result.entry.value = NULL;
-    AtomicDict_Search(self, meta, key, hash, &result);
+    AtomicDict_Search(meta, key, hash, 0, &result);
     if (result.error)
         goto fail;
 

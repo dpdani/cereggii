@@ -19,6 +19,12 @@ atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta)
         | (node->tag & meta->tag_mask);
 }
 
+inline int
+atomic_dict_node_is_reservation(atomic_dict_node *node, atomic_dict_meta *meta)
+{
+    return node->node != 0 && node->distance == (1 << meta->distance_size) - 1;
+}
+
 inline void
 atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
                                    atomic_dict_meta *meta)

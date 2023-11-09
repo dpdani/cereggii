@@ -115,10 +115,11 @@ typedef struct {
     atomic_dict_node node;
     const atomic_dict_entry *entry_p;
     atomic_dict_entry entry;
+    int is_reservation;
 } atomic_dict_search_result;
 
-void AtomicDict_Search(AtomicDict *dk, atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                       atomic_dict_search_result *result);
+void AtomicDict_Search(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
+                       int look_into_reservations, atomic_dict_search_result *result);
 
 PyObject *AtomicDict_GetItem(AtomicDict *self, PyObject *key);
 
@@ -147,5 +148,7 @@ void atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, 
 void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
 int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
+
+int atomic_dict_node_is_reservation(atomic_dict_node *node, atomic_dict_meta *meta);
 
 #endif //CEREGGII_ATOMIC_DICT_H
