@@ -51,6 +51,17 @@ def test_getitem():
     assert c["spam"] == 43
 
 
+def test_setitem():
+    d = AtomicDict({0: 1})
+    d[0] = 3
+    assert d[0] == 3
+    # d = AtomicDict()
+    # d[0] = 1
+    # assert d[0] == 1
+    # d[0] = 2
+    # assert d[0] == 2
+
+
 def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d

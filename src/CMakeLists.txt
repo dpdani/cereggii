@@ -23,6 +23,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/cereggii.c"
         "cereggii/atomic_ref.c"
         "cereggii/atomic_dict/atomic_dict_node_ops.c"
+        "cereggii/atomic_dict/reservation_buffer.c"
         "cereggii/atomic_dict/node_sizes_table.c"
         "cereggii/atomic_dict/atomic_dict.c"
 )

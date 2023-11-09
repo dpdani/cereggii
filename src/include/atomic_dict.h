@@ -107,13 +107,35 @@ typedef struct {
     AtomicRef *new_gen_metadata;
 
     unsigned char reservation_buffer_size;
+    Py_tss_t *tss_key;
+    PyObject *reservation_buffers; // PyListObject
 } AtomicDict;
+
+typedef struct {
+    PyObject_HEAD
+
+    int head, tail, count;
+    atomic_dict_entry *reservations[64];
+} atomic_dict_reservation_buffer;
+
+static PyTypeObject AtomicDictReservationBuffer = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_basicsize = sizeof(atomic_dict_reservation_buffer),
+    .tp_itemsize = 0,
+    .tp_new = PyType_GenericNew,
+};
+
+atomic_dict_reservation_buffer *atomic_dict_get_reservation_buffer(AtomicDict *dk);
+
+void atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry *entry, int n);
+
+void atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry **entry);
 
 typedef struct {
     int error;
     unsigned long index;
     atomic_dict_node node;
-    const atomic_dict_entry *entry_p;
+    atomic_dict_entry *entry_p;
     atomic_dict_entry entry;
     int is_reservation;
 } atomic_dict_search_result;
