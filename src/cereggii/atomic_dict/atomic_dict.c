@@ -615,7 +615,7 @@ AtomicDict_Debug(AtomicDict *self)
 {
     atomic_dict_meta meta;
     meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
-    PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsO}",
+    PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsO}",
                                        "log_size\0", Py_BuildValue("B", meta.log_size),
                                        "generation\0", Py_BuildValue("O", meta.generation),
                                        "node_size\0", Py_BuildValue("B", meta.node_size),
@@ -625,6 +625,7 @@ AtomicDict_Debug(AtomicDict *self)
                                        "index_mask\0", Py_BuildValue("k", meta.index_mask),
                                        "distance_mask\0", Py_BuildValue("k", meta.distance_mask),
                                        "tag_mask\0", Py_BuildValue("k", meta.tag_mask),
+                                       "inserting_block\0", Py_BuildValue("l", meta.inserting_block),
                                        "greatest_allocated_block\0", Py_BuildValue("l", meta.greatest_allocated_block),
                                        "greatest_deleted_block\0", Py_BuildValue("l", meta.greatest_deleted_block),
                                        "greatest_refilled_block\0", Py_BuildValue("l", meta.greatest_refilled_block));
@@ -650,13 +651,14 @@ AtomicDict_Debug(AtomicDict *self)
         goto fail;
 
     atomic_dict_block *block;
-    PyObject *entries = Py_BuildValue("[]");
-    if (entries == NULL)
-        goto fail;
+    PyObject *entries = NULL;
     PyObject *entry_tuple = NULL;
     PyObject *block_info = NULL;
-    for (unsigned long i = 0; i < meta.greatest_allocated_block; i++) {
+    for (unsigned long i = 0; i <= meta.greatest_allocated_block; i++) {
         block = meta.blocks[i];
+        entries = Py_BuildValue("[]");
+        if (entries == NULL)
+            goto fail;
 
         for (int j = 0; j < 64; j++) {
             if (block->entries[j].key != NULL) {
