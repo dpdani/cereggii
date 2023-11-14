@@ -167,6 +167,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         meta->greatest_allocated_block++;
     }
 
+    meta->inserting_block = 0;
+
     if (init_dict != NULL) {
         PyObject *key, *value;
         Py_hash_t hash;
@@ -182,6 +184,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 goto create;
             }
         }
+        meta->inserting_block = pos >> 6;
     }
 
     // handle possibly misaligned reservations on last block
@@ -239,19 +242,19 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     memset(index, 0, node_sizes.node_size * (1 << log_size));
 
     atomic_dict_block **previous_blocks;
-    unsigned char previous_log_size;
+    long inserting_block;
     long greatest_allocated_block;
     long greatest_deleted_block;
     long greatest_refilled_block;
     if (previous_meta != NULL) {
         previous_blocks = previous_meta->blocks;
-        previous_log_size = previous_meta->log_size;
+        inserting_block = previous_meta->inserting_block;
         greatest_allocated_block = previous_meta->greatest_allocated_block;
         greatest_deleted_block = previous_meta->greatest_deleted_block;
         greatest_refilled_block = previous_meta->greatest_refilled_block;
     } else {
         previous_blocks = NULL;
-        previous_log_size = -1;
+        inserting_block = -1;
         greatest_allocated_block = -1;
         greatest_deleted_block = -1;
         greatest_refilled_block = -1;

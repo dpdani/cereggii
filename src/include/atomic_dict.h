@@ -62,6 +62,7 @@ struct atomic_dict_meta {
     unsigned long *index;
 
     atomic_dict_block **blocks;
+    long inserting_block;
     long greatest_allocated_block;
     long greatest_deleted_block;
     long greatest_refilled_block;
