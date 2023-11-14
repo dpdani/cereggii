@@ -29,7 +29,9 @@ AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         Py_tss_t *tss_key = PyThread_tss_alloc();
         if (tss_key == NULL)
             goto fail;
-        assert(!PyThread_tss_is_created(tss_key));
+        if (PyThread_tss_create(tss_key))
+            goto fail;
+        assert(PyThread_tss_is_created(tss_key) != 0);
         self->tss_key = tss_key;
 
         self->reservation_buffers = Py_BuildValue("[]");
@@ -143,8 +145,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     atomic_ref_set_ref(self->metadata, (PyObject *) meta);
 
     atomic_dict_block *block;
-    int i;
-    for (i = 0; i < initial_size >> 6; i++) {
+    long i;
+    for (i = 0; i < initial_size / 64; i++) {
         // allocate blocks
         block = atomic_dict_block_new(meta);
         if (block == NULL)
@@ -285,6 +287,8 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     meta->node_size = node_sizes.node_size;
     meta->distance_size = node_sizes.distance_size;
     meta->tag_size = node_sizes.tag_size;
+    meta->nodes_in_region = 8 / (meta->node_size / 8);
+    meta->nodes_in_two_regions = 16 / (meta->node_size / 8);
     meta->node_mask = (1UL << node_sizes.node_size) - 1;
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
@@ -292,25 +296,30 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
+            meta->read_single_word_nodes_at = atomic_dict_read_8_nodes_at;
+            meta->read_double_word_nodes_at = atomic_dict_read_16_nodes_at;
+            break;
         case 16:
             meta->shift_mask = 4 - 1;
+            meta->read_single_word_nodes_at = atomic_dict_read_4_nodes_at;
+            meta->read_double_word_nodes_at = atomic_dict_read_8_nodes_at;
+            break;
         case 32:
             meta->shift_mask = 2 - 1;
+            meta->read_single_word_nodes_at = atomic_dict_read_2_nodes_at;
+            meta->read_double_word_nodes_at = atomic_dict_read_4_nodes_at;
+            break;
         case 64:
             meta->shift_mask = 1 - 1;
+            meta->read_single_word_nodes_at = atomic_dict_read_1_node_at;
+            meta->read_double_word_nodes_at = atomic_dict_read_2_nodes_at;
+            break;
     }
 
+    meta->inserting_block = inserting_block;
     meta->greatest_allocated_block = greatest_allocated_block;
     meta->greatest_deleted_block = greatest_deleted_block;
     meta->greatest_refilled_block = greatest_refilled_block;
-
-    atomic_dict_node reserved = {
-        .index = 1,
-        .distance = (1 << meta->distance_size) - 1,  // so that ~d = 0
-        .tag = 0,
-    };
-    atomic_dict_compute_raw_node(&reserved, meta);
-    meta->reserved_node = reserved.node;
 
     return meta;
     fail:
@@ -438,6 +447,7 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
         Py_DECREF(meta);
         goto retry;
     }
+    Py_DECREF(meta); // for atomic_ref_get_ref
 
     if (result.entry_p == NULL) {
         PyErr_SetObject(PyExc_KeyError, key);
@@ -511,34 +521,40 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     return 0;
 }
 
-atomic_dict_entry *
-atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb, Py_hash_t hash)
+void
+atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
+                            atomic_dict_entry_loc *entry_loc, Py_hash_t hash)
 {
-    atomic_dict_entry *entry;
-    atomic_dict_reservation_buffer_pop(rb, &entry);
+    atomic_dict_reservation_buffer_pop(rb, entry_loc);
 
-    if (entry == NULL) {
+    if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & 63 & ~(dk->reservation_buffer_size - 1);
-        long greatest_allocated_block;
+        long inserting_block;
 
-        reserve_in_greatest_allocated_block:
-        greatest_allocated_block = meta->greatest_allocated_block;
+        reserve_in_inserting_block:
+        inserting_block = meta->inserting_block;
         for (int offset = 0; offset < 64; offset += dk->reservation_buffer_size) {
-            entry = &meta
-                ->blocks[greatest_allocated_block]
+            entry_loc->entry = &meta
+                ->blocks[inserting_block]
                 ->entries[(insert_position + offset) % 64];
-            if (entry->flags == 0) {
-                if (__sync_bool_compare_and_swap_1(&entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
-                    atomic_dict_reservation_buffer_put(rb, entry, dk->reservation_buffer_size);
-                    atomic_dict_reservation_buffer_pop(rb, &entry);
+            if (entry_loc->entry->flags == 0) {
+                if (__sync_bool_compare_and_swap_1(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
+                    entry_loc->location = insert_position + offset;
+                    atomic_dict_reservation_buffer_put(rb, entry_loc, dk->reservation_buffer_size);
+                    atomic_dict_reservation_buffer_pop(rb, entry_loc);
                     goto done;
                 }
             }
         }
 
-        if (meta->greatest_allocated_block != greatest_allocated_block)
-            goto reserve_in_greatest_allocated_block;
+        if (meta->inserting_block != inserting_block)
+            goto reserve_in_inserting_block;
 
+        long greatest_allocated_block = meta->greatest_allocated_block;
+        if (greatest_allocated_block > inserting_block) {
+            _Py_atomic_compare_exchange_int64(&meta->inserting_block, inserting_block, inserting_block + 1);
+            goto reserve_in_inserting_block; // even if the above CAS fails
+        }
         // if (greatest_allocated_block + 1 > (1 << meta->log_size) >> 6) {
         //     grow();
         // }
@@ -546,24 +562,193 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
 
         atomic_dict_block *block = atomic_dict_block_new(meta);
         if (block == NULL)
-            return NULL;
+            goto fail;
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
 
         if (_Py_atomic_compare_exchange_ptr(&meta->blocks[greatest_allocated_block + 1], NULL, block)) {
             if (greatest_allocated_block + 2 < (1 << meta->log_size) >> 6) {
                 meta->blocks[greatest_allocated_block + 2] = NULL;
             }
-            _Py_atomic_compare_exchange_int64(&meta->greatest_allocated_block, greatest_allocated_block,
-                                              greatest_allocated_block + 1);
-            atomic_dict_reservation_buffer_put(rb, &block->entries[0], dk->reservation_buffer_size);
+            assert(_Py_atomic_compare_exchange_int64(&meta->greatest_allocated_block,
+                                                     greatest_allocated_block,
+                                                     greatest_allocated_block + 1));
+            assert(_Py_atomic_compare_exchange_int64(&meta->inserting_block,
+                                                     greatest_allocated_block,
+                                                     greatest_allocated_block + 1));
+            entry_loc->entry = &block->entries[0];
+            entry_loc->location = (meta->greatest_allocated_block + 1) << 6;
+            atomic_dict_reservation_buffer_put(rb, entry_loc, dk->reservation_buffer_size);
         } else {
             PyMem_RawFree(block);
         }
-        goto reserve_in_greatest_allocated_block;
+        goto reserve_in_inserting_block;
     }
 
     done:
-    return entry;
+    assert(entry_loc->entry != NULL);
+    return;
+    fail:
+    entry_loc->entry = NULL;
+}
+
+void
+atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node to_insert, int distance_0_ix)
+{
+    /*
+     * Lythe and listin, gentilmen,
+     * That be of frebore blode;
+     * I shall you tel of a gode yeman,
+     * His name was Robyn Hode.
+     * */
+
+    /*
+     * assumptions:
+     *   1. there are 16 / (meta->node_size / 8) valid nodes in `nodes`
+     *   2. there is at least 1 empty node
+     * */
+
+    int nodes_in_two_words = 16 / (meta->node_size / 8);
+    atomic_dict_node current = to_insert;
+    atomic_dict_node temp;
+    int probe = 0;
+    int reservations = 0;
+
+    beginning:
+    for (; probe < nodes_in_two_words; probe++) {
+        int cursor = distance_0_ix + probe + reservations;
+        if (nodes[cursor].node == 0) {
+            current.distance = probe;
+            nodes[cursor] = current;
+            return;
+        }
+
+        if (atomic_dict_node_is_reservation(&nodes[cursor], meta)) {
+            probe--;
+            reservations++;
+//            if (look_into_reservations) {
+//                result->is_reservation = 1;
+//                goto check_entry;
+//            } else {
+//                continue;
+//            }
+        }
+
+        if (nodes[cursor].distance < probe) {
+            current.distance = probe;
+            temp = nodes[cursor];
+            nodes[cursor] = current;
+            current = temp;
+            distance_0_ix = cursor - temp.distance;
+            probe = temp.distance;
+            goto beginning;
+        }
+    }
+}
+
+void
+atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, int distance_0_ix)
+{
+    /*
+     * assumptions:
+     *   1. there are 16 / (meta->node_size / 8) valid nodes in `nodes`
+     *   2. the right-most node is a reservation node
+     *   3. distance_0_ix is the distance-0 index (i.e. the ideal index)
+     *      for the right-most reservation node
+     * */
+
+    int nodes_in_two_words = 16 / (meta->node_size / 8);
+    atomic_dict_node current = nodes[nodes_in_two_words - 1];
+    atomic_dict_node temp;
+    int probe = 0;
+    int reservations = 0;
+
+    beginning:
+    for (; probe < nodes_in_two_words; probe++) {
+        if (nodes[probe + reservations].node == 0) {
+            current.distance = probe;
+            nodes[probe + reservations] = current;
+            return;
+        }
+
+        if (nodes[probe + reservations].distance < probe) {
+            current.distance = probe;
+            temp = nodes[probe + reservations];
+            nodes[probe + reservations] = current;
+            current = temp;
+            goto beginning;
+        }
+    }
+}
+
+void
+atomic_dict_nodes_copy_buffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer)
+{
+    for (int i = 0; i < 16; ++i) {
+        to_buffer[i] = from_buffer[i];
+    }
+}
+
+int
+atomic_dict_insert_entry(atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc, Py_hash_t hash)
+{
+    atomic_dict_node read_buffer[16]; // can read at most 16 nodes at a time
+    atomic_dict_node temp[16];
+    atomic_dict_node node = {
+        .index = entry_loc->location,
+        .tag = hash,
+    };
+    atomic_dict_node reservation = {
+        .index = entry_loc->location,
+        .distance = (1 << meta->distance_size) - 1,
+        .tag = 0,
+    };
+
+    unsigned long ix = hash & ((1 << meta->log_size) - 1);
+
+    beginning:
+    meta->read_double_word_nodes_at(ix & ~63, read_buffer, meta);
+
+    int start = (int) ix % meta->nodes_in_two_regions;
+
+    for (int i = start; i < meta->nodes_in_two_regions; ++i) {
+        if (read_buffer[i].node == 0) {
+            node.distance = i;
+            atomic_dict_nodes_copy_buffers(read_buffer, temp);
+            atomic_dict_robin_hood(meta, temp, node, start);
+            if (atomic_dict_atomic_write_nodes_at(ix, i + 1 - start, &read_buffer[start], &temp[start], meta)) {
+                goto done;
+            }
+            goto beginning;
+        }
+        // check reservations
+    }
+
+    int cursor = meta->nodes_in_two_regions - 1;
+
+    int reservation_offset;
+    for (reservation_offset = meta->nodes_in_two_regions;
+         reservation_offset < 1 << meta->log_size; ++reservation_offset) {
+        cursor++;
+        cursor = cursor % meta->nodes_in_two_regions;
+        if (cursor == 0) {
+            meta->read_double_word_nodes_at(ix + reservation_offset, read_buffer, meta);
+        }
+
+        if (read_buffer[cursor].node == 0) {
+            if (atomic_dict_atomic_write_node_at(ix + reservation_offset, &read_buffer[cursor], &reservation, meta)) {
+                goto reserved;
+            }
+            goto beginning;
+        }
+        // check reservations
+    }
+
+    reserved:
+    // 1. help reservations on the left
+    // 2. proceed with my reservation
+
+    done:
+    return 0;
 }
 
 int
@@ -599,10 +784,15 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         goto search_for_update;
     }
 
-    atomic_dict_entry *entry;
-    entry = atomic_dict_get_empty_entry(self, meta, rb, hash);
-    if (entry == NULL)
+    atomic_dict_entry_loc entry_loc;
+    atomic_dict_get_empty_entry(self, meta, rb, &entry_loc, hash);
+    if (entry_loc.entry == NULL)
         goto fail;
+
+    entry_loc.entry->key = key;
+    entry_loc.entry->hash = hash;
+    entry_loc.entry->value = value;
+    atomic_dict_insert_entry(meta, &entry_loc, hash);
 
     done:
     Py_DECREF(meta);

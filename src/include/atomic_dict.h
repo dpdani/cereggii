@@ -25,6 +25,11 @@ typedef struct {
 #define ENTRY_FLAGS_TOMBSTONE   64
 
 typedef struct {
+    atomic_dict_entry *entry;
+    unsigned long location;
+} atomic_dict_entry_loc;
+
+typedef struct atomic_dict_node {
     unsigned long node;
     unsigned long index;
     unsigned char distance;
@@ -70,6 +75,8 @@ struct atomic_dict_meta {
     unsigned char node_size;
     unsigned char distance_size;
     unsigned char tag_size;
+    unsigned char nodes_in_region;
+    unsigned char nodes_in_two_regions;
 
     unsigned long node_mask;
     unsigned long index_mask;
@@ -77,7 +84,9 @@ struct atomic_dict_meta {
     unsigned long tag_mask;
     unsigned long shift_mask;
 
-    unsigned long reserved_node;
+    void (*read_single_word_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+    void (*read_double_word_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 };
 
 void atomic_dict_meta_dealloc(atomic_dict_meta *self);
@@ -100,6 +109,22 @@ void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_d
 
 int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
+void atomic_dict_read_1_node_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+void atomic_dict_read_2_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+void atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+void atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+void atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+
+int atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expected, atomic_dict_node *new,
+                                     atomic_dict_meta *meta);
+
+int atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
+                                      atomic_dict_meta *meta);
+
 
 typedef struct {
     PyObject_HEAD
@@ -116,7 +141,7 @@ typedef struct {
     PyObject_HEAD
 
     int head, tail, count;
-    atomic_dict_entry *reservations[64];
+    atomic_dict_entry_loc reservations[64];
 } atomic_dict_reservation_buffer;
 
 static PyTypeObject AtomicDictReservationBuffer = {
@@ -128,9 +153,9 @@ static PyTypeObject AtomicDictReservationBuffer = {
 
 atomic_dict_reservation_buffer *atomic_dict_get_reservation_buffer(AtomicDict *dk);
 
-void atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry *entry, int n);
+void atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc, int n);
 
-void atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry **entry);
+void atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc);
 
 typedef struct {
     int error;

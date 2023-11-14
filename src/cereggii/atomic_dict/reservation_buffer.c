@@ -12,13 +12,13 @@ atomic_dict_get_reservation_buffer(AtomicDict *dk)
     atomic_dict_reservation_buffer *rb = PyThread_tss_get(dk->tss_key);
     if (rb == NULL) {
         rb = PyObject_New(atomic_dict_reservation_buffer, &AtomicDictReservationBuffer);
-        if (rb == NULL) {
+        if (rb == NULL)
             return NULL;
-        }
+
         rb->head = 0;
         rb->tail = 0;
         rb->count = 0;
-        PyThread_tss_set(dk->tss_key, rb);
+        assert(PyThread_tss_set(dk->tss_key, rb) == 0);
         int appended = PyList_Append(dk->reservation_buffers, (PyObject *) rb);
         if (appended == -1) {
             assert(rb != NULL);
@@ -34,7 +34,7 @@ atomic_dict_get_reservation_buffer(AtomicDict *dk)
  * caller must ensure no segfaults, et similia.
  * */
 void
-atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry *entry, int n)
+atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc, int n)
 {
     // use asserts to check for circular buffer correctness (don't return and check for error)
 
@@ -43,25 +43,29 @@ atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_di
 
     for (int i = 0; i < n; ++i) {
         assert(rb->count < 64);
-        rb->reservations[rb->head] = entry + i * sizeof(atomic_dict_entry);
+        atomic_dict_entry_loc *head = &rb->reservations[rb->head];
+        head->entry = entry_loc->entry + i;
+        head->location = entry_loc->location + i;
         rb->head++;
         if (rb->head == 64) {
             rb->head = 0;
         }
         rb->count++;
     }
-    assert(rb->count < 64);
+    assert(rb->count <= 64);
 }
 
 void
-atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry **entry)
+atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc)
 {
     if (rb->count == 0) {
-        *entry = NULL;
+        entry_loc->entry = NULL;
         return;
     }
 
-    *entry = rb->reservations[rb->tail];
+    atomic_dict_entry_loc *tail = &rb->reservations[rb->tail];
+    entry_loc->entry = tail->entry;
+    entry_loc->location = tail->location;
     rb->tail++;
     if (rb->tail == 64) {
         rb->tail = 0;

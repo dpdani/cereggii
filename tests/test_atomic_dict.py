@@ -51,15 +51,32 @@ def test_getitem():
     assert c["spam"] == 43
 
 
-def test_setitem():
+def test_setitem_updates_a_value_set_at_init():
     d = AtomicDict({0: 1})
     d[0] = 3
     assert d[0] == 3
-    # d = AtomicDict()
-    # d[0] = 1
-    # assert d[0] == 1
-    # d[0] = 2
-    # assert d[0] == 2
+
+
+def test_setitem_inserts_a_value():
+    d = AtomicDict(initial_size=64 * 4)
+    d[0] = 42
+    d[2] = 2
+    assert d[0] == 42
+    assert d[2] == 2
+
+
+def test_setitem_updates_an_inserted_value():
+    d = AtomicDict()
+    d[0] = 1
+    assert d[0] == 1
+    d[0] = 2
+    assert d[0] == 2
+
+
+# def test_setitem_distance_1_insert():
+#     d = AtomicDict({0: 1})
+#     d[64] = 42
+#     assert d[64] == 42
 
 
 def test_dealloc():

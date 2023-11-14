@@ -53,65 +53,80 @@ atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_m
  **/
 
 void
-atomic_dict_read_2_nodes_at(unsigned long ix, atomic_dict_node **nodes, atomic_dict_meta *meta)
+atomic_dict_read_1_node_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
 {
-    unsigned long node_region_little = meta->index[ix & ~meta->shift_mask];
-    unsigned long node_region_big = node_region_little;
-    if (((ix + 1) & ~meta->shift_mask) != (ix & ~meta->shift_mask)) {
-        node_region_big = meta->index[(ix + 1) & ~meta->shift_mask];
-    }
-    atomic_dict_parse_node_from_region(ix, node_region_little, nodes[0], meta);
-    atomic_dict_parse_node_from_region(ix, node_region_big, nodes[1], meta);
+    unsigned long node_region = meta->index[ix & ~meta->shift_mask];
+    atomic_dict_parse_node_from_region(ix, node_region, &nodes[0], meta);
 }
 
 void
-atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node **nodes, atomic_dict_meta *meta)
+atomic_dict_read_2_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+{
+    unsigned long little = ix & ~meta->shift_mask;
+    unsigned long big = (ix + 1) >> meta->shift_mask % (1 << meta->log_size);
+    unsigned long node_region_little = meta->index[little];
+    unsigned long node_region_big = node_region_little;
+    if (big != little) {
+        node_region_big = meta->index[big];
+    }
+    atomic_dict_parse_node_from_region(ix, node_region_little, &nodes[0], meta);
+    atomic_dict_parse_node_from_region(ix, node_region_big, &nodes[1], meta);
+}
+
+void
+atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
 {
     assert(meta->node_size <= 32);
-    unsigned long node_region_little = meta->index[ix & ~meta->shift_mask];
+    unsigned long little = ix & ~meta->shift_mask;
+    unsigned long big = (ix + 3) >> meta->shift_mask % (1 << meta->log_size);
+    unsigned long node_region_little = meta->index[little];
     unsigned long node_region_big = node_region_little;
-    if (((ix + 3) & ~meta->shift_mask) != (ix & ~meta->shift_mask)) {
-        node_region_big = meta->index[(ix + 3) & ~meta->shift_mask];
+    if (big != little) {
+        node_region_big = meta->index[big];
     }
 
     unsigned long region;
     for (int i = 0; i < 4; ++i) {
-        region = ((ix + i) & ~meta->shift_mask) == (ix & ~meta->shift_mask) ? node_region_little : node_region_big;
-        atomic_dict_parse_node_from_region(ix, region, nodes[i], meta);
+        region = ((ix + i) & ~meta->shift_mask) == little ? node_region_little : node_region_big;
+        atomic_dict_parse_node_from_region(ix, region, &nodes[i], meta);
     }
 }
 
 void
-atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node **nodes, atomic_dict_meta *meta)
+atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
 {
     assert(meta->node_size <= 16);
-    unsigned long node_region_little = meta->index[ix & ~meta->shift_mask];
+    unsigned long little = ix / meta->nodes_in_region;
+    unsigned long big = (ix + 7) / meta->nodes_in_region % (1 << meta->log_size);
+    unsigned long node_region_little = meta->index[little];
     unsigned long node_region_big = node_region_little;
-    if (((ix + 7) & ~meta->shift_mask) != (ix & ~meta->shift_mask)) {
-        node_region_big = meta->index[(ix + 7) & ~meta->shift_mask];
+    if (big != little) {
+        node_region_big = meta->index[big];
     }
 
     unsigned long region;
     for (int i = 0; i < 8; ++i) {
-        region = ((ix + i) & ~meta->shift_mask) == (ix & ~meta->shift_mask) ? node_region_little : node_region_big;
-        atomic_dict_parse_node_from_region(ix, region, nodes[i], meta);
+        region = (ix + i) / meta->nodes_in_region == little ? node_region_little : node_region_big;
+        atomic_dict_parse_node_from_region(ix + i, region, &nodes[i], meta);
     }
 }
 
 void
-atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node **nodes, atomic_dict_meta *meta)
+atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
 {
     assert(meta->node_size <= 8);
-    unsigned long node_region_little = meta->index[ix & ~meta->shift_mask];
+    unsigned long little = ix & ~meta->shift_mask;
+    unsigned long big = (ix + 15) >> meta->shift_mask % (1 << meta->log_size);
+    unsigned long node_region_little = meta->index[little];
     unsigned long node_region_big = node_region_little;
-    if (((ix + 15) & ~meta->shift_mask) != (ix & ~meta->shift_mask)) {
-        node_region_big = meta->index[(ix + 15) & ~meta->shift_mask];
+    if (big != little) {
+        node_region_big = meta->index[big];
     }
 
     unsigned long region;
     for (int i = 0; i < 16; ++i) {
-        region = ((ix + i) & ~meta->shift_mask) == (ix & ~meta->shift_mask) ? node_region_little : node_region_big;
-        atomic_dict_parse_node_from_region(ix, region, nodes[i], meta);
+        region = ((ix + i) & ~meta->shift_mask) == little ? node_region_little : node_region_big;
+        atomic_dict_parse_node_from_region(ix, region, &nodes[i], meta);
     }
 }
 
@@ -148,57 +163,129 @@ atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expected, a
             return __sync_bool_compare_and_swap_8(&meta->index[ix & ~meta->shift_mask] + shift, expected->node,
                                                   new->node);
         default:
-            return 0;
+            assert(0);
     }
 }
 
 int
-atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node **expected, atomic_dict_node **new,
+atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
                                   atomic_dict_meta *meta)
 {
     assert(n > 0);
     assert(n <= 16);
     assert(ix < 1 << meta->log_size);
     unsigned long shift = ix & meta->shift_mask;
+    unsigned long little = ix / meta->nodes_in_region;
+    unsigned long big = (ix + n - 1) / meta->nodes_in_region % (1 << meta->log_size);
+    assert(little <= big <= little + 1); // XXX implement index circular behavior
+    int must_write_nodes = little == big ? meta->nodes_in_region : meta->nodes_in_two_regions;
     unsigned long long expected_raw = 0, new_raw = 0;
     int i;
     for (i = 0; i < n; ++i) {
-        atomic_dict_compute_raw_node(expected[i], meta);
-        atomic_dict_compute_raw_node(new[i], meta);
+        atomic_dict_compute_raw_node(&expected[i], meta);
+        atomic_dict_compute_raw_node(&new[i], meta);
     }
     for (i = 0; i < n; ++i) {
-        expected_raw |= expected[i]->node << (meta->node_size * (meta->node_size - i - 1));
-        new_raw |= new[i]->node << (meta->node_size * (meta->node_size - i - 1));
+        expected_raw |= expected[i].node << (meta->node_size * (n - i - 1));
+        new_raw |= new[i].node << (meta->node_size * (n - i - 1));
     }
-    for (; i < meta->node_size; ++i) {
-        new_raw |= expected[i]->node << (meta->node_size * (meta->node_size - i - 1));
-    }
+//    int nodes_missing;
+//    switch (n_bytes) {
+//        case 1:
+//            assert(meta->node_size <= 8);
+//            nodes_missing = 0;
+//            break;
+//        case 2:
+//            assert(meta->node_size <= 16);
+//            nodes_missing = 0;
+//            break;
+//        case 3:
+//            assert(meta->node_size <= 8);
+//            nodes_missing = 1;
+//            break;
+//        case 4:
+//            assert(meta->node_size <= 32);
+//            nodes_missing = 0;
+//            break;
+//        case 5:
+//            assert(meta->node_size == 8);
+//            nodes_missing = 1;
+//            break;
+//        case 6:
+//            assert(meta->node_size <= 16);
+//            nodes_missing = 2 / (meta->node_size / 8);
+//            break;
+//        case 7:
+//            assert(meta->node_size <= 8);
+//            nodes_missing = 3;
+//            break;
+//        case 8:
+//            assert(meta->node_size <= 64);
+//            nodes_missing = 0;
+//            break;
+//        case 9:
+//            assert(meta->node_size <= 8);
+//            nodes_missing = 7;
+//            break;
+//        case 10:
+//            assert(meta->node_size <= 16);
+//            nodes_missing = 8 / (meta->node_size / 8);
+//            break;
+//        case 11:
+//            assert(meta->node_size <= 8);
+//            break;
+//        case 12:
+//            assert(meta->node_size <= 32);
+//            break;
+//        case 13:
+//            assert(meta->node_size <= 8);
+//            break;
+//        case 14:
+//            assert(meta->node_size <= 16);
+//            break;
+//        case 15:
+//            assert(meta->node_size <= 8);
+//            break;
+//        case 16:
+//            assert(meta->node_size <= 64);
+//            break;
+//        default:
+//            return 0;
+//    }
     int n_bytes = (meta->node_size >> 3) * n;
     assert(n_bytes <= 16);
-    unsigned long *index_address = &meta->index[ix & ~meta->shift_mask] + shift;
-    switch (n_bytes) {
+    int must_write;
+    if (n_bytes == 1) {
+        must_write = 1;
+    } else if (n_bytes <= 2) {
+        must_write = 2;
+    } else if (n_bytes <= 4) {
+        must_write = 4;
+    } else if (n_bytes <= 8) {
+        must_write = 8;
+    } else if (n_bytes <= 16) {
+        must_write = 16;
+    } else {
+        assert(0);
+    }
+    must_write_nodes = must_write / (meta->node_size / 8);
+    for (; i < must_write_nodes; ++i) {
+        new_raw |= expected[i].node << (meta->node_size * (meta->node_size - i - 1));
+    }
+
+    unsigned char *index_address = (unsigned char *) &meta->index[little] + shift * (meta->node_size / 8);
+    switch (must_write) {
         case 1:
             return __sync_bool_compare_and_swap_1(index_address, expected_raw, new_raw);
         case 2:
             return __sync_bool_compare_and_swap_2(index_address, expected_raw, new_raw);
-        case 3:
         case 4:
             return __sync_bool_compare_and_swap_4(index_address, expected_raw, new_raw);
-        case 5:
-        case 6:
-        case 7:
         case 8:
             return __sync_bool_compare_and_swap_8(index_address, expected_raw, new_raw);
-        case 9:
-        case 10:
-        case 11:
-        case 12:
-        case 13:
-        case 14:
-        case 15:
         case 16:
             return __sync_bool_compare_and_swap_16(index_address, expected_raw, new_raw);
         default:
-            return 0;
+            assert(0);
     }
 }
