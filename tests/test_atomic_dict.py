@@ -40,8 +40,7 @@ def test_log_size_bumped():
 def test_key_error():
     d = AtomicDict()
     with raises(KeyError):
-        # noinspection PyStatementEffect
-        d[0]
+        d[0]  # noqa
 
 
 def test_getitem():
@@ -49,6 +48,15 @@ def test_getitem():
     assert d["spam"] == 42
     c = AtomicDict({"spam": 42}, spam=43)
     assert c["spam"] == 43
+
+
+def test_getitem_confused():
+    d = AtomicDict()
+    d[0] = 1
+    d[64] = 2
+    d[128] = 3
+    with raises(KeyError):
+        d[256]  # noqa
 
 
 def test_setitem_updates_a_value_set_at_init():
@@ -61,8 +69,10 @@ def test_setitem_inserts_a_value():
     d = AtomicDict(initial_size=64 * 4)
     d[0] = 42
     d[2] = 2
+    d[128] = 1
     assert d[0] == 42
     assert d[2] == 2
+    assert d[128] == 1
 
 
 def test_setitem_updates_an_inserted_value():
@@ -73,10 +83,17 @@ def test_setitem_updates_an_inserted_value():
     assert d[0] == 2
 
 
-# def test_setitem_distance_1_insert():
-#     d = AtomicDict({0: 1})
-#     d[64] = 42
-#     assert d[64] == 42
+def test_setitem_distance_1_insert():
+    d = AtomicDict({0: 1})
+    d[64] = 42
+    assert d[64] == 42
+    assert d.debug()['index'][1] == 18
+    d = AtomicDict()
+    d[0] = 1
+    d[1] = 2
+    d[64] = 3
+    assert d[64] == 3
+    assert d.debug()['index'][1] == 10
 
 
 def test_dealloc():

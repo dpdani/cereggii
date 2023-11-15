@@ -451,6 +451,7 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
 
     if (result.entry_p == NULL) {
         PyErr_SetObject(PyExc_KeyError, key);
+        result.entry.value = NULL;
     }
 
     Py_DECREF(meta);
@@ -591,7 +592,13 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
     entry_loc->entry = NULL;
 }
 
-void
+typedef enum atomic_dict_robin_hood_result {
+    ok,
+    failed,
+    grow,
+} atomic_dict_robin_hood_result;
+
+atomic_dict_robin_hood_result
 atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node to_insert, int distance_0_ix)
 {
     /*
@@ -607,19 +614,22 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
      *   2. there is at least 1 empty node
      * */
 
-    int nodes_in_two_words = 16 / (meta->node_size / 8);
     atomic_dict_node current = to_insert;
     atomic_dict_node temp;
     int probe = 0;
     int reservations = 0;
+    int cursor;
 
     beginning:
-    for (; probe < nodes_in_two_words; probe++) {
-        int cursor = distance_0_ix + probe + reservations;
+    for (; probe < meta->nodes_in_two_regions; probe++) {
+        if (probe >= (1 << meta->distance_size) - 1) {
+            return grow;
+        }
+        cursor = distance_0_ix + probe + reservations;
         if (nodes[cursor].node == 0) {
             current.distance = probe;
             nodes[cursor] = current;
-            return;
+            return ok;
         }
 
         if (atomic_dict_node_is_reservation(&nodes[cursor], meta)) {
@@ -635,6 +645,7 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
 
         if (nodes[cursor].distance < probe) {
             current.distance = probe;
+            atomic_dict_compute_raw_node(&current, meta);
             temp = nodes[cursor];
             nodes[cursor] = current;
             current = temp;
@@ -643,6 +654,7 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
             goto beginning;
         }
     }
+    return failed;
 }
 
 void
@@ -712,10 +724,32 @@ atomic_dict_insert_entry(atomic_dict_meta *meta, atomic_dict_entry_loc *entry_lo
 
     for (int i = start; i < meta->nodes_in_two_regions; ++i) {
         if (read_buffer[i].node == 0) {
-            node.distance = i;
             atomic_dict_nodes_copy_buffers(read_buffer, temp);
-            atomic_dict_robin_hood(meta, temp, node, start);
-            if (atomic_dict_atomic_write_nodes_at(ix, i + 1 - start, &read_buffer[start], &temp[start], meta)) {
+            atomic_dict_robin_hood_result rh = atomic_dict_robin_hood(meta, temp, node, start);
+            // if (rh == grow) {
+            //     atomic_dict_grow();
+            // }
+            assert(rh == ok);
+            int begin_write = -1;
+            for (int j = start; j < meta->nodes_in_two_regions; ++j) {
+                atomic_dict_compute_raw_node(&temp[j], meta);
+                if (temp[j].node != read_buffer[j].node) {
+                    begin_write = j;
+                    break;
+                }
+            }
+            assert(begin_write != -1);
+            int end_write;
+            for (int j = begin_write + 1; j < meta->nodes_in_two_regions; ++j) {
+                atomic_dict_compute_raw_node(&temp[j], meta);
+                if (temp[j].node == read_buffer[j].node) {
+                    end_write = j;
+                    break;
+                }
+            }
+            assert(end_write > begin_write);
+            if (atomic_dict_atomic_write_nodes_at(ix + begin_write - start, end_write - begin_write,
+                                                  &read_buffer[begin_write], &temp[begin_write], meta)) {
                 goto done;
             }
             goto beginning;

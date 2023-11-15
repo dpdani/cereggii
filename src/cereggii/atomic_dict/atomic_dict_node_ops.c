@@ -70,7 +70,7 @@ atomic_dict_read_2_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_di
         node_region_big = meta->index[big];
     }
     atomic_dict_parse_node_from_region(ix, node_region_little, &nodes[0], meta);
-    atomic_dict_parse_node_from_region(ix, node_region_big, &nodes[1], meta);
+    atomic_dict_parse_node_from_region(ix + 1, node_region_big, &nodes[1], meta);
 }
 
 void
@@ -88,7 +88,7 @@ atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_di
     unsigned long region;
     for (int i = 0; i < 4; ++i) {
         region = ((ix + i) & ~meta->shift_mask) == little ? node_region_little : node_region_big;
-        atomic_dict_parse_node_from_region(ix, region, &nodes[i], meta);
+        atomic_dict_parse_node_from_region(ix + i, region, &nodes[i], meta);
     }
 }
 
@@ -126,7 +126,7 @@ atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_d
     unsigned long region;
     for (int i = 0; i < 16; ++i) {
         region = ((ix + i) & ~meta->shift_mask) == little ? node_region_little : node_region_big;
-        atomic_dict_parse_node_from_region(ix, region, &nodes[i], meta);
+        atomic_dict_parse_node_from_region(ix + i, region, &nodes[i], meta);
     }
 }
 
@@ -175,10 +175,9 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
     assert(n <= 16);
     assert(ix < 1 << meta->log_size);
     unsigned long shift = ix & meta->shift_mask;
-    unsigned long little = ix / meta->nodes_in_region;
-    unsigned long big = (ix + n - 1) / meta->nodes_in_region % (1 << meta->log_size);
+    unsigned long little = ix & ~meta->shift_mask;
+    unsigned long big = (ix + n - 1) & ~meta->shift_mask % (1 << meta->log_size);
     assert(little <= big <= little + 1); // XXX implement index circular behavior
-    int must_write_nodes = little == big ? meta->nodes_in_region : meta->nodes_in_two_regions;
     unsigned long long expected_raw = 0, new_raw = 0;
     int i;
     for (i = 0; i < n; ++i) {
@@ -186,72 +185,10 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
         atomic_dict_compute_raw_node(&new[i], meta);
     }
     for (i = 0; i < n; ++i) {
-        expected_raw |= expected[i].node << (meta->node_size * (n - i - 1));
-        new_raw |= new[i].node << (meta->node_size * (n - i - 1));
+        expected_raw |= expected[i].node << (meta->node_size * i);
+        new_raw |= new[i].node << (meta->node_size * i);
     }
-//    int nodes_missing;
-//    switch (n_bytes) {
-//        case 1:
-//            assert(meta->node_size <= 8);
-//            nodes_missing = 0;
-//            break;
-//        case 2:
-//            assert(meta->node_size <= 16);
-//            nodes_missing = 0;
-//            break;
-//        case 3:
-//            assert(meta->node_size <= 8);
-//            nodes_missing = 1;
-//            break;
-//        case 4:
-//            assert(meta->node_size <= 32);
-//            nodes_missing = 0;
-//            break;
-//        case 5:
-//            assert(meta->node_size == 8);
-//            nodes_missing = 1;
-//            break;
-//        case 6:
-//            assert(meta->node_size <= 16);
-//            nodes_missing = 2 / (meta->node_size / 8);
-//            break;
-//        case 7:
-//            assert(meta->node_size <= 8);
-//            nodes_missing = 3;
-//            break;
-//        case 8:
-//            assert(meta->node_size <= 64);
-//            nodes_missing = 0;
-//            break;
-//        case 9:
-//            assert(meta->node_size <= 8);
-//            nodes_missing = 7;
-//            break;
-//        case 10:
-//            assert(meta->node_size <= 16);
-//            nodes_missing = 8 / (meta->node_size / 8);
-//            break;
-//        case 11:
-//            assert(meta->node_size <= 8);
-//            break;
-//        case 12:
-//            assert(meta->node_size <= 32);
-//            break;
-//        case 13:
-//            assert(meta->node_size <= 8);
-//            break;
-//        case 14:
-//            assert(meta->node_size <= 16);
-//            break;
-//        case 15:
-//            assert(meta->node_size <= 8);
-//            break;
-//        case 16:
-//            assert(meta->node_size <= 64);
-//            break;
-//        default:
-//            return 0;
-//    }
+
     int n_bytes = (meta->node_size >> 3) * n;
     assert(n_bytes <= 16);
     int must_write;
@@ -268,7 +205,7 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
     } else {
         assert(0);
     }
-    must_write_nodes = must_write / (meta->node_size / 8);
+    int must_write_nodes = must_write / (meta->node_size / 8);
     for (; i < must_write_nodes; ++i) {
         new_raw |= expected[i].node << (meta->node_size * (meta->node_size - i - 1));
     }
