@@ -40,7 +40,7 @@ def test_log_size_bumped():
 def test_key_error():
     d = AtomicDict()
     with raises(KeyError):
-        d[0]  # noqa
+        d[0]
 
 
 def test_getitem():
@@ -56,7 +56,7 @@ def test_getitem_confused():
     d[64] = 2
     d[128] = 3
     with raises(KeyError):
-        d[256]  # noqa
+        d[256]
 
 
 def test_setitem_updates_a_value_set_at_init():
@@ -87,13 +87,13 @@ def test_setitem_distance_1_insert():
     d = AtomicDict({0: 1})
     d[64] = 42
     assert d[64] == 42
-    assert d.debug()['index'][1] == 18
+    assert d.debug()["index"][1] == 18
     d = AtomicDict()
     d[0] = 1
     d[1] = 2
     d[64] = 3
     assert d[64] == 3
-    assert d.debug()['index'][1] == 10
+    assert d.debug()["index"][1] == 10
 
 
 def test_dealloc():

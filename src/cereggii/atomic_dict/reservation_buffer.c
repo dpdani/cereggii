@@ -18,15 +18,20 @@ atomic_dict_get_reservation_buffer(AtomicDict *dk)
         rb->head = 0;
         rb->tail = 0;
         rb->count = 0;
-        assert(PyThread_tss_set(dk->tss_key, rb) == 0);
+        int set = PyThread_tss_set(dk->tss_key, rb);
+        if (set != 0)
+            goto fail;
+
         int appended = PyList_Append(dk->reservation_buffers, (PyObject *) rb);
-        if (appended == -1) {
-            assert(rb != NULL);
-            PyMem_Free(rb);
-            return NULL;
-        }
+        if (appended == -1)
+            goto fail;
     }
+
     return rb;
+    fail:
+    assert(rb != NULL);
+    PyMem_Free(rb);
+    return NULL;
 }
 
 /**

@@ -592,6 +592,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
     entry_loc->entry = NULL;
 }
 
+
 typedef enum atomic_dict_robin_hood_result {
     ok,
     failed,
