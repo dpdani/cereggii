@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import gc
+import threading
 
 from cereggii import AtomicDict
 from pytest import raises
@@ -109,3 +110,33 @@ def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d
     gc.collect()
+
+
+def test_concurrent_insert():
+    d = AtomicDict(initial_size=64 * 2)
+
+    def thread_1():
+        d[0] = 1
+        d[1] = 1
+        d[2] = 1
+
+    def thread_2():
+        d[3] = 2
+        d[4] = 2
+        d[2] = 2
+
+    t1 = threading.Thread(target=thread_1)
+    t2 = threading.Thread(target=thread_2)
+
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert d[0] == 1
+    assert d[1] == 1
+
+    assert d[3] == 2
+    assert d[4] == 2
+
+    assert d[2] in (1, 2)
