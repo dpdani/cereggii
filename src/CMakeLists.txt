@@ -37,7 +37,7 @@ install(TARGETS _cereggii
         DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
 
 # Install stubs to get autocomplete and type hints
-# install(FILES _add_module.pyi
-#         EXCLUDE_FROM_ALL
-#         COMPONENT python_modules
-#         DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
+install(FILES cereggii/_cereggii.pyi
+        EXCLUDE_FROM_ALL
+        COMPONENT python_modules
+        DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
