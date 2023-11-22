@@ -47,6 +47,9 @@ atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_di
     assert(n <= 64);
 
     for (int i = 0; i < n; ++i) {
+        if (entry_loc->location + i == 0) { // entry 0 is forbidden (cf. reservations / tombstones)
+            continue;
+        }
         assert(rb->count < 64);
         atomic_dict_entry_loc *head = &rb->reservations[rb->head];
         head->entry = entry_loc->entry + i;

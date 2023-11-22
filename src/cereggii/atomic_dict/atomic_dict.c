@@ -109,6 +109,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (initial_size < init_dict_size) {
         initial_size = init_dict_size;
     }
+    if (initial_size % 64 == 0) { // allocate one more entry: cannot write to entry 0
+        initial_size++;
+    }
     if (initial_size < 64) {
         initial_size = 64;
     }
@@ -175,22 +178,49 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyObject *key, *value;
         Py_hash_t hash;
         Py_ssize_t pos = 0;
+
         while (PyDict_Next(init_dict, &pos, &key, &value)) {
             hash = PyObject_Hash(key);
             if (hash == -1)
                 goto fail;
 
-            if (AtomicDict_UnsafeInsert(self, key, hash, value, pos - 1) == -1) {
+            int inserted = AtomicDict_UnsafeInsert(self, key, hash, value, pos); // we want to avoid pos = 0
+            if (inserted == -1) {
                 Py_DECREF(meta);
                 log_size++;
                 goto create;
             }
         }
         meta->inserting_block = pos >> 6;
+
+        if (pos > 0) {
+            atomic_dict_reservation_buffer *rb = atomic_dict_get_reservation_buffer(self);
+            if (rb == NULL)
+                goto fail;
+
+            // mark entry 0 as reserved and put the remaining entries
+            // into this thread's reservation buffer
+            meta->blocks[0]->entries[0].flags |= ENTRY_FLAGS_RESERVED;
+            atomic_dict_entry_loc entry_loc;
+            for (i = 1; i < self->reservation_buffer_size; ++i) {
+                entry_loc.entry = &meta->blocks[0]->entries[i & 63];
+                entry_loc.location = i;
+                if (entry_loc.entry->key == NULL) {
+                    atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
+                }
+            }
+
+            // handle possibly misaligned reservations on last block
+            // => put them into this thread's reservation buffer
+            entry_loc.entry = &meta->blocks[pos >> 6]->entries[pos & 63];
+            entry_loc.location = pos;
+            unsigned char n = self->reservation_buffer_size - (unsigned char) (pos % self->reservation_buffer_size);
+            if (n > 0) {
+                atomic_dict_reservation_buffer_put(rb, &entry_loc, n);
+            }
+        }
     }
 
-    // handle possibly misaligned reservations on last block
-    // => put them into this thread's reservation buffer
     Py_XDECREF(init_dict);
     return 0;
     fail:
@@ -359,7 +389,6 @@ AtomicDict_Search(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
     unsigned long ix = hash & ((1 << meta->log_size) - 1);
-    int previous_distance = -1;  // = inf
     int probe;
     int reservations = 0;
 
@@ -382,10 +411,9 @@ AtomicDict_Search(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
             goto not_found;
         }
 
-        if (result->node.distance <= previous_distance) {
+        if (ix + probe + reservations - result->node.distance > ix) {
             goto not_found;
         }
-        previous_distance = result->node.distance;
 
         if (result->node.tag == (hash & meta->tag_mask)) {
             check_entry:
@@ -587,6 +615,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
 
     done:
     assert(entry_loc->entry != NULL);
+    assert(entry_loc->entry->key == NULL);
     return;
     fail:
     entry_loc->entry = NULL;

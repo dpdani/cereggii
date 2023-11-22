@@ -66,7 +66,7 @@ def test_setitem_updates_a_value_set_at_init():
 
 
 def test_setitem_inserts_a_value():
-    d = AtomicDict(initial_size=64 * 4)
+    d = AtomicDict(initial_size=64 * 4 - 1)
     d[0] = 42
     d[2] = 2
     d[128] = 1
@@ -85,15 +85,24 @@ def test_setitem_updates_an_inserted_value():
 
 def test_setitem_distance_1_insert():
     d = AtomicDict({0: 1})
+    assert d[0] == 1
     d[64] = 42
+    assert d[0] == 1
     assert d[64] == 42
-    assert d.debug()["index"][1] == 18
+    assert d.debug()["index"][1] == 10
     d = AtomicDict()
     d[0] = 1
+    assert d[0] == 1
     d[1] = 2
+    assert d[0] == 1
+    assert d[1] == 2
     d[64] = 3
+    assert d[0] == 1
+    assert d[1] == 2
     assert d[64] == 3
-    assert d.debug()["index"][1] == 10
+    assert d.debug()["index"][0] == 7
+    assert d.debug()["index"][1] == 14
+    assert d.debug()["index"][2] == 10
 
 
 def test_dealloc():
