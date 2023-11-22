@@ -745,20 +745,18 @@ atomic_dict_insert_entry(atomic_dict_meta *meta, atomic_dict_entry_loc *entry_lo
     unsigned long ix = hash & ((1 << meta->log_size) - 1);
 
     beginning:
-    meta->read_double_word_nodes_at(ix & ~63, read_buffer, meta);
+    meta->read_double_word_nodes_at(ix, read_buffer, meta);
 
-    int start = (int) ix % meta->nodes_in_two_regions;
-
-    for (int i = start; i < meta->nodes_in_two_regions; ++i) {
+    for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
         if (read_buffer[i].node == 0) {
             atomic_dict_nodes_copy_buffers(read_buffer, temp);
-            atomic_dict_robin_hood_result rh = atomic_dict_robin_hood(meta, temp, node, start);
+            atomic_dict_robin_hood_result rh = atomic_dict_robin_hood(meta, temp, node, 0);
             // if (rh == grow) {
             //     atomic_dict_grow();
             // }
             assert(rh == ok);
             int begin_write = -1;
-            for (int j = start; j < meta->nodes_in_two_regions; ++j) {
+            for (int j = 0; j < meta->nodes_in_two_regions; ++j) {
                 atomic_dict_compute_raw_node(&temp[j], meta);
                 if (temp[j].node != read_buffer[j].node) {
                     begin_write = j;
@@ -775,7 +773,7 @@ atomic_dict_insert_entry(atomic_dict_meta *meta, atomic_dict_entry_loc *entry_lo
                 }
             }
             assert(end_write > begin_write);
-            if (atomic_dict_atomic_write_nodes_at(ix + begin_write - start, end_write - begin_write,
+            if (atomic_dict_atomic_write_nodes_at(ix + begin_write, end_write - begin_write,
                                                   &read_buffer[begin_write], &temp[begin_write], meta)) {
                 goto done;
             }
@@ -783,6 +781,8 @@ atomic_dict_insert_entry(atomic_dict_meta *meta, atomic_dict_entry_loc *entry_lo
         }
         // check reservations
     }
+
+    assert(0);
 
     int cursor = meta->nodes_in_two_regions - 1;
 

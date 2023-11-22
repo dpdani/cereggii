@@ -230,8 +230,10 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
 
     unsigned long shift = shift_in_region_of(ix, meta);
     unsigned long little = region_of(ix, meta);
+    unsigned long middle = little + 1;
     unsigned long big = region_of(ix + n - 1, meta);
-    assert(little <= big <= little + 1); // XXX implement index circular behavior
+    assert(little <= middle <= little + 1); // XXX implement index circular behavior
+    assert(middle <= big <= middle + 1); // XXX implement index circular behavior
     unsigned long long expected_raw = 0, new_raw = 0;
     int i;
     for (i = 0; i < n; ++i) {
