@@ -172,7 +172,7 @@ typedef struct {
     int is_reservation;
 } atomic_dict_search_result;
 
-void AtomicDict_Search(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
+void AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
                        int look_into_reservations, atomic_dict_search_result *result);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
