@@ -93,6 +93,7 @@ void atomic_dict_meta_dealloc(atomic_dict_meta *self);
 
 static PyTypeObject AtomicDictMeta = {
     PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._atomic_dict_meta",
     .tp_basicsize = sizeof(atomic_dict_meta),
     .tp_itemsize = 0,
     .tp_new = PyType_GenericNew,
@@ -192,6 +193,10 @@ void atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta
 
 void atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
                                         atomic_dict_meta *meta);
+
+unsigned long region_of(unsigned long ix, atomic_dict_meta *meta);
+
+unsigned long shift_in_region_of(unsigned long ix, atomic_dict_meta *meta);
 
 void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
 

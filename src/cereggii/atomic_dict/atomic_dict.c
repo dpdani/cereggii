@@ -9,6 +9,7 @@
 #include "atomic_ref.h"
 #include "pythread.h"
 
+
 PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
@@ -213,8 +214,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
             entry_loc.entry = &meta->blocks[pos >> 6]->entries[pos & 63];
-            entry_loc.location = pos;
-            unsigned char n = self->reservation_buffer_size - (unsigned char) (pos % self->reservation_buffer_size);
+            entry_loc.location = pos + 1;
+            unsigned char n =
+                self->reservation_buffer_size - (unsigned char) (entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
                 atomic_dict_reservation_buffer_put(rb, &entry_loc, n);
             }
@@ -268,28 +270,23 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     if (generation == NULL)
         goto fail;
 
-    unsigned long *index = PyMem_RawMalloc(node_sizes.node_size * (1 << log_size));
+    unsigned long *index = PyMem_RawMalloc(node_sizes.node_size / 8 * (1 << log_size));
     if (index == NULL)
         goto fail;
-    memset(index, 0, node_sizes.node_size * (1 << log_size));
+    memset(index, 0, node_sizes.node_size / 8 * (1 << log_size));
 
-    atomic_dict_block **previous_blocks;
-    long inserting_block;
-    long greatest_allocated_block;
-    long greatest_deleted_block;
-    long greatest_refilled_block;
+    atomic_dict_block **previous_blocks = NULL;
+    long inserting_block = -1;
+    long greatest_allocated_block = -1;
+    long greatest_deleted_block = -1;
+    long greatest_refilled_block = -1;
+
     if (previous_meta != NULL) {
         previous_blocks = previous_meta->blocks;
         inserting_block = previous_meta->inserting_block;
         greatest_allocated_block = previous_meta->greatest_allocated_block;
         greatest_deleted_block = previous_meta->greatest_deleted_block;
         greatest_refilled_block = previous_meta->greatest_refilled_block;
-    } else {
-        previous_blocks = NULL;
-        inserting_block = -1;
-        greatest_allocated_block = -1;
-        greatest_deleted_block = -1;
-        greatest_refilled_block = -1;
     }
 
     // here we're abusing virtual memory:
