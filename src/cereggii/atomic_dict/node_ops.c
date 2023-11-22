@@ -4,6 +4,7 @@
 
 #include <stdatomic.h>
 #include "atomic_dict.h"
+#include "atomic_dict_internal.h"
 
 // these functions take a pointer to meta, but to avoid multiple reads
 // you should dereference dk->meta (i.e. make a thread-local copy) and

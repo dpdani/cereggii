@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "node_sizes_table.h"
+#include "atomic_dict_internal.h"
 
 
 const node_size_info node_sizes_table[] = {
