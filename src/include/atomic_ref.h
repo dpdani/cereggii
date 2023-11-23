@@ -16,13 +16,15 @@ typedef struct atomic_ref {
     PyObject *reference;
 } AtomicRef;
 
-PyObject *atomic_ref_get_ref(AtomicRef *self);
+PyObject *AtomicRef_Get(AtomicRef *self);
 
-PyObject *atomic_ref_set_ref(AtomicRef *self, PyObject *reference);
+PyObject *AtomicRef_Set(AtomicRef *self, PyObject *reference);
 
-PyObject *atomic_ref_compare_and_set(AtomicRef *self, PyObject *expected, PyObject *new);
+int AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new);
 
-PyObject *atomic_ref_get_and_set(AtomicRef *self, PyObject *new);
+PyObject *AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new);
 
 
 PyObject *AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds);

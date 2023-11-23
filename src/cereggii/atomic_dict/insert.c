@@ -219,7 +219,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         goto fail;
 
     atomic_dict_meta *meta;
-    meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
     atomic_dict_search_result sr;
     search_for_update:

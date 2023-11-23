@@ -89,14 +89,14 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     atomic_dict_search_result result;
     atomic_dict_meta *meta;
     retry:
-    meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
     result.entry.value = NULL;
     AtomicDict_Lookup(meta, key, hash, 0, &result);
     if (result.error)
         goto fail;
 
-    if (atomic_ref_get_ref(self->metadata) != (PyObject *) meta) {
+    if (AtomicRef_Get(self->metadata) != (PyObject *) meta) {
         Py_DECREF(meta);
         goto retry;
     }

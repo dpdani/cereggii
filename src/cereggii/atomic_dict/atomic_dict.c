@@ -51,8 +51,8 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
-    assert(atomic_ref_get_ref(self->metadata) == Py_None);
-    assert(atomic_ref_get_ref(self->new_gen_metadata) == Py_None);
+    assert(AtomicRef_Get(self->metadata) == Py_None);
+    assert(AtomicRef_Get(self->new_gen_metadata) == Py_None);
     long init_dict_size = 0;
     long initial_size = 0;
     long buffer_size = 4;
@@ -146,7 +146,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     meta = atomic_dict_new_meta(log_size, NULL);
     if (meta == NULL)
         goto fail;
-    atomic_ref_set_ref(self->metadata, (PyObject *) meta);
+    AtomicRef_Set(self->metadata, (PyObject *) meta);
 
     atomic_dict_block *block;
     long i;
@@ -235,7 +235,7 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
-    atomic_dict_meta *meta = (atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    atomic_dict_meta *meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
     PyMem_RawFree(meta->blocks);
     Py_DECREF(meta); // decref for the above atomic_ref_get_ref
     Py_CLEAR(self->metadata);
@@ -270,7 +270,7 @@ int
 AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
     atomic_dict_meta meta;
-    meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    meta = *(atomic_dict_meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
     atomic_dict_block *block = meta.blocks[pos >> 6];
     block->entries[pos & 63].flags = ENTRY_FLAGS_RESERVED;
@@ -323,7 +323,7 @@ PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
     atomic_dict_meta meta;
-    meta = *(atomic_dict_meta *) atomic_ref_get_ref(self->metadata);
+    meta = *(atomic_dict_meta *) AtomicRef_Get(self->metadata);
     PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsO}",
                                        "log_size\0", Py_BuildValue("B", meta.log_size),
                                        "generation\0", Py_BuildValue("O", meta.generation),

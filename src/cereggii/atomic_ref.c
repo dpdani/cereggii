@@ -55,7 +55,7 @@ AtomicRef_traverse(AtomicRef *self, visitproc visit, void *arg)
 }
 
 
-PyObject *atomic_ref_get_ref(AtomicRef *self)
+PyObject *AtomicRef_Get(AtomicRef *self)
 {
     PyObject *reference;
     reference = self->reference;
@@ -66,31 +66,24 @@ PyObject *atomic_ref_get_ref(AtomicRef *self)
 }
 
 PyObject *
-atomic_ref_set_ref(AtomicRef *self, PyObject *reference)
+AtomicRef_Set(AtomicRef *self, PyObject *reference)
 {
     assert(reference != NULL);
 
     PyObject *current_reference;
-    current_reference = atomic_ref_get_ref(self);
+    current_reference = AtomicRef_Get(self);
     Py_INCREF(reference);
     while (!_Py_atomic_compare_exchange_ptr(&self->reference, current_reference, reference)) {
         Py_DECREF(current_reference);
-        current_reference = atomic_ref_get_ref(self);
+        current_reference = AtomicRef_Get(self);
     }
     Py_DECREF(current_reference);
     Py_RETURN_NONE;
 }
 
-PyObject *
-atomic_ref_compare_and_set(AtomicRef *self, PyObject *args, PyObject *kwargs)
+int
+AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
 {
-    PyObject *expected;
-    PyObject *new;
-
-    if (!PyArg_ParseTuple(args, "OO", &expected, &new)) {
-        return 0;
-    }
-
     assert(expected != NULL);
     assert(new != NULL);
 
@@ -98,14 +91,31 @@ atomic_ref_compare_and_set(AtomicRef *self, PyObject *args, PyObject *kwargs)
     int retval = _Py_atomic_compare_exchange_ptr(&self->reference, expected, new);
     if (retval) {
         Py_DECREF(expected);
-        Py_RETURN_TRUE;
+        return 1;
     } else {
         Py_DECREF(new);
+        return 0;
+    }
+}
+
+PyObject *
+AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+{
+    PyObject *expected;
+    PyObject *new;
+
+    if (!PyArg_ParseTuple(args, "OO", &expected, &new)) {
+        return NULL;
+    }
+
+    if (AtomicRef_CompareAndSet(self, expected, new)) {
+        Py_RETURN_TRUE;
+    } else {
         Py_RETURN_FALSE;
     }
 }
 
-PyObject *atomic_ref_get_and_set(AtomicRef *self, PyObject *new)
+PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new)
 {
     assert(new != NULL);
 
