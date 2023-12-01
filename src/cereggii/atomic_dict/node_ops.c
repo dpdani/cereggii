@@ -14,6 +14,8 @@
 inline void
 atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta)
 {
+    assert(node->index <= (1 << meta->log_size));
+    assert(node->distance <= meta->max_distance);
     node->node =
         (node->index << (meta->node_size - meta->log_size))
         | (meta->distance_mask - (node->distance << meta->tag_size))
@@ -40,16 +42,24 @@ shift_in_region_of(unsigned long ix, atomic_dict_meta *meta)
 }
 
 inline void
+atomic_dict_parse_node_from_raw(unsigned long node_raw, atomic_dict_node *node,
+                                atomic_dict_meta *meta)
+{
+    node->node = node_raw;
+    node->index = (node_raw & meta->index_mask) >> (meta->node_size - meta->log_size);
+    node->distance = (~(node_raw & meta->distance_mask) & meta->distance_mask) >> meta->tag_size;
+    node->tag = node_raw & meta->tag_mask;
+}
+
+
+inline void
 atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
                                    atomic_dict_meta *meta)
 {
     unsigned long shift = shift_in_region_of(ix, meta);
     unsigned long node_raw =
         (region & (meta->node_mask << (shift * meta->node_size))) >> (shift * meta->node_size);
-    node->node = node_raw;
-    node->index = (node_raw & meta->index_mask) >> (meta->node_size - meta->log_size);
-    node->distance = (~(node_raw & meta->distance_mask) & meta->distance_mask) >> meta->tag_size;
-    node->tag = node_raw & meta->tag_mask;
+    atomic_dict_parse_node_from_raw(node_raw, node, meta);
 }
 
 void
@@ -197,7 +207,7 @@ int
 atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expected, atomic_dict_node *new,
                                  atomic_dict_meta *meta)
 {
-    unsigned long shift = ix & meta->shift_mask;
+    unsigned long shift = shift_in_region_of(ix, meta);
     atomic_dict_compute_raw_node(expected, meta);
     atomic_dict_compute_raw_node(new, meta);
     switch (meta->node_size) {

@@ -16,13 +16,19 @@ typedef struct {
     PyObject *value;
 } atomic_dict_entry;
 
+#define ENTRY_FLAGS_RESERVED    128
+#define ENTRY_FLAGS_TOMBSTONE   64
+#define ENTRY_FLAGS_INSERTED    32
+#define ENTRY_FLAGS_SWAPPING    16
+// #define ENTRY_FLAGS_?    8
+// #define ENTRY_FLAGS_?    4
+// #define ENTRY_FLAGS_?    2
+// #define ENTRY_FLAGS_?    1
+
 typedef struct {
     atomic_dict_entry *entry;
     unsigned long location;
 } atomic_dict_entry_loc;
-
-#define ENTRY_FLAGS_RESERVED    128
-#define ENTRY_FLAGS_TOMBSTONE   64
 
 
 typedef struct atomic_dict_node {
@@ -74,6 +80,7 @@ struct atomic_dict_meta {
 
     unsigned char node_size;
     unsigned char distance_size;
+    unsigned char max_distance;
     unsigned char tag_size;
     unsigned char nodes_in_region;
     unsigned char nodes_in_two_regions;
@@ -84,9 +91,9 @@ struct atomic_dict_meta {
     unsigned long tag_mask;
     unsigned long shift_mask;
 
-    void (*read_single_word_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_single_region_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-    void (*read_double_word_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_double_region_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 };
 
 void atomic_dict_meta_dealloc(atomic_dict_meta *self);
@@ -104,9 +111,14 @@ atomic_dict_meta *atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta 
 
 atomic_dict_block *atomic_dict_block_new(atomic_dict_meta *meta);
 
+atomic_dict_entry *AtomicDict_GetEntryAt(unsigned long ix, atomic_dict_meta *meta);
+
 
 /// operations on nodes (see ./node_ops.c)
 void atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta);
+
+void atomic_dict_parse_node_from_raw(unsigned long node_raw, atomic_dict_node *node,
+                                     atomic_dict_meta *meta);
 
 void atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
                                         atomic_dict_meta *meta);
@@ -136,6 +148,13 @@ int atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expecte
 
 int atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
                                       atomic_dict_meta *meta);
+
+
+/// migrations
+
+int AtomicDict_Grow(AtomicDict *self);
+
+int AtomicDict_Shrink(AtomicDict *self);
 
 
 /// reservation buffer (see ./reservation_buffer.c)
@@ -176,6 +195,9 @@ void AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
                        int look_into_reservations, atomic_dict_search_result *result);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
+
+int AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta,
+                              atomic_dict_entry_loc *entry_loc);
 
 /// node sizes table
 /*

@@ -95,3 +95,9 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
     fail:
     entry_loc->entry = NULL;
 }
+
+inline atomic_dict_entry *
+AtomicDict_GetEntryAt(unsigned long ix, atomic_dict_meta *meta)
+{
+    return &(meta->blocks[ix >> 6]->entries[ix & 63]);
+}

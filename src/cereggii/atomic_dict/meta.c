@@ -64,6 +64,7 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     meta->blocks = blocks;
     meta->node_size = node_sizes.node_size;
     meta->distance_size = node_sizes.distance_size;
+    meta->max_distance = (1 << meta->distance_size) - 1;
     meta->tag_size = node_sizes.tag_size;
     meta->nodes_in_region = 8 / (meta->node_size / 8);
     meta->nodes_in_two_regions = 16 / (meta->node_size / 8);
@@ -74,23 +75,23 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
-            meta->read_single_word_nodes_at = atomic_dict_read_8_nodes_at;
-            meta->read_double_word_nodes_at = atomic_dict_read_16_nodes_at;
+            meta->read_single_region_nodes_at = atomic_dict_read_8_nodes_at;
+            meta->read_double_region_nodes_at = atomic_dict_read_16_nodes_at;
             break;
         case 16:
             meta->shift_mask = 4 - 1;
-            meta->read_single_word_nodes_at = atomic_dict_read_4_nodes_at;
-            meta->read_double_word_nodes_at = atomic_dict_read_8_nodes_at;
+            meta->read_single_region_nodes_at = atomic_dict_read_4_nodes_at;
+            meta->read_double_region_nodes_at = atomic_dict_read_8_nodes_at;
             break;
         case 32:
             meta->shift_mask = 2 - 1;
-            meta->read_single_word_nodes_at = atomic_dict_read_2_nodes_at;
-            meta->read_double_word_nodes_at = atomic_dict_read_4_nodes_at;
+            meta->read_single_region_nodes_at = atomic_dict_read_2_nodes_at;
+            meta->read_double_region_nodes_at = atomic_dict_read_4_nodes_at;
             break;
         case 64:
             meta->shift_mask = 1 - 1;
-            meta->read_single_word_nodes_at = atomic_dict_read_1_node_at;
-            meta->read_double_word_nodes_at = atomic_dict_read_2_nodes_at;
+            meta->read_single_region_nodes_at = atomic_dict_read_1_node_at;
+            meta->read_double_region_nodes_at = atomic_dict_read_2_nodes_at;
             break;
     }
 

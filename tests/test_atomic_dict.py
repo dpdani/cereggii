@@ -4,6 +4,7 @@
 import gc
 import threading
 
+import pytest
 from cereggii import AtomicDict
 from pytest import raises
 
@@ -54,8 +55,11 @@ def test_getitem():
 def test_getitem_confused():
     d = AtomicDict()
     d[0] = 1
+    assert d[0] == 1
     d[64] = 2
+    assert d[64] == 2
     d[128] = 3
+    assert d[128] == 3
     with raises(KeyError):
         d[256]
 
@@ -104,6 +108,19 @@ def test_setitem_distance_1_insert():
     assert d.debug()["index"][0] == 7
     assert d.debug()["index"][1] == 14
     assert d.debug()["index"][2] == 10
+
+
+@pytest.mark.skip()
+def test_insert_with_reservation():
+    d = AtomicDict({
+        k: None
+        for k in range(16)
+    })
+    # breakpoint()
+    d[64] = 1
+    for k in range(16):
+        assert d[k] is None
+    assert d[64] == 1
 
 
 def test_dealloc():
