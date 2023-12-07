@@ -68,37 +68,55 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
 }
 
 atomic_dict_robin_hood_result
-atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, unsigned long start_ix,
-                                   unsigned long distance_0_ix)
+atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, long start_ix,
+                                   unsigned long distance_0_ix, long *reservation_ix)
 {
     /*
      * assumptions:
      *   1. there are meta->nodes_in_two_regions valid nodes in `nodes`
-     *   2. the right-most node is a reservation node
+     *   2. nodes[*reservation_ix] is a reservation node
      *   3. distance_0_ix is the distance-0 index (i.e. the ideal index)
-     *      for the right-most reservation node
+     *      for the reservation node
      *   4. start_ix is the index position of nodes[0]
      * */
 
-    atomic_dict_node current = nodes[meta->nodes_in_two_regions - 1];
+    assert(*reservation_ix < meta->nodes_in_two_regions);
+
+    atomic_dict_node current = nodes[*reservation_ix];
 
     assert(atomic_dict_node_is_reservation(&current, meta));
 
+    long aligned_ix = 0;
+
+    if (!index_address_is_aligned(start_ix, 16, meta)) {
+        aligned_ix = *reservation_ix - (long) index_address_of(start_ix, meta) % 16;
+    }
+
     if (distance_0_ix < start_ix) {
-        for (int i = meta->nodes_in_two_regions - 1; i > 0; --i) {
+        assert(*reservation_ix <= 16);
+        for (unsigned long i = *reservation_ix; i > aligned_ix; --i) {
             nodes[i] = nodes[i - 1];
             nodes[i].distance++;
             if (nodes[i].distance >= meta->max_distance) {
                 return grow;
             }
         }
-        nodes[0] = current;
+        nodes[aligned_ix] = current;
+        *reservation_ix = start_ix + aligned_ix;
         return ok;
     }
 
-    atomic_dict_parse_node_from_raw(0, &nodes[meta->nodes_in_two_regions - 1], meta);
+    atomic_dict_parse_node_from_raw(0, &nodes[*reservation_ix], meta);
     assert(start_ix - distance_0_ix <= 16);
-    return atomic_dict_robin_hood(meta, nodes, &current, (int) (start_ix - distance_0_ix));
+    atomic_dict_robin_hood_result result;
+    current.distance = 0;
+    result = atomic_dict_robin_hood(meta, nodes, &current, (int) (start_ix - distance_0_ix));
+    for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
+        if (nodes[i].index == current.index) {
+            *reservation_ix = start_ix + i;
+        }
+    }
+    return result;
 }
 
 void
@@ -164,6 +182,33 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(unsigned long distance_0, unsigned long 
     goto check_entry;
 }
 
+void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+                             int *begin_write, int *end_write)
+{
+    int j;
+    *begin_write = -1;
+    for (j = 0; j < meta->nodes_in_two_regions; ++j) {
+        atomic_dict_compute_raw_node(&temp[j], meta);
+        if (temp[j].node != read_buffer[j].node) {
+            *begin_write = j;
+            break;
+        }
+    }
+    assert(*begin_write != -1);
+    *end_write = -1;
+    for (j = *begin_write + 1; j < meta->nodes_in_two_regions; ++j) {
+        atomic_dict_compute_raw_node(&temp[j], meta);
+        if (temp[j].node == read_buffer[j].node) {
+            *end_write = j;
+            break;
+        }
+    }
+    if (*end_write == -1) {
+        *end_write = meta->nodes_in_two_regions;
+    }
+    assert(*end_write > *begin_write);
+}
+
 atomic_dict_inserted_or_updated
 AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value,
@@ -190,24 +235,8 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
                 return inserted;
             }
             assert(rh == ok);
-            int begin_write = -1;
-            for (int j = 0; j < meta->nodes_in_two_regions; ++j) {
-                atomic_dict_compute_raw_node(&temp[j], meta);
-                if (temp[j].node != read_buffer[j].node) {
-                    begin_write = j;
-                    break;
-                }
-            }
-            assert(begin_write != -1);
-            int end_write;
-            for (int j = begin_write + 1; j < meta->nodes_in_two_regions; ++j) {
-                atomic_dict_compute_raw_node(&temp[j], meta);
-                if (temp[j].node == read_buffer[j].node) {
-                    end_write = j;
-                    break;
-                }
-            }
-            assert(end_write > begin_write);
+            int begin_write, end_write;
+            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
             if (atomic_dict_atomic_write_nodes_at(ix + begin_write, end_write - begin_write,
                                                   &read_buffer[begin_write], &temp[begin_write], meta)) {
                 goto done;
@@ -242,14 +271,16 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     PyObject *key = entry_loc->entry->key;
     PyObject *value = entry_loc->entry->value;
     assert(key != NULL && value != NULL);
-    unsigned long distance_0 = hash & ((1 << meta->log_size) - 1);
+    long distance_0_ix = hash & ((1 << meta->log_size) - 1);
+    assert(distance_0_ix >= 0);
 
     atomic_dict_node read_buffer[16];
     atomic_dict_node temp[16];
-    atomic_dict_node node, left, reservation;
-    unsigned long idx;
+    atomic_dict_node node, reservation;
+    long idx;
     long region = -1;
     int nodes_offset = 0;
+    long start_ix, idx_in_buffer;
 
     atomic_dict_inserted_or_updated close_to_0;
     close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(self, meta, entry_loc, hash, key, value,
@@ -263,28 +294,32 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 
     beginning:
     for (int i = 0; i < 1 << meta->log_size; ++i) {
-        idx = (distance_0 + i) % (1 << meta->log_size);
+        idx = (distance_0_ix + i) % (1 << meta->log_size);
 
         if (region != (region_of(idx, meta) | 1)) {
             meta->read_double_region_nodes_at(idx, read_buffer, meta);
             region = (long) region_of(idx, meta) | 1;
             nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
         }
-        node = read_buffer[idx % meta->nodes_in_two_regions + nodes_offset];
+        idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;
+        node = read_buffer[idx_in_buffer];
 
         if (node.node == 0)
             goto tail_found;
 
         atomic_dict_inserted_or_updated check_entry;
-        check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &node, meta, hash, key, value);
-        if (check_entry == retry) {
-            goto beginning;
-        }
-        if (check_entry == error) {
-            goto error;
-        }
-        if (check_entry == updated) {
-            return updated;
+        check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0_ix, i, &node, meta, hash, key, value);
+        switch (check_entry) {
+            case retry:
+                goto beginning;
+            case error:
+                goto error;
+            case updated:
+                return updated;
+            case nop:
+                continue;
+            case inserted:
+                assert(0);
         }
     }
 
@@ -296,12 +331,19 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     reservation.distance = meta->max_distance;
     reservation.tag = hash;
     assert(node.node == 0);
-    if (!atomic_dict_atomic_write_nodes_at(idx, 1, &node, &reservation, meta)) {
+    atomic_dict_nodes_copy_buffers(read_buffer, temp);
+    temp[idx_in_buffer] = reservation;
+    atomic_dict_robin_hood_reservation(meta, temp, idx, distance_0_ix, &idx_in_buffer);
+    int begin_write, end_write;
+    compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
+    if (!atomic_dict_atomic_write_nodes_at(idx + begin_write, end_write - begin_write,
+                                           &read_buffer[begin_write], &temp[begin_write], meta)) {
+        region = -1;
         goto beginning;
     }
-    region = -1;
-    unsigned long pi = idx;
-    unsigned long i = distance_0;
+    atomic_dict_nodes_copy_buffers(temp, read_buffer);
+    long pi = idx;
+    long i = distance_0_ix;
 
     find_reservation:
     reservation.node = 0;
@@ -317,6 +359,9 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 
         if (atomic_dict_node_is_reservation(&node, meta)) {
             reservation.node = node.node;
+            atomic_dict_parse_node_from_raw(reservation.node, &reservation, meta);
+            atomic_dict_entry *e = AtomicDict_GetEntryAt(node.index, meta);
+            distance_0_ix = e->hash & ((1 << meta->log_size) - 1);
             break;
         }
     }
@@ -327,60 +372,69 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             .tag = reservation.tag,
         };
 
-        for (unsigned long j = idx; j >= distance_0; --j) {
+        long previous_start_ix = -1;
+
+        for (long j = i; j > distance_0_ix; --j) { // XXX make circular
             idx = (j) % (1 << meta->log_size);
-
-            if (region != (region_of(idx, meta) | 1)) {
-                meta->read_double_region_nodes_at(idx, read_buffer, meta);
-                region = (long) region_of(idx, meta) | 1;
-                nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
+            start_ix = (idx - meta->nodes_in_two_regions + 1) % (1 << meta->log_size);
+            if (idx < 0) {
+                idx += (1 << meta->log_size);
             }
-            node = read_buffer[idx % meta->nodes_in_two_regions + nodes_offset];
-
-            if (node.node != reservation.node) {
-                region = -1;
-                continue;
-            }
-            real.distance = (idx - distance_0) % (1 << meta->log_size);
-            if (real.distance < meta->max_distance) {
-                if (node.node == real.node) {
-                    ++i;
-                    goto find_reservation;
-                }
-            }
-            if (idx == distance_0) {
-                atomic_dict_atomic_write_nodes_at(idx, 1, &reservation, &real, meta);
-                ++i;
-                goto find_reservation; // regardless of success or failure
+            if (start_ix < 0) {
+                start_ix += (1 << meta->log_size);
             }
 
-            unsigned long left_idx = (idx - 1) % (1 << meta->log_size);
-
-            if (region != (region_of(left_idx, meta) | 1)) {
-                meta->read_double_region_nodes_at(left_idx, read_buffer, meta);
-                region = (long) region_of(left_idx, meta) | 1;
-                nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
+            do_read:
+            if (region != (region_of(start_ix, meta) | 1) || start_ix < previous_start_ix) {
+                previous_start_ix = start_ix;
+                meta->read_double_region_nodes_at(start_ix, read_buffer, meta);
+                region = (long) region_of(start_ix, meta) | 1;
+                nodes_offset = (int) -(start_ix % meta->nodes_in_two_regions);
             }
-            left = read_buffer[(idx - 1) % meta->nodes_in_two_regions + nodes_offset];
+            idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;
+            if (idx_in_buffer < 0) {
+                idx_in_buffer += meta->nodes_in_two_regions;
+            }
+            node = read_buffer[idx_in_buffer];
 
-            if (left.distance <= real.distance) {
-                atomic_dict_atomic_write_nodes_at(idx, 1, &reservation, &real, meta);
-                ++i;
+            if (node.index == real.index && node.node != reservation.node) {
+                // another thread did the work for this insertion
                 goto find_reservation;
             }
-            atomic_dict_node moved_left = left;
-            moved_left.distance++;
-            if (moved_left.distance >= meta->max_distance) {
-                AtomicDict_Grow(self);
-                return 1;
-            }
 
-            atomic_dict_node expected[2] = {left, reservation};
-            atomic_dict_node new[2] = {reservation, moved_left};
-            atomic_dict_atomic_write_nodes_at(left_idx, 2, expected, new, meta);
+            if (node.node != reservation.node)
+                continue;
+
+            atomic_dict_nodes_copy_buffers(read_buffer, temp);
+            atomic_dict_robin_hood_result result;
+            idx = idx_in_buffer;
+            result = atomic_dict_robin_hood_reservation(meta, temp, start_ix, distance_0_ix, &idx);
+            if (result == grow) {
+                AtomicDict_Grow(self);
+                return inserted;
+            }
+            assert(result == ok);
+
+            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
+            if (must_write_bytes(end_write - begin_write, meta) == 16) {
+                while (!index_address_is_aligned(start_ix + begin_write, 16, meta)) {
+                    --begin_write;
+                }
+                if (begin_write < 0) {
+                    start_ix += begin_write;
+                    goto do_read;
+                }
+            }
+            if (atomic_dict_atomic_write_nodes_at(start_ix + begin_write, end_write - begin_write,
+                                                  &read_buffer[begin_write], &temp[begin_write], meta)) {
+                atomic_dict_nodes_copy_buffers(temp, read_buffer);
+            } else {
+                region = -1;
+            }
+            j = idx + 1;
         }
 
-        assert(0);
+        goto find_reservation;
     }
 
     return inserted;
@@ -418,17 +472,16 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     entry_loc.entry->value = value;
 
     atomic_dict_inserted_or_updated result = AtomicDict_InsertOrUpdate(self, meta, &entry_loc);
-    if (result == error) {
-        goto fail;
-    }
-    if (result == updated) {
-        if (entry_loc.entry->flags & ENTRY_FLAGS_RESERVED) {
-            entry_loc.entry->flags = ENTRY_FLAGS_RESERVED;
-        }
+
+    if (result != inserted) {
+        entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
         entry_loc.entry->hash = 0;
         atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
+    }
+    if (result == error) {
+        goto fail;
     }
 
     Py_DECREF(meta);

@@ -213,7 +213,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
-            entry_loc.entry = &meta->blocks[pos >> 6]->entries[pos & 63];
+            entry_loc.entry = &meta->blocks[(pos + 1) >> 6]->entries[(pos + 1) & 63];
             entry_loc.location = pos + 1;
             unsigned char n =
                 self->reservation_buffer_size - (unsigned char) (entry_loc.location % self->reservation_buffer_size);

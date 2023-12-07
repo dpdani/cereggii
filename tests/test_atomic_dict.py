@@ -4,7 +4,6 @@
 import gc
 import threading
 
-import pytest
 from cereggii import AtomicDict
 from pytest import raises
 
@@ -110,13 +109,8 @@ def test_setitem_distance_1_insert():
     assert d.debug()["index"][2] == 10
 
 
-@pytest.mark.skip()
 def test_insert_with_reservation():
-    d = AtomicDict({
-        k: None
-        for k in range(16)
-    })
-    # breakpoint()
+    d = AtomicDict({k: None for k in range(16)})
     d[64] = 1
     for k in range(16):
         assert d[k] is None

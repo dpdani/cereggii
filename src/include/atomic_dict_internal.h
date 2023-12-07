@@ -127,6 +127,10 @@ unsigned long region_of(unsigned long ix, atomic_dict_meta *meta);
 
 unsigned long shift_in_region_of(unsigned long ix, atomic_dict_meta *meta);
 
+unsigned char *index_address_of(unsigned long ix, atomic_dict_meta *meta);
+
+int index_address_is_aligned(unsigned long ix, int alignment, atomic_dict_meta *meta);
+
 void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
 int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
@@ -143,8 +147,7 @@ void atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atom
 
 void atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-int atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expected, atomic_dict_node *new,
-                                     atomic_dict_meta *meta);
+int must_write_bytes(int n, atomic_dict_meta *meta);
 
 int atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
                                       atomic_dict_meta *meta);

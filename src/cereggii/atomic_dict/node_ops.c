@@ -41,6 +41,20 @@ shift_in_region_of(unsigned long ix, atomic_dict_meta *meta)
     return ix & meta->shift_mask;
 }
 
+inline unsigned char *
+index_address_of(unsigned long ix, atomic_dict_meta *meta)
+{
+    unsigned long shift = shift_in_region_of(ix, meta);
+    unsigned long region = region_of(ix, meta);
+    return (unsigned char *) &meta->index[region] + shift * (meta->node_size / 8);
+}
+
+inline int
+index_address_is_aligned(unsigned long ix, int alignment, atomic_dict_meta *meta)
+{
+    return (long) index_address_of(ix, meta) % alignment == 0;
+}
+
 inline void
 atomic_dict_parse_node_from_raw(unsigned long node_raw, atomic_dict_node *node,
                                 atomic_dict_meta *meta)
@@ -102,7 +116,7 @@ atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_di
 {
     assert(meta->node_size <= 32);
     unsigned long little = region_of(ix, meta);
-    unsigned long middle = little + 1;
+    unsigned long middle = region_of(ix + 2, meta);
     unsigned long big = region_of(ix + 3, meta);
     unsigned long node_region_little = meta->index[little];
     unsigned long node_region_middle = node_region_little;
@@ -133,7 +147,7 @@ atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_di
 {
     assert(meta->node_size <= 16);
     unsigned long little = region_of(ix, meta);
-    unsigned long middle = little + 1;
+    unsigned long middle = region_of(ix + 4, meta);
     unsigned long big = region_of(ix + 7, meta);
     unsigned long node_region_little = meta->index[little];
     unsigned long node_region_middle = node_region_little;
@@ -162,9 +176,9 @@ atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_di
 void
 atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
 {
-    assert(meta->node_size <= 8);
+    assert(meta->node_size == 8);
     unsigned long little = region_of(ix, meta);
-    unsigned long middle = little + 1;
+    unsigned long middle = region_of(ix + 8, meta);
     unsigned long big = region_of(ix + 15, meta);
     unsigned long node_region_little = meta->index[little];
     unsigned long node_region_middle = node_region_little;
@@ -203,33 +217,27 @@ atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_
     meta->index[region] = node_raw;
 }
 
-int
-atomic_dict_atomic_write_node_at(unsigned long ix, atomic_dict_node *expected, atomic_dict_node *new,
-                                 atomic_dict_meta *meta)
+inline int
+must_write_bytes(int n, atomic_dict_meta *meta)
 {
-    unsigned long shift = shift_in_region_of(ix, meta);
-    atomic_dict_compute_raw_node(expected, meta);
-    atomic_dict_compute_raw_node(new, meta);
-    switch (meta->node_size) {
-        case 8:
-            return __sync_bool_compare_and_swap_1(
-                &meta->index[region_of(ix, meta)] + shift,
-                expected->node, new->node);
-        case 16:
-            return __sync_bool_compare_and_swap_2(
-                &meta->index[region_of(ix, meta)] + shift,
-                expected->node, new->node);
-        case 32:
-            return __sync_bool_compare_and_swap_4(
-                &meta->index[region_of(ix, meta)] + shift,
-                expected->node, new->node);
-        case 64:
-            return __sync_bool_compare_and_swap_8(
-                &meta->index[region_of(ix, meta)] + shift,
-                expected->node, new->node);
-        default:
-            assert(0);
+    int n_bytes = (meta->node_size >> 3) * n;
+    assert(n_bytes <= 16);
+    if (n_bytes == 1) {
+        return 1;
     }
+    if (n_bytes <= 2) {
+        return 2;
+    }
+    if (n_bytes <= 4) {
+        return 4;
+    }
+    if (n_bytes <= 8) {
+        return 8;
+    }
+    if (n_bytes <= 16) {
+        return 16;
+    }
+    assert(0);
 }
 
 int
@@ -237,47 +245,38 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
                                   atomic_dict_meta *meta)
 {
     assert(n > 0);
-    assert(n <= 16);
+    assert(n <= meta->nodes_in_two_regions);
 
-    unsigned long shift = shift_in_region_of(ix, meta);
+
     unsigned long little = region_of(ix, meta);
-    unsigned long middle = little + 1;
+    unsigned long middle = region_of(ix + n / 2, meta);
     unsigned long big = region_of(ix + n - 1, meta);
     assert(little <= middle <= little + 1); // XXX implement index circular behavior
     assert(middle <= big <= middle + 1); // XXX implement index circular behavior
-    unsigned long long expected_raw = 0, new_raw = 0;
+    __uint128_t expected_raw = 0, new_raw = 0, node; // il bello sta nelle piccole cose
     int i;
     for (i = 0; i < n; ++i) {
         atomic_dict_compute_raw_node(&expected[i], meta);
         atomic_dict_compute_raw_node(&new[i], meta);
     }
     for (i = 0; i < n; ++i) {
-        expected_raw |= expected[i].node << (meta->node_size * i);
-        new_raw |= new[i].node << (meta->node_size * i);
+        node = expected[i].node;
+        node <<= meta->node_size * i;
+        expected_raw |= node;
+        node = new[i].node;
+        node <<= meta->node_size * i;
+        new_raw |= node;
     }
 
-    int n_bytes = (meta->node_size >> 3) * n;
-    assert(n_bytes <= 16);
-    int must_write;
-    if (n_bytes == 1) {
-        must_write = 1;
-    } else if (n_bytes <= 2) {
-        must_write = 2;
-    } else if (n_bytes <= 4) {
-        must_write = 4;
-    } else if (n_bytes <= 8) {
-        must_write = 8;
-    } else if (n_bytes <= 16) {
-        must_write = 16;
-    } else {
-        assert(0);
-    }
+    int must_write = must_write_bytes(n, meta);
     int must_write_nodes = must_write / (meta->node_size / 8);
     for (; i < must_write_nodes; ++i) {
-        new_raw |= expected[i].node << (meta->node_size * (meta->node_size - i - 1));
+        node = expected[i].node;
+        node <<= meta->node_size * (meta->node_size - i - 1);
+        new_raw |= node;
     }
 
-    unsigned char *index_address = (unsigned char *) &meta->index[little] + shift * (meta->node_size / 8);
+    unsigned char *index_address = index_address_of(ix, meta);
     switch (must_write) {
         case 1:
             return __sync_bool_compare_and_swap_1(index_address, expected_raw, new_raw);
@@ -288,6 +287,9 @@ atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *exp
         case 8:
             return __sync_bool_compare_and_swap_8(index_address, expected_raw, new_raw);
         case 16:
+            // assert memory access is aligned
+            // this is not required for <=8 bytes CAS on x86_64
+            assert(index_address_is_aligned(ix, 16, meta));
             return __sync_bool_compare_and_swap_16(index_address, expected_raw, new_raw);
         default:
             assert(0);

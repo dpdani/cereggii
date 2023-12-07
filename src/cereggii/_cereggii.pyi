@@ -121,6 +121,7 @@ class AtomicDict:
         :returns: None
         """
     def values(self) -> Iterable[Value]: ...
+    def debug(self) -> dict: ...
 
 class AtomicRef:
     """An object reference that may be updated atomically."""

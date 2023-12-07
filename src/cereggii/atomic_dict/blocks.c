@@ -31,6 +31,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
 {
     atomic_dict_reservation_buffer_pop(rb, entry_loc);
 
+    beginning:
     if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & 63 & ~(dk->reservation_buffer_size - 1);
         long inserting_block;
@@ -59,9 +60,10 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
             _Py_atomic_compare_exchange_int64(&meta->inserting_block, inserting_block, inserting_block + 1);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        // if (greatest_allocated_block + 1 > (1 << meta->log_size) >> 6) {
-        //     grow();
-        // }
+        if (greatest_allocated_block + 1 > (1 << meta->log_size) >> 6) {
+            AtomicDict_Grow(dk);
+            goto beginning;
+        }
         assert(greatest_allocated_block + 1 <= (1 << meta->log_size) >> 6);
 
         atomic_dict_block *block = atomic_dict_block_new(meta);
