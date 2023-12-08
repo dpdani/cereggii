@@ -13,7 +13,7 @@
  * previous_blocks may be NULL.
  */
 atomic_dict_meta *
-atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
+atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta)
 {
     node_size_info node_sizes = node_sizes_table[log_size];
 
@@ -21,16 +21,16 @@ atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta)
     if (generation == NULL)
         goto fail;
 
-    unsigned long *index = PyMem_RawMalloc(node_sizes.node_size / 8 * (1 << log_size));
+    uint64_t *index = PyMem_RawMalloc(node_sizes.node_size / 8 * (1 << log_size));
     if (index == NULL)
         goto fail;
     memset(index, 0, node_sizes.node_size / 8 * (1 << log_size));
 
     atomic_dict_block **previous_blocks = NULL;
-    long inserting_block = -1;
-    long greatest_allocated_block = -1;
-    long greatest_deleted_block = -1;
-    long greatest_refilled_block = -1;
+    int64_t inserting_block = -1;
+    int64_t greatest_allocated_block = -1;
+    int64_t greatest_deleted_block = -1;
+    int64_t greatest_refilled_block = -1;
 
     if (previous_meta != NULL) {
         previous_blocks = previous_meta->blocks;

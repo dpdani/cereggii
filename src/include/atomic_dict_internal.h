@@ -10,7 +10,7 @@
 
 /// basic structs
 typedef struct {
-    unsigned char flags;
+    uint8_t flags;
     Py_hash_t hash;
     PyObject *key;
     PyObject *value;
@@ -27,15 +27,15 @@ typedef struct {
 
 typedef struct {
     atomic_dict_entry *entry;
-    unsigned long location;
+    uint64_t location;
 } atomic_dict_entry_loc;
 
 
 typedef struct atomic_dict_node {
-    unsigned long node;
-    unsigned long index;
-    unsigned char distance;
-    unsigned long tag;
+    uint64_t node;
+    uint64_t index;
+    uint8_t distance;
+    uint64_t tag;
 } atomic_dict_node;
 
 
@@ -66,34 +66,34 @@ typedef struct atomic_dict_meta atomic_dict_meta;
 struct atomic_dict_meta {
     PyObject_HEAD
 
-    unsigned char log_size;  // = node index_size
+    uint8_t log_size;  // = node index_size
 
     PyObject *generation;
 
-    unsigned long *index;
+    uint64_t *index;
 
     atomic_dict_block **blocks;
-    long inserting_block;
-    long greatest_allocated_block;
-    long greatest_deleted_block;
-    long greatest_refilled_block;
+    int64_t inserting_block;
+    int64_t greatest_allocated_block;
+    int64_t greatest_deleted_block;
+    int64_t greatest_refilled_block;
 
-    unsigned char node_size;
-    unsigned char distance_size;
-    unsigned char max_distance;
-    unsigned char tag_size;
-    unsigned char nodes_in_region;
-    unsigned char nodes_in_two_regions;
+    uint8_t node_size;
+    uint8_t distance_size;
+    uint8_t max_distance;
+    uint8_t tag_size;
+    uint8_t nodes_in_region;
+    uint8_t nodes_in_two_regions;
 
-    unsigned long node_mask;
-    unsigned long index_mask;
-    unsigned long distance_mask;
-    unsigned long tag_mask;
-    unsigned long shift_mask;
+    uint64_t node_mask;
+    uint64_t index_mask;
+    uint64_t distance_mask;
+    uint64_t tag_mask;
+    uint64_t shift_mask;
 
-    void (*read_single_region_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_single_region_nodes_at)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-    void (*read_double_region_nodes_at)(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_double_region_nodes_at)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 };
 
 void atomic_dict_meta_dealloc(atomic_dict_meta *self);
@@ -107,49 +107,49 @@ static PyTypeObject AtomicDictMeta = {
     .tp_dealloc = (destructor) atomic_dict_meta_dealloc,
 };
 
-atomic_dict_meta *atomic_dict_new_meta(unsigned char log_size, atomic_dict_meta *previous_meta);
+atomic_dict_meta *atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta);
 
 atomic_dict_block *atomic_dict_block_new(atomic_dict_meta *meta);
 
-atomic_dict_entry *AtomicDict_GetEntryAt(unsigned long ix, atomic_dict_meta *meta);
+atomic_dict_entry *AtomicDict_GetEntryAt(uint64_t ix, atomic_dict_meta *meta);
 
 
 /// operations on nodes (see ./node_ops.c)
 void atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta);
 
-void atomic_dict_parse_node_from_raw(unsigned long node_raw, atomic_dict_node *node,
+void atomic_dict_parse_node_from_raw(uint64_t node_raw, atomic_dict_node *node,
                                      atomic_dict_meta *meta);
 
-void atomic_dict_parse_node_from_region(unsigned long ix, unsigned long region, atomic_dict_node *node,
+void atomic_dict_parse_node_from_region(uint64_t ix, uint64_t region, atomic_dict_node *node,
                                         atomic_dict_meta *meta);
 
-unsigned long region_of(unsigned long ix, atomic_dict_meta *meta);
+uint64_t region_of(uint64_t ix, atomic_dict_meta *meta);
 
-unsigned long shift_in_region_of(unsigned long ix, atomic_dict_meta *meta);
+uint64_t shift_in_region_of(uint64_t ix, atomic_dict_meta *meta);
 
-unsigned char *index_address_of(unsigned long ix, atomic_dict_meta *meta);
+uint8_t *index_address_of(uint64_t ix, atomic_dict_meta *meta);
 
-int index_address_is_aligned(unsigned long ix, int alignment, atomic_dict_meta *meta);
+int index_address_is_aligned(uint64_t ix, int alignment, atomic_dict_meta *meta);
 
-void atomic_dict_read_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
+void atomic_dict_read_node_at(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
-int atomic_dict_write_node_at(unsigned long ix, atomic_dict_node *node, atomic_dict_meta *meta);
+int atomic_dict_write_node_at(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
 int atomic_dict_node_is_reservation(atomic_dict_node *node, atomic_dict_meta *meta);
 
-void atomic_dict_read_1_node_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void atomic_dict_read_1_node_at(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-void atomic_dict_read_2_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void atomic_dict_read_2_nodes_at(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-void atomic_dict_read_4_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void atomic_dict_read_4_nodes_at(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-void atomic_dict_read_8_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void atomic_dict_read_8_nodes_at(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
-void atomic_dict_read_16_nodes_at(unsigned long ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void atomic_dict_read_16_nodes_at(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
 int must_write_bytes(int n, atomic_dict_meta *meta);
 
-int atomic_dict_atomic_write_nodes_at(unsigned long ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
+int atomic_dict_atomic_write_nodes_at(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
                                       atomic_dict_meta *meta);
 
 
@@ -187,7 +187,7 @@ void atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_
 /// semi-internal
 typedef struct {
     int error;
-    unsigned long index;
+    uint64_t index;
     atomic_dict_node node;
     atomic_dict_entry *entry_p;
     atomic_dict_entry entry;
@@ -215,9 +215,9 @@ int AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta,
  * */
 
 typedef struct {
-    const unsigned char node_size;
-    const unsigned char distance_size;
-    const unsigned char tag_size;
+    const uint8_t node_size;
+    const uint8_t distance_size;
+    const uint8_t tag_size;
 } node_size_info;
 
 #define ATOMIC_DICT_MIN_LOG_SIZE 6

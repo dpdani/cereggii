@@ -34,7 +34,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
     beginning:
     if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & 63 & ~(dk->reservation_buffer_size - 1);
-        long inserting_block;
+        int64_t inserting_block;
 
         reserve_in_inserting_block:
         inserting_block = meta->inserting_block;
@@ -55,7 +55,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
         if (meta->inserting_block != inserting_block)
             goto reserve_in_inserting_block;
 
-        long greatest_allocated_block = meta->greatest_allocated_block;
+        int64_t greatest_allocated_block = meta->greatest_allocated_block;
         if (greatest_allocated_block > inserting_block) {
             _Py_atomic_compare_exchange_int64(&meta->inserting_block, inserting_block, inserting_block + 1);
             goto reserve_in_inserting_block; // even if the above CAS fails
@@ -99,7 +99,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
 }
 
 inline atomic_dict_entry *
-AtomicDict_GetEntryAt(unsigned long ix, atomic_dict_meta *meta)
+AtomicDict_GetEntryAt(uint64_t ix, atomic_dict_meta *meta)
 {
     return &(meta->blocks[ix >> 6]->entries[ix & 63]);
 }

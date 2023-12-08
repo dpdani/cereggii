@@ -13,7 +13,7 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
                   int look_into_reservations, atomic_dict_search_result *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    unsigned long ix = hash & ((1 << meta->log_size) - 1);
+    uint64_t ix = hash & ((1 << meta->log_size) - 1);
     int probe;
     int reservations = 0;
 

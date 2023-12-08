@@ -68,8 +68,8 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
 }
 
 atomic_dict_robin_hood_result
-atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, long start_ix,
-                                   unsigned long distance_0_ix, long *reservation_ix)
+atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, int64_t start_ix,
+                                   uint64_t distance_0_ix, int64_t *reservation_ix)
 {
     /*
      * assumptions:
@@ -86,15 +86,15 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
 
     assert(atomic_dict_node_is_reservation(&current, meta));
 
-    long aligned_ix = 0;
+    int64_t aligned_ix = 0;
 
     if (!index_address_is_aligned(start_ix, 16, meta)) {
-        aligned_ix = *reservation_ix - (long) index_address_of(start_ix, meta) % 16;
+        aligned_ix = *reservation_ix - (int64_t) index_address_of(start_ix, meta) % 16;
     }
 
     if (distance_0_ix < start_ix) {
         assert(*reservation_ix <= 16);
-        for (unsigned long i = *reservation_ix; i > aligned_ix; --i) {
+        for (uint64_t i = *reservation_ix; i > aligned_ix; --i) {
             nodes[i] = nodes[i - 1];
             nodes[i].distance++;
             if (nodes[i].distance >= meta->max_distance) {
@@ -136,7 +136,7 @@ typedef enum atomic_dict_inserted_or_updated {
 } atomic_dict_inserted_or_updated;
 
 atomic_dict_inserted_or_updated
-AtomicDict_CheckNodeEntryAndMaybeUpdate(unsigned long distance_0, unsigned long i, atomic_dict_node *node,
+AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_dict_node *node,
                                         atomic_dict_meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
 {
     if (atomic_dict_node_is_reservation(node, meta))
@@ -212,18 +212,18 @@ void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buff
 atomic_dict_inserted_or_updated
 AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value,
-                                          atomic_dict_node *read_buffer, atomic_dict_node *temp, long *region)
+                                          atomic_dict_node *read_buffer, atomic_dict_node *temp, int64_t *region)
 {
     atomic_dict_node node = {
         .index = entry_loc->location,
         .tag = hash,
     };
 
-    unsigned long ix = hash & ((1 << meta->log_size) - 1);
+    uint64_t ix = hash & ((1 << meta->log_size) - 1);
 
     beginning:
     meta->read_double_region_nodes_at(ix, read_buffer, meta);
-    *region = (long) region_of(ix, meta) | 1;
+    *region = (int64_t) region_of(ix, meta) | 1;
     atomic_dict_inserted_or_updated check_result = 0;
 
     for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
@@ -271,16 +271,16 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     PyObject *key = entry_loc->entry->key;
     PyObject *value = entry_loc->entry->value;
     assert(key != NULL && value != NULL);
-    long distance_0_ix = hash & ((1 << meta->log_size) - 1);
+    int64_t distance_0_ix = hash & ((1 << meta->log_size) - 1);
     assert(distance_0_ix >= 0);
 
     atomic_dict_node read_buffer[16];
     atomic_dict_node temp[16];
     atomic_dict_node node, reservation;
-    long idx;
-    long region = -1;
+    int64_t idx;
+    int64_t region = -1;
     int nodes_offset = 0;
-    long start_ix, idx_in_buffer;
+    int64_t start_ix, idx_in_buffer;
 
     atomic_dict_inserted_or_updated close_to_0;
     close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(self, meta, entry_loc, hash, key, value,
@@ -298,7 +298,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 
         if (region != (region_of(idx, meta) | 1)) {
             meta->read_double_region_nodes_at(idx, read_buffer, meta);
-            region = (long) region_of(idx, meta) | 1;
+            region = (int64_t) region_of(idx, meta) | 1;
             nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
         }
         idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;
@@ -342,8 +342,8 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
         goto beginning;
     }
     atomic_dict_nodes_copy_buffers(temp, read_buffer);
-    long pi = idx;
-    long i = distance_0_ix;
+    int64_t pi = idx;
+    int64_t i = distance_0_ix;
 
     find_reservation:
     reservation.node = 0;
@@ -352,7 +352,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 
         if (region != (region_of(idx, meta) | 1)) {
             meta->read_double_region_nodes_at(idx, read_buffer, meta);
-            region = (long) region_of(idx, meta) | 1;
+            region = (int64_t) region_of(idx, meta) | 1;
             nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
         }
         node = read_buffer[idx % meta->nodes_in_two_regions + nodes_offset];
@@ -372,9 +372,9 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             .tag = reservation.tag,
         };
 
-        long previous_start_ix = -1;
+        int64_t previous_start_ix = -1;
 
-        for (long j = i; j > distance_0_ix; --j) { // XXX make circular
+        for (int64_t j = i; j > distance_0_ix; --j) { // XXX make circular
             idx = (j) % (1 << meta->log_size);
             start_ix = (idx - meta->nodes_in_two_regions + 1) % (1 << meta->log_size);
             if (idx < 0) {
@@ -388,7 +388,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             if (region != (region_of(start_ix, meta) | 1) || start_ix < previous_start_ix) {
                 previous_start_ix = start_ix;
                 meta->read_double_region_nodes_at(start_ix, read_buffer, meta);
-                region = (long) region_of(start_ix, meta) | 1;
+                region = (int64_t) region_of(start_ix, meta) | 1;
                 nodes_offset = (int) -(start_ix % meta->nodes_in_two_regions);
             }
             idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;

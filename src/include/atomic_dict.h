@@ -18,7 +18,7 @@ typedef struct {
     AtomicRef *metadata;
     AtomicRef *new_gen_metadata;
 
-    unsigned char reservation_buffer_size;
+    uint8_t reservation_buffer_size;
     Py_tss_t *tss_key;
     PyObject *reservation_buffers; // PyListObject
 } AtomicDict;

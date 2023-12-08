@@ -53,9 +53,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
     assert(AtomicRef_Get(self->metadata) == Py_None);
     assert(AtomicRef_Get(self->new_gen_metadata) == Py_None);
-    long init_dict_size = 0;
-    long initial_size = 0;
-    long buffer_size = 4;
+    int64_t init_dict_size = 0;
+    int64_t initial_size = 0;
+    int64_t buffer_size = 4;
     PyObject *init_dict = NULL;
 
     if (args != NULL) {
@@ -119,8 +119,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     self->reservation_buffer_size = buffer_size;
 
-    unsigned char log_size = 0;
-    unsigned long initial_size_tmp = (unsigned long) initial_size;
+    uint8_t log_size = 0;
+    uint64_t initial_size_tmp = (uint64_t) initial_size;
     while (initial_size_tmp >>= 1) {
         log_size++;
     }
@@ -149,7 +149,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     AtomicRef_Set(self->metadata, (PyObject *) meta);
 
     atomic_dict_block *block;
-    long i;
+    int64_t i;
     for (i = 0; i < initial_size / 64; i++) {
         // allocate blocks
         block = atomic_dict_block_new(meta);
@@ -215,8 +215,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             // => put them into this thread's reservation buffer
             entry_loc.entry = &meta->blocks[(pos + 1) >> 6]->entries[(pos + 1) & 63];
             entry_loc.location = pos + 1;
-            unsigned char n =
-                self->reservation_buffer_size - (unsigned char) (entry_loc.location % self->reservation_buffer_size);
+            uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
                 atomic_dict_reservation_buffer_put(rb, &entry_loc, n);
             }
@@ -283,7 +282,7 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
         .index = pos,
         .tag = hash,
     };
-    unsigned long ix = hash & ((1 << meta.log_size) - 1);
+    uint64_t ix = hash & ((1 << meta.log_size) - 1);
 
     for (int probe = 0; probe < (1 << meta.distance_size); probe++) {
         atomic_dict_read_node_at(ix + probe, &temp, &meta);
@@ -297,7 +296,7 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
         if (temp.distance < probe) {
             // non-atomic robin hood
             node.distance = probe;
-            unsigned long i = ix + probe;
+            uint64_t i = ix + probe;
             atomic_dict_write_node_at(i, &node, &meta);
             node = temp;
             i++;
@@ -346,7 +345,7 @@ AtomicDict_Debug(AtomicDict *self)
         goto fail;
 
     atomic_dict_node node;
-    for (unsigned long i = 0; i < (1 << meta.log_size); i++) {
+    for (uint64_t i = 0; i < (1 << meta.log_size); i++) {
         atomic_dict_read_node_at(i, &node, &meta);
         PyObject *n = Py_BuildValue("k", node.node);
         if (n == NULL)
@@ -363,7 +362,7 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *entries = NULL;
     PyObject *entry_tuple = NULL;
     PyObject *block_info = NULL;
-    for (unsigned long i = 0; i <= meta.greatest_allocated_block; i++) {
+    for (uint64_t i = 0; i <= meta.greatest_allocated_block; i++) {
         block = meta.blocks[i];
         entries = Py_BuildValue("[]");
         if (entries == NULL)
