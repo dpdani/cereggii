@@ -23,7 +23,7 @@ def test_init():
         },
         bird="spam",
     )
-    AtomicDict(initial_size=120)
+    AtomicDict(min_size=120)
 
 
 def test_log_size_bumped():
@@ -70,7 +70,7 @@ def test_setitem_updates_a_value_set_at_init():
 
 
 def test_setitem_inserts_a_value():
-    d = AtomicDict(initial_size=64 * 4 - 1)
+    d = AtomicDict(min_size=64 - 1)
     d[0] = 42
     d[2] = 2
     d[128] = 1
@@ -124,7 +124,7 @@ def test_dealloc():
 
 
 def test_concurrent_insert():
-    d = AtomicDict(initial_size=64 * 2)
+    d = AtomicDict(min_size=64 * 2)
 
     def thread_1():
         d[0] = 1

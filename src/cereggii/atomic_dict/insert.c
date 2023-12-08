@@ -224,7 +224,7 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
     beginning:
     meta->read_double_region_nodes_at(ix, read_buffer, meta);
     *region = (int64_t) region_of(ix, meta) | 1;
-    atomic_dict_inserted_or_updated check_result = 0;
+    atomic_dict_inserted_or_updated check_result;
 
     for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
         if (read_buffer[i].node == 0) {

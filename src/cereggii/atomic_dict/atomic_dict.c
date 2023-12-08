@@ -54,7 +54,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     assert(AtomicRef_Get(self->metadata) == Py_None);
     assert(AtomicRef_Get(self->new_gen_metadata) == Py_None);
     int64_t init_dict_size = 0;
-    int64_t initial_size = 0;
+    int64_t min_size = 0;
     int64_t buffer_size = 4;
     PyObject *init_dict = NULL;
 
@@ -73,12 +73,12 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (kwargs != NULL) {
         // it is unnecessary to acquire the GIL/begin a critical section:
         // this is the only reference to kwargs
-        PyObject *initial_size_arg = PyDict_GetItemString(kwargs, "initial_size");
-        if (initial_size_arg != NULL) {
-            initial_size = PyLong_AsLong(initial_size_arg);
-            PyDict_DelItemString(kwargs, "initial_size");
-            if (initial_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
-                PyErr_SetString(PyExc_ValueError, "initial_size can be at most 2^56.");
+        PyObject *min_size_arg = PyDict_GetItemString(kwargs, "min_size");
+        if (min_size_arg != NULL) {
+            min_size = PyLong_AsLong(min_size_arg);
+            PyDict_DelItemString(kwargs, "min_size");
+            if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+                PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
                 return -1;
             }
         }
@@ -89,7 +89,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
                 buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
                 buffer_size != 64) {
-                PyErr_SetString(PyExc_ValueError, "buffer_size must be a power of 2, between 1 and 64.");
+                PyErr_SetString(PyExc_ValueError, "buffer_size not in [1, 2, 4, 8, 16, 32, 64]");
                 return -1;
             }
         }
@@ -105,26 +105,22 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (init_dict != NULL) {
         init_dict_size = PyDict_Size(init_dict);
     }
-
-    // max(initial_size, init_dict_size, 64)
-    if (initial_size < init_dict_size) {
-        initial_size = init_dict_size;
+    if (init_dict_size % 64 == 0) { // allocate one more entry: cannot write to entry 0
+        init_dict_size++;
     }
-    if (initial_size % 64 == 0) { // allocate one more entry: cannot write to entry 0
-        initial_size++;
-    }
-    if (initial_size < 64) {
-        initial_size = 64;
+    if (min_size < 64) {
+        min_size = 64;
     }
 
     self->reservation_buffer_size = buffer_size;
 
-    uint8_t log_size = 0;
-    uint64_t initial_size_tmp = (uint64_t) initial_size;
-    while (initial_size_tmp >>= 1) {
+    uint8_t log_size = 0, init_dict_log_size = 0;
+    uint64_t min_size_tmp = (uint64_t) min_size;
+    uint64_t init_dict_size_tmp = (uint64_t) init_dict_size;
+    while (min_size_tmp >>= 1) {
         log_size++;
     }
-    if (initial_size > 1 << log_size) {
+    if (min_size > 1 << log_size) {
         log_size++;
     }
     // 64 = 0b1000000
@@ -140,6 +136,17 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyErr_SetString(PyExc_ValueError, "can hold at most 2^56 items.");
         return -1;
     }
+    self->min_log_size = log_size;
+
+    while (init_dict_size_tmp >>= 1) {
+        init_dict_log_size++;
+    }
+    if (init_dict_size > 1 << init_dict_log_size) {
+        init_dict_log_size++;
+    }
+    if (init_dict_log_size > log_size) {
+        log_size = init_dict_log_size;
+    }
 
     atomic_dict_meta *meta;
     create:
@@ -150,7 +157,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     atomic_dict_block *block;
     int64_t i;
-    for (i = 0; i < initial_size / 64; i++) {
+    for (i = 0; i < init_dict_size / 64; i++) {
         // allocate blocks
         block = atomic_dict_block_new(meta);
         if (block == NULL)
@@ -161,7 +168,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
         meta->greatest_allocated_block++;
     }
-    if (initial_size % 64 > 0) {
+    if (init_dict_size % 64 > 0) {
         // allocate additional block
         block = atomic_dict_block_new(meta);
         if (block == NULL)
