@@ -24,6 +24,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_ref.c"
         "cereggii/atomic_dict/atomic_dict.c"
         "cereggii/atomic_dict/blocks.c"
+        "cereggii/atomic_dict/delete.c"
         "cereggii/atomic_dict/insert.c"
         "cereggii/atomic_dict/lookup.c"
         "cereggii/atomic_dict/meta.c"

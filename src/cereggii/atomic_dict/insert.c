@@ -469,6 +469,10 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 int
 AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
 {
+    if (value == NULL) {
+        return AtomicDict_DelItem(self, key);
+    }
+
     assert(key != NULL);
     assert(value != NULL);
 

@@ -28,7 +28,9 @@ typedef struct {
 
 PyObject *AtomicDict_GetItem(AtomicDict *self, PyObject *key);
 
-int AtomicDict_SetItem(AtomicDict *dk, PyObject *key, PyObject *value);
+int AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value);
+
+int AtomicDict_DelItem(AtomicDict *self, PyObject *key);
 
 PyObject *AtomicDict_Debug(AtomicDict *self);
 

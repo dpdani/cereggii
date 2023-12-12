@@ -11,10 +11,12 @@
 
 int AtomicDict_Grow(AtomicDict *self)
 {
-    assert(0);
+    PyErr_SetString(PyExc_NotImplementedError, "AtomicDict_Grow. see https://github.com/dpdani/cereggii/issues/5");
+    return -1;
 }
 
 int AtomicDict_Shrink(AtomicDict *self)
 {
-    assert(0);
+    PyErr_SetString(PyExc_NotImplementedError, "AtomicDict_Shrink. see https://github.com/dpdani/cereggii/issues/5");
+    return -1;
 }

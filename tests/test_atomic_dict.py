@@ -174,6 +174,12 @@ def test_full_dict_32():
     assert len(d.debug()["index"]) == 1 << 25
 
 
+def test_node_size_64_unavailable():
+    # see https://github.com/dpdani/cereggii/issues/3
+    with raises(NotImplementedError):
+        AtomicDict(min_size=1 << 26)
+
+
 # def test_insert_with_reservation_64():
 #     d = AtomicDict({k: None for k in range(16)}, min_size=(1 << 26) - 1)
 #     breakpoint()

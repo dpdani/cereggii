@@ -15,6 +15,11 @@
 atomic_dict_meta *
 atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta)
 {
+    if (log_size > 25) {
+        PyErr_SetString(PyExc_NotImplementedError, "log_size > 25. see https://github.com/dpdani/cereggii/issues/3");
+        return NULL;
+    }
+
     node_size_info node_sizes = node_sizes_table[log_size];
 
     PyObject *generation = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
