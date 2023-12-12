@@ -88,12 +88,19 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
 
     int64_t aligned_ix = 0;
 
-    if (!index_address_is_aligned(start_ix, 16, meta)) {
-        aligned_ix = *reservation_ix - (int64_t) index_address_of(start_ix, meta) % 16;
+    while (!index_address_is_aligned(start_ix + aligned_ix, 16, meta)) {
+        aligned_ix++;
+    }
+
+    if (aligned_ix == *reservation_ix) {
+        // implement (and perform here, when necessary) a 3-step-swap,
+        // when meta->node_size == 64, or when arch == aarch64
+        aligned_ix--;
     }
 
     if (distance_0_ix < start_ix) {
         assert(*reservation_ix <= 16);
+        assert(aligned_ix >= -1);
         for (uint64_t i = *reservation_ix; i > aligned_ix; --i) {
             nodes[i] = nodes[i - 1];
             nodes[i].distance++;
@@ -101,7 +108,11 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
                 return grow;
             }
         }
-        nodes[aligned_ix] = current;
+        if (aligned_ix == -1) {
+            nodes[0] = current;
+        } else {
+            nodes[aligned_ix] = current;
+        }
         *reservation_ix = start_ix + aligned_ix;
         return ok;
     }
@@ -183,7 +194,7 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
 }
 
 void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
-                             int *begin_write, int *end_write)
+                             int *begin_write, int *end_write, int64_t *start_ix)
 {
     int j;
     *begin_write = -1;
@@ -207,6 +218,15 @@ void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buff
         *end_write = meta->nodes_in_two_regions;
     }
     assert(*end_write > *begin_write);
+
+    if (must_write_bytes(*end_write - *begin_write, meta) == 16) {
+        while (!index_address_is_aligned(*start_ix + *begin_write, 16, meta)) {
+            --*begin_write;
+        }
+        if (begin_write < 0) {
+            *start_ix += *begin_write;
+        }
+    }
 }
 
 atomic_dict_inserted_or_updated
@@ -236,7 +256,9 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
             }
             assert(rh == ok);
             int begin_write, end_write;
-            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
+            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, (int64_t *) &ix);
+            if (begin_write < 0)
+                goto beginning;
             if (atomic_dict_atomic_write_nodes_at(ix + begin_write, end_write - begin_write,
                                                   &read_buffer[begin_write], &temp[begin_write], meta)) {
                 goto done;
@@ -335,7 +357,15 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     temp[idx_in_buffer] = reservation;
     atomic_dict_robin_hood_reservation(meta, temp, idx, distance_0_ix, &idx_in_buffer);
     int begin_write, end_write;
-    compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
+    int64_t idx_tmp = idx;
+    compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, &idx_tmp);
+    if (begin_write < 0) {
+        meta->read_double_region_nodes_at(idx_tmp, read_buffer, meta);
+        region = (int64_t) region_of(idx_tmp, meta) | 1;
+        nodes_offset = (int) -(idx_tmp % meta->nodes_in_two_regions);
+        idx_in_buffer = idx_tmp % meta->nodes_in_two_regions + nodes_offset;
+        goto tail_found;
+    }
     if (!atomic_dict_atomic_write_nodes_at(idx + begin_write, end_write - begin_write,
                                            &read_buffer[begin_write], &temp[begin_write], meta)) {
         region = -1;
@@ -415,16 +445,10 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             }
             assert(result == ok);
 
-            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write);
-            if (must_write_bytes(end_write - begin_write, meta) == 16) {
-                while (!index_address_is_aligned(start_ix + begin_write, 16, meta)) {
-                    --begin_write;
-                }
-                if (begin_write < 0) {
-                    start_ix += begin_write;
-                    goto do_read;
-                }
-            }
+            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, &start_ix);
+            if (begin_write < 0)
+                goto do_read;
+
             if (atomic_dict_atomic_write_nodes_at(start_ix + begin_write, end_write - begin_write,
                                                   &read_buffer[begin_write], &temp[begin_write], meta)) {
                 atomic_dict_nodes_copy_buffers(temp, read_buffer);

@@ -4,6 +4,7 @@
 import gc
 import threading
 
+import pytest
 from cereggii import AtomicDict
 from pytest import raises
 
@@ -73,10 +74,32 @@ def test_setitem_inserts_a_value():
     d = AtomicDict(min_size=64 - 1)
     d[0] = 42
     d[2] = 2
-    d[128] = 1
+    d[67108864] = 1  # 67108864 = 1 << 26 => hash(67108864) == hash(0)
     assert d[0] == 42
     assert d[2] == 2
-    assert d[128] == 1
+    assert d[67108864] == 1
+    d = AtomicDict(min_size=(1 << 7) - 1)
+    d[0] = 42
+    d[2] = 2
+    d[67108864] = 1
+    assert d[0] == 42
+    assert d[2] == 2
+    assert d[67108864] == 1
+    d = AtomicDict(min_size=(1 << 11) - 1)
+    d[0] = 42
+    d[2] = 2
+    d[67108864] = 1
+    assert d[0] == 42
+    assert d[2] == 2
+    assert d[67108864] == 1
+    # breakpoint()  # 64 bit nodes not supported yet
+    # d = AtomicDict(min_size=(1 << 26) - 1)
+    # d[0] = 42
+    # d[2] = 2
+    # d[67108864] = 1
+    # assert d[0] == 42
+    # assert d[2] == 2
+    # assert d[67108864] == 1
 
 
 def test_setitem_updates_an_inserted_value():
@@ -110,11 +133,54 @@ def test_setitem_distance_1_insert():
 
 
 def test_insert_with_reservation():
-    d = AtomicDict({k: None for k in range(16)})
+    d = AtomicDict({k: None for k in range(48)})
     d[64] = 1
     for k in range(16):
         assert d[k] is None
     assert d[64] == 1
+
+    # d = AtomicDict({k: None for k in range(60)})  # fixme
+    # breakpoint()
+    # d[64] = 1
+    # for k in range(16):
+    #     assert d[k] is None
+    # assert d[64] == 1
+
+
+def test_full_dict():
+    d = AtomicDict({k: None for k in range(63)})
+    assert len(d.debug()["index"]) == 64
+    d = AtomicDict(min_size=64)
+    for k in range(62):
+        d[k] = None
+    assert len(d.debug()["index"]) == 64
+
+    d = AtomicDict({k: None for k in range((1 << 10) - 1)})
+    assert len(d.debug()["index"]) == 1 << 10
+    d = AtomicDict(min_size=1 << 10)
+    for k in range((1 << 10) - 2):
+        d[k] = None
+    assert len(d.debug()["index"]) == 1 << 10
+
+
+@pytest.mark.skip()
+def test_full_dict_32():
+    # this test is slow (allocates a lot of memory)
+    d = AtomicDict({k: None for k in range((1 << 25) - 1)})
+    assert len(d.debug()["index"]) == 1 << 25
+    d = AtomicDict(min_size=1 << 25)
+    for k in range((1 << 25) - 2):
+        d[k] = None
+    assert len(d.debug()["index"]) == 1 << 25
+
+
+# def test_insert_with_reservation_64():
+#     d = AtomicDict({k: None for k in range(16)}, min_size=(1 << 26) - 1)
+#     breakpoint()
+#     d[1 << 26] = 1
+#     for k in range(16):
+#         assert d[k] is None
+#     assert d[64] == 1
 
 
 def test_dealloc():

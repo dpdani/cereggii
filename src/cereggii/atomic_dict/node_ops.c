@@ -14,7 +14,7 @@
 inline void
 atomic_dict_compute_raw_node(atomic_dict_node *node, atomic_dict_meta *meta)
 {
-    assert(node->index <= (1 << meta->log_size));
+    assert(node->index < (1 << meta->log_size));
     assert(node->distance <= meta->max_distance);
     node->node =
         (node->index << (meta->node_size - meta->log_size))
