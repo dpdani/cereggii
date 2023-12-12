@@ -161,13 +161,11 @@ int AtomicDict_Shrink(AtomicDict *self);
 
 
 /// reservation buffer (see ./reservation_buffer.c)
-#define RESERVATION_BUFFER_SIZE 64
-
 typedef struct {
     PyObject_HEAD
 
     int head, tail, count;
-    atomic_dict_entry_loc reservations[RESERVATION_BUFFER_SIZE];
+    atomic_dict_entry_loc reservations[64];
 } atomic_dict_reservation_buffer;
 
 static PyTypeObject AtomicDictReservationBuffer = {

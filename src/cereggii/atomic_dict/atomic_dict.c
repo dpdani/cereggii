@@ -231,16 +231,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             entry_loc.entry = &meta->blocks[0]->entries[i & 63];
             entry_loc.location = i;
             if (entry_loc.entry->key == NULL) {
-                int found = 0;
-                for (int j = 0; j < RESERVATION_BUFFER_SIZE; ++j) {
-                    if (rb->reservations[j].location == entry_loc.location) {
-                        found = 1;
-                        break;
-                    }
-                }
-                if (!found) {
-                    atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
-                }
+                atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
             }
         }
     }
