@@ -1,5 +1,4 @@
-from typing import Callable, NewType
-from collections.abc import Iterable
+from typing import NewType
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)
