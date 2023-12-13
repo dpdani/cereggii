@@ -57,6 +57,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t min_size = 0;
     int64_t buffer_size = 4;
     PyObject *init_dict = NULL;
+    atomic_dict_meta *meta = NULL;
 
     if (args != NULL) {
         if (!PyArg_ParseTuple(args, "|O", &init_dict)) {
@@ -64,7 +65,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
         if (init_dict != NULL) {
             if (!PyDict_Check(init_dict)) {
-                PyErr_SetString(PyExc_TypeError, "initial iterable must be a dict.");
+                PyErr_SetString(PyExc_TypeError, "type(iterable) is not dict");
                 goto fail;
             }
         }
@@ -148,7 +149,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         log_size = init_dict_log_size;
     }
 
-    atomic_dict_meta *meta;
     create:
     meta = atomic_dict_new_meta(log_size, NULL);
     if (meta == NULL)
@@ -338,6 +338,8 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     // probes exhausted
     return -1;
     done:
+    Py_INCREF(key);
+    Py_INCREF(value);
     return 0;
 }
 
@@ -392,14 +394,18 @@ AtomicDict_Debug(AtomicDict *self)
             goto fail;
 
         for (int j = 0; j < 64; j++) {
-            if (block->entries[j].key != NULL) {
+            PyObject *key = block->entries[j].key;
+            if (key != NULL) {
+                PyObject *value = block->entries[j].value;
                 entry_tuple = Py_BuildValue("(BlOO)",
                                             block->entries[j].flags,
                                             block->entries[j].hash,
-                                            block->entries[j].key,
-                                            block->entries[j].value);
+                                            key,
+                                            value);
                 if (entry_tuple == NULL)
                     goto fail;
+                Py_INCREF(key);
+                Py_INCREF(value);
                 PyList_Append(entries, entry_tuple);
                 Py_DECREF(entry_tuple);
             }

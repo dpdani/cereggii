@@ -80,7 +80,7 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
 }
 
 PyObject *
-AtomicDict_GetItem(AtomicDict *self, PyObject *key)
+AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)
 {
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
@@ -103,8 +103,7 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     Py_DECREF(meta); // for atomic_ref_get_ref
 
     if (result.entry_p == NULL) {
-        PyErr_SetObject(PyExc_KeyError, key);
-        result.entry.value = NULL;
+        result.entry.value = default_value;
     }
 
     Py_DECREF(meta);
@@ -112,4 +111,35 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     fail:
     Py_XDECREF(meta);
     return NULL;
+}
+
+PyObject *
+AtomicDict_GetItem(AtomicDict *self, PyObject *key)
+{
+    PyObject *value = AtomicDict_GetItemOrDefault(self, key, NULL);
+
+    if (value == NULL) {
+        PyErr_SetObject(PyExc_KeyError, key);
+    } else {
+        Py_INCREF(value);
+    }
+
+    return value;
+}
+
+PyObject *
+AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *key = NULL, *default_value = NULL;
+    static char *keywords[] = {"key", "default", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", keywords, &key, &default_value))
+        return NULL;
+
+    if (default_value == NULL)
+        default_value = Py_None;
+
+    PyObject *value = AtomicDict_GetItemOrDefault(self, key, default_value);
+    Py_INCREF(value);
+    return value;
 }

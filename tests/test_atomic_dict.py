@@ -27,6 +27,34 @@ def test_init():
     AtomicDict(min_size=120)
 
 
+def test_weird_init():
+    # this may be confusing: the iterable is the input parameter for initializing
+    # the dictionary, but it is a positional-only parameter. thus, when passing it
+    # as a keyword parameter, it is considered to be one key in itself.
+    d = AtomicDict(min_size=64, iterable={1: 0})
+    with raises(KeyError):
+        assert d[1] == 0
+    d.debug()
+    gc.collect()
+    assert d["iterable"] == {1: 0}
+
+    with raises(TypeError):
+        AtomicDict(None)
+
+
+def test_debug():
+    d = AtomicDict({"key": "value"}, min_size=64, iterable={1: 0})
+    dbg = d.debug()
+    assert type(dbg) is dict
+    assert "meta" in dbg
+    assert "index" in dbg
+    assert "blocks" in dbg
+    del dbg
+    gc.collect()
+    d.debug()
+    gc.collect()
+
+
 def test_log_size_bumped():
     keys = [i * 64 for i in range(10)]
     d = AtomicDict({k: None for k in keys})
@@ -223,3 +251,11 @@ def test_concurrent_insert():
     assert d[4] == 2
 
     assert d[2] in (1, 2)
+
+
+def test_get_default():
+    d = AtomicDict()
+    d["key"] = "value"
+    assert d.get(1) is None
+    assert d.get(1, "default") == "default"
+    assert d.get("key") == "value"

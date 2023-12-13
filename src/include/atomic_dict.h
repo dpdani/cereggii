@@ -26,6 +26,10 @@ typedef struct {
 } AtomicDict;
 
 
+PyObject *AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value);
+
+PyObject *AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 PyObject *AtomicDict_GetItem(AtomicDict *self, PyObject *key);
 
 int AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value);
