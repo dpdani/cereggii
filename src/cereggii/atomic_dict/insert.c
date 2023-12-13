@@ -10,14 +10,14 @@
 #include "pythread.h"
 
 
-typedef enum atomic_dict_robin_hood_result {
+typedef enum AtomicDict_RobinHoodResult {
     ok,
     failed,
     grow,
-} atomic_dict_robin_hood_result;
+} AtomicDict_RobinHoodResult;
 
-atomic_dict_robin_hood_result
-atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node *to_insert, int distance_0_ix)
+AtomicDict_RobinHoodResult
+AtomicDict_RobinHood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node *to_insert, int distance_0_ix)
 {
     /*
      * Lythe and listin, gentilmen,
@@ -44,7 +44,7 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
         }
         cursor = distance_0_ix + probe;
         if (nodes[cursor].node == 0) {
-            if (!atomic_dict_node_is_reservation(&current, meta)) {
+            if (!AtomicDict_NodeIsReservation(&current, meta)) {
                 current.distance = probe;
             }
             nodes[cursor] = current;
@@ -52,9 +52,9 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
         }
 
         if (nodes[cursor].distance < probe) {
-            if (!atomic_dict_node_is_reservation(&current, meta)) {
+            if (!AtomicDict_NodeIsReservation(&current, meta)) {
                 current.distance = probe;
-                atomic_dict_compute_raw_node(&current, meta);
+                AtomicDict_ComputeRawNode(&current, meta);
             }
             temp = nodes[cursor];
             nodes[cursor] = current;
@@ -67,9 +67,9 @@ atomic_dict_robin_hood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_d
     return failed;
 }
 
-atomic_dict_robin_hood_result
-atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nodes, int64_t start_ix,
-                                   uint64_t distance_0_ix, int64_t *reservation_ix)
+AtomicDict_RobinHoodResult
+AtomicDict_RobinHoodReservation(atomic_dict_meta *meta, atomic_dict_node *nodes, int64_t start_ix,
+                                uint64_t distance_0_ix, int64_t *reservation_ix)
 {
     /*
      * assumptions:
@@ -84,11 +84,11 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
 
     atomic_dict_node current = nodes[*reservation_ix];
 
-    assert(atomic_dict_node_is_reservation(&current, meta));
+    assert(AtomicDict_NodeIsReservation(&current, meta));
 
     int64_t aligned_ix = 0;
 
-    while (!index_address_is_aligned(start_ix + aligned_ix, 16, meta)) {
+    while (!AtomicDict_IndexAddressIsAligned(start_ix + aligned_ix, 16, meta)) {
         aligned_ix++;
     }
 
@@ -117,11 +117,11 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
         return ok;
     }
 
-    atomic_dict_parse_node_from_raw(0, &nodes[*reservation_ix], meta);
+    AtomicDict_ParseNodeFromRaw(0, &nodes[*reservation_ix], meta);
     assert(start_ix - distance_0_ix <= 16);
-    atomic_dict_robin_hood_result result;
+    AtomicDict_RobinHoodResult result;
     current.distance = 0;
-    result = atomic_dict_robin_hood(meta, nodes, &current, (int) (start_ix - distance_0_ix));
+    result = AtomicDict_RobinHood(meta, nodes, &current, (int) (start_ix - distance_0_ix));
     for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
         if (nodes[i].index == current.index) {
             *reservation_ix = start_ix + i;
@@ -131,26 +131,26 @@ atomic_dict_robin_hood_reservation(atomic_dict_meta *meta, atomic_dict_node *nod
 }
 
 void
-atomic_dict_nodes_copy_buffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer)
+AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer)
 {
     for (int i = 0; i < 16; ++i) {
         to_buffer[i] = from_buffer[i];
     }
 }
 
-typedef enum atomic_dict_inserted_or_updated {
+typedef enum AtomicDict_InsertedOrUpdated {
     error,
     inserted,
     updated,
     nop,
     retry,
-} atomic_dict_inserted_or_updated;
+} AtomicDict_InsertedOrUpdated;
 
-atomic_dict_inserted_or_updated
+AtomicDict_InsertedOrUpdated
 AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_dict_node *node,
                                         atomic_dict_meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
 {
-    if (atomic_dict_node_is_reservation(node, meta))
+    if (AtomicDict_NodeIsReservation(node, meta))
         goto check_entry;
     if ((distance_0 + i - node->distance) % (1 << meta->log_size) > distance_0)
         return nop;
@@ -181,7 +181,7 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
         // help delete
         return retry;
     }
-    if (atomic_dict_node_is_reservation(node, meta)) {
+    if (AtomicDict_NodeIsReservation(node, meta)) {
         // help insert
         return retry;
     }
@@ -193,13 +193,13 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
     goto check_entry;
 }
 
-void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
-                             int *begin_write, int *end_write, int64_t *start_ix)
+void AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+                                     int *begin_write, int *end_write, int64_t *start_ix)
 {
     int j;
     *begin_write = -1;
     for (j = 0; j < meta->nodes_in_two_regions; ++j) {
-        atomic_dict_compute_raw_node(&temp[j], meta);
+        AtomicDict_ComputeRawNode(&temp[j], meta);
         if (temp[j].node != read_buffer[j].node) {
             *begin_write = j;
             break;
@@ -208,7 +208,7 @@ void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buff
     assert(*begin_write != -1);
     *end_write = -1;
     for (j = *begin_write + 1; j < meta->nodes_in_two_regions; ++j) {
-        atomic_dict_compute_raw_node(&temp[j], meta);
+        AtomicDict_ComputeRawNode(&temp[j], meta);
         if (temp[j].node == read_buffer[j].node) {
             *end_write = j;
             break;
@@ -219,8 +219,8 @@ void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buff
     }
     assert(*end_write > *begin_write);
 
-    if (must_write_bytes(*end_write - *begin_write, meta) == 16) {
-        while (!index_address_is_aligned(*start_ix + *begin_write, 16, meta)) {
+    if (AtomicDict_MustWriteBytes(*end_write - *begin_write, meta) == 16) {
+        while (!AtomicDict_IndexAddressIsAligned(*start_ix + *begin_write, 16, meta)) {
             --*begin_write;
         }
         if (begin_write < 0) {
@@ -229,7 +229,7 @@ void compute_begin_end_write(atomic_dict_meta *meta, atomic_dict_node *read_buff
     }
 }
 
-atomic_dict_inserted_or_updated
+AtomicDict_InsertedOrUpdated
 AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value,
                                           atomic_dict_node *read_buffer, atomic_dict_node *temp, int64_t *region)
@@ -243,24 +243,24 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
 
     beginning:
     meta->read_double_region_nodes_at(ix, read_buffer, meta);
-    *region = (int64_t) region_of(ix, meta) | 1;
-    atomic_dict_inserted_or_updated check_result;
+    *region = (int64_t) AtomicDict_RegionOf(ix, meta) | 1;
+    AtomicDict_InsertedOrUpdated check_result;
 
     for (int i = 0; i < meta->nodes_in_two_regions; ++i) {
         if (read_buffer[i].node == 0) {
-            atomic_dict_nodes_copy_buffers(read_buffer, temp);
-            atomic_dict_robin_hood_result rh = atomic_dict_robin_hood(meta, temp, &node, 0);
+            AtomicDict_CopyNodeBuffers(read_buffer, temp);
+            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHood(meta, temp, &node, 0);
             if (rh == grow) {
                 AtomicDict_Grow(self);
                 return inserted;
             }
             assert(rh == ok);
             int begin_write, end_write;
-            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, (int64_t *) &ix);
+            AtomicDict_ComputeBeginEndWrite(meta, read_buffer, temp, &begin_write, &end_write, (int64_t *) &ix);
             if (begin_write < 0)
                 goto beginning;
-            if (atomic_dict_atomic_write_nodes_at(ix + begin_write, end_write - begin_write,
-                                                  &read_buffer[begin_write], &temp[begin_write], meta)) {
+            if (AtomicDict_AtomicWriteNodesAt(ix + begin_write, end_write - begin_write,
+                                              &read_buffer[begin_write], &temp[begin_write], meta)) {
                 goto done;
             }
             goto beginning;
@@ -304,7 +304,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     int nodes_offset = 0;
     int64_t start_ix, idx_in_buffer;
 
-    atomic_dict_inserted_or_updated close_to_0;
+    AtomicDict_InsertedOrUpdated close_to_0;
     close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(self, meta, entry_loc, hash, key, value,
                                                            read_buffer, temp, &region);
     if (close_to_0 == error) {
@@ -318,9 +318,9 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     for (int i = 0; i < 1 << meta->log_size; ++i) {
         idx = (distance_0_ix + i) % (1 << meta->log_size);
 
-        if (region != (region_of(idx, meta) | 1)) {
+        if (region != (AtomicDict_RegionOf(idx, meta) | 1)) {
             meta->read_double_region_nodes_at(idx, read_buffer, meta);
-            region = (int64_t) region_of(idx, meta) | 1;
+            region = (int64_t) AtomicDict_RegionOf(idx, meta) | 1;
             nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
         }
         idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;
@@ -329,7 +329,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
         if (node.node == 0)
             goto tail_found;
 
-        atomic_dict_inserted_or_updated check_entry;
+        AtomicDict_InsertedOrUpdated check_entry;
         check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0_ix, i, &node, meta, hash, key, value);
         switch (check_entry) {
             case retry:
@@ -353,25 +353,25 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     reservation.distance = meta->max_distance;
     reservation.tag = hash;
     assert(node.node == 0);
-    atomic_dict_nodes_copy_buffers(read_buffer, temp);
+    AtomicDict_CopyNodeBuffers(read_buffer, temp);
     temp[idx_in_buffer] = reservation;
-    atomic_dict_robin_hood_reservation(meta, temp, idx, distance_0_ix, &idx_in_buffer);
+    AtomicDict_RobinHoodReservation(meta, temp, idx, distance_0_ix, &idx_in_buffer);
     int begin_write, end_write;
     int64_t idx_tmp = idx;
-    compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, &idx_tmp);
+    AtomicDict_ComputeBeginEndWrite(meta, read_buffer, temp, &begin_write, &end_write, &idx_tmp);
     if (begin_write < 0) {
         meta->read_double_region_nodes_at(idx_tmp, read_buffer, meta);
-        region = (int64_t) region_of(idx_tmp, meta) | 1;
+        region = (int64_t) AtomicDict_RegionOf(idx_tmp, meta) | 1;
         nodes_offset = (int) -(idx_tmp % meta->nodes_in_two_regions);
         idx_in_buffer = idx_tmp % meta->nodes_in_two_regions + nodes_offset;
         goto tail_found;
     }
-    if (!atomic_dict_atomic_write_nodes_at(idx + begin_write, end_write - begin_write,
-                                           &read_buffer[begin_write], &temp[begin_write], meta)) {
+    if (!AtomicDict_AtomicWriteNodesAt(idx + begin_write, end_write - begin_write,
+                                       &read_buffer[begin_write], &temp[begin_write], meta)) {
         region = -1;
         goto beginning;
     }
-    atomic_dict_nodes_copy_buffers(temp, read_buffer);
+    AtomicDict_CopyNodeBuffers(temp, read_buffer);
     int64_t pi = idx;
     int64_t i = distance_0_ix;
 
@@ -380,16 +380,16 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     for (; i <= pi; ++i) {  // XXX make it circular
         idx = (i) % (1 << meta->log_size);
 
-        if (region != (region_of(idx, meta) | 1)) {
+        if (region != (AtomicDict_RegionOf(idx, meta) | 1)) {
             meta->read_double_region_nodes_at(idx, read_buffer, meta);
-            region = (int64_t) region_of(idx, meta) | 1;
+            region = (int64_t) AtomicDict_RegionOf(idx, meta) | 1;
             nodes_offset = (int) -(idx % meta->nodes_in_two_regions);
         }
         node = read_buffer[idx % meta->nodes_in_two_regions + nodes_offset];
 
-        if (atomic_dict_node_is_reservation(&node, meta)) {
+        if (AtomicDict_NodeIsReservation(&node, meta)) {
             reservation.node = node.node;
-            atomic_dict_parse_node_from_raw(reservation.node, &reservation, meta);
+            AtomicDict_ParseNodeFromRaw(reservation.node, &reservation, meta);
             atomic_dict_entry *e = AtomicDict_GetEntryAt(node.index, meta);
             distance_0_ix = e->hash & ((1 << meta->log_size) - 1);
             break;
@@ -415,10 +415,10 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             }
 
             do_read:
-            if (region != (region_of(start_ix, meta) | 1) || start_ix < previous_start_ix) {
+            if (region != (AtomicDict_RegionOf(start_ix, meta) | 1) || start_ix < previous_start_ix) {
                 previous_start_ix = start_ix;
                 meta->read_double_region_nodes_at(start_ix, read_buffer, meta);
-                region = (int64_t) region_of(start_ix, meta) | 1;
+                region = (int64_t) AtomicDict_RegionOf(start_ix, meta) | 1;
                 nodes_offset = (int) -(start_ix % meta->nodes_in_two_regions);
             }
             idx_in_buffer = idx % meta->nodes_in_two_regions + nodes_offset;
@@ -435,23 +435,23 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
             if (node.node != reservation.node)
                 continue;
 
-            atomic_dict_nodes_copy_buffers(read_buffer, temp);
-            atomic_dict_robin_hood_result result;
+            AtomicDict_CopyNodeBuffers(read_buffer, temp);
+            AtomicDict_RobinHoodResult result;
             idx = idx_in_buffer;
-            result = atomic_dict_robin_hood_reservation(meta, temp, start_ix, distance_0_ix, &idx);
+            result = AtomicDict_RobinHoodReservation(meta, temp, start_ix, distance_0_ix, &idx);
             if (result == grow) {
                 AtomicDict_Grow(self);
                 return inserted;
             }
             assert(result == ok);
 
-            compute_begin_end_write(meta, read_buffer, temp, &begin_write, &end_write, &start_ix);
+            AtomicDict_ComputeBeginEndWrite(meta, read_buffer, temp, &begin_write, &end_write, &start_ix);
             if (begin_write < 0)
                 goto do_read;
 
-            if (atomic_dict_atomic_write_nodes_at(start_ix + begin_write, end_write - begin_write,
-                                                  &read_buffer[begin_write], &temp[begin_write], meta)) {
-                atomic_dict_nodes_copy_buffers(temp, read_buffer);
+            if (AtomicDict_AtomicWriteNodesAt(start_ix + begin_write, end_write - begin_write,
+                                              &read_buffer[begin_write], &temp[begin_write], meta)) {
+                AtomicDict_CopyNodeBuffers(temp, read_buffer);
             } else {
                 region = -1;
             }
@@ -481,7 +481,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         return -1;
     }
 
-    atomic_dict_reservation_buffer *rb = atomic_dict_get_reservation_buffer(self);
+    atomic_dict_reservation_buffer *rb = AtomicDict_GetReservationBuffer(self);
     if (rb == NULL)
         goto fail;
 
@@ -489,7 +489,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
     atomic_dict_entry_loc entry_loc;
-    atomic_dict_get_empty_entry(self, meta, rb, &entry_loc, hash);
+    AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
     if (entry_loc.entry == NULL)
         goto fail;
 
@@ -499,14 +499,14 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     entry_loc.entry->hash = hash;
     entry_loc.entry->value = value;
 
-    atomic_dict_inserted_or_updated result = AtomicDict_InsertOrUpdate(self, meta, &entry_loc);
+    AtomicDict_InsertedOrUpdated result = AtomicDict_InsertOrUpdate(self, meta, &entry_loc);
 
     if (result != inserted) {
         entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
         entry_loc.entry->hash = 0;
-        atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
+        AtomicDict_ReservationBufferPut(rb, &entry_loc, 1);
     }
     if (result == error) {
         goto fail;

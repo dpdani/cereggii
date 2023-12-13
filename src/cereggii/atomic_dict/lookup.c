@@ -18,9 +18,9 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
     int reservations = 0;
 
     for (probe = 0; probe < meta->log_size; probe++) {
-        atomic_dict_read_node_at((ix + probe + reservations) % (1 << meta->log_size), &result->node, meta);
+        AtomicDict_ReadNodeAt((ix + probe + reservations) % (1 << meta->log_size), &result->node, meta);
 
-        if (atomic_dict_node_is_reservation(&result->node, meta)) {
+        if (AtomicDict_NodeIsReservation(&result->node, meta)) {
             probe--;
             reservations++;
             if (look_into_reservations) {

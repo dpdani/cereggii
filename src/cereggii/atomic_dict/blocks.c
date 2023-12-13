@@ -11,7 +11,7 @@
 
 
 atomic_dict_block *
-atomic_dict_block_new(atomic_dict_meta *meta)
+AtomicDict_NewBlock(atomic_dict_meta *meta)
 {
     atomic_dict_block *new = PyMem_RawMalloc(sizeof(atomic_dict_block));
 
@@ -26,10 +26,10 @@ atomic_dict_block_new(atomic_dict_meta *meta)
 
 
 void
-atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
-                            atomic_dict_entry_loc *entry_loc, Py_hash_t hash)
+AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
+                         atomic_dict_entry_loc *entry_loc, Py_hash_t hash)
 {
-    atomic_dict_reservation_buffer_pop(rb, entry_loc);
+    AtomicDict_ReservationBufferPop(rb, entry_loc);
 
     beginning:
     if (entry_loc->entry == NULL) {
@@ -45,8 +45,8 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
             if (entry_loc->entry->flags == 0) {
                 if (__sync_bool_compare_and_swap_1(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
                     entry_loc->location = insert_position + offset;
-                    atomic_dict_reservation_buffer_put(rb, entry_loc, dk->reservation_buffer_size);
-                    atomic_dict_reservation_buffer_pop(rb, entry_loc);
+                    AtomicDict_ReservationBufferPut(rb, entry_loc, dk->reservation_buffer_size);
+                    AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
                 }
             }
@@ -66,7 +66,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
         }
         assert(greatest_allocated_block + 1 <= (1 << meta->log_size) >> 6);
 
-        atomic_dict_block *block = atomic_dict_block_new(meta);
+        atomic_dict_block *block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
@@ -83,7 +83,7 @@ atomic_dict_get_empty_entry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_
                                                      greatest_allocated_block + 1));
             entry_loc->entry = &block->entries[0];
             entry_loc->location = (greatest_allocated_block + 1) << 6;
-            atomic_dict_reservation_buffer_put(rb, entry_loc, dk->reservation_buffer_size);
+            AtomicDict_ReservationBufferPut(rb, entry_loc, dk->reservation_buffer_size);
         } else {
             PyMem_RawFree(block);
         }

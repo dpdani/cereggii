@@ -13,14 +13,14 @@
  * previous_blocks may be NULL.
  */
 atomic_dict_meta *
-atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta)
+AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
 {
     if (log_size > 25) {
         PyErr_SetString(PyExc_NotImplementedError, "log_size > 25. see https://github.com/dpdani/cereggii/issues/3");
         return NULL;
     }
 
-    node_size_info node_sizes = node_sizes_table[log_size];
+    AtomicDict_NodeSizeInfo node_sizes = AtomicDict_NodeSizesTable[log_size];
 
     PyObject *generation = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
     if (generation == NULL)
@@ -80,23 +80,23 @@ atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta)
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
-            meta->read_single_region_nodes_at = atomic_dict_read_8_nodes_at;
-            meta->read_double_region_nodes_at = atomic_dict_read_16_nodes_at;
+            meta->read_single_region_nodes_at = AtomicDict_Read8NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read16NodesAt;
             break;
         case 16:
             meta->shift_mask = 4 - 1;
-            meta->read_single_region_nodes_at = atomic_dict_read_4_nodes_at;
-            meta->read_double_region_nodes_at = atomic_dict_read_8_nodes_at;
+            meta->read_single_region_nodes_at = AtomicDict_Read4NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read8NodesAt;
             break;
         case 32:
             meta->shift_mask = 2 - 1;
-            meta->read_single_region_nodes_at = atomic_dict_read_2_nodes_at;
-            meta->read_double_region_nodes_at = atomic_dict_read_4_nodes_at;
+            meta->read_single_region_nodes_at = AtomicDict_Read2NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read4NodesAt;
             break;
         case 64:
             meta->shift_mask = 1 - 1;
-            meta->read_single_region_nodes_at = atomic_dict_read_1_node_at;
-            meta->read_double_region_nodes_at = atomic_dict_read_2_nodes_at;
+            meta->read_single_region_nodes_at = AtomicDict_Read1NodeAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read2NodesAt;
             break;
     }
 
@@ -115,7 +115,7 @@ atomic_dict_new_meta(uint8_t log_size, atomic_dict_meta *previous_meta)
 }
 
 void
-atomic_dict_meta_dealloc(atomic_dict_meta *self)
+AtomicDictMeta_dealloc(atomic_dict_meta *self)
 {
     // not gc tracked (?)
     PyMem_RawFree(self->index);

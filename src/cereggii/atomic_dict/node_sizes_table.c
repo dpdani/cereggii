@@ -5,7 +5,7 @@
 #include "atomic_dict_internal.h"
 
 
-const node_size_info node_sizes_table[] = {
+const AtomicDict_NodeSizeInfo AtomicDict_NodeSizesTable[] = {
     {0,  0, 0},
     {0,  0, 0},
     {0,  0, 0},

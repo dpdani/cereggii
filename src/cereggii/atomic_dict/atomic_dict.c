@@ -150,7 +150,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     create:
-    meta = atomic_dict_new_meta(log_size, NULL);
+    meta = AtomicDict_NewMeta(log_size, NULL);
     if (meta == NULL)
         goto fail;
     AtomicRef_Set(self->metadata, (PyObject *) meta);
@@ -159,7 +159,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t i;
     for (i = 0; i < init_dict_size / 64; i++) {
         // allocate blocks
-        block = atomic_dict_block_new(meta);
+        block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
@@ -170,7 +170,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
     if (init_dict_size % 64 > 0) {
         // allocate additional block
-        block = atomic_dict_block_new(meta);
+        block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
@@ -204,7 +204,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         meta->inserting_block = pos >> 6;
 
         if (pos > 0) {
-            rb = atomic_dict_get_reservation_buffer(self);
+            rb = AtomicDict_GetReservationBuffer(self);
             if (rb == NULL)
                 goto fail;
 
@@ -214,13 +214,13 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             entry_loc.location = pos + 1;
             uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
-                atomic_dict_reservation_buffer_put(rb, &entry_loc, n);
+                AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
             }
         }
     }
 
     if (!(meta->blocks[0]->entries[0].flags & ENTRY_FLAGS_RESERVED)) {
-        rb = atomic_dict_get_reservation_buffer(self);
+        rb = AtomicDict_GetReservationBuffer(self);
         if (rb == NULL)
             goto fail;
 
@@ -239,7 +239,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                     }
                 }
                 if (!found) {
-                    atomic_dict_reservation_buffer_put(rb, &entry_loc, 1);
+                    AtomicDict_ReservationBufferPut(rb, &entry_loc, 1);
                 }
             }
         }
@@ -308,11 +308,11 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     uint64_t ix = hash & ((1 << meta.log_size) - 1);
 
     for (int probe = 0; probe < (1 << meta.distance_size); probe++) {
-        atomic_dict_read_node_at(ix + probe, &temp, &meta);
+        AtomicDict_ReadNodeAt(ix + probe, &temp, &meta);
 
         if (temp.node == 0) {
             node.distance = probe;
-            atomic_dict_write_node_at(ix + probe, &node, &meta);
+            AtomicDict_WriteNodeAt(ix + probe, &node, &meta);
             goto done;
         }
 
@@ -320,18 +320,18 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
             // non-atomic robin hood
             node.distance = probe;
             uint64_t i = ix + probe;
-            atomic_dict_write_node_at(i, &node, &meta);
+            AtomicDict_WriteNodeAt(i, &node, &meta);
             node = temp;
             i++;
             while (temp.node != 0) { // until first empty slot
-                atomic_dict_read_node_at(i, &temp, &meta);
+                AtomicDict_ReadNodeAt(i, &temp, &meta);
                 if (node.distance > temp.distance) {
-                    atomic_dict_write_node_at(i, &node, &meta);
+                    AtomicDict_WriteNodeAt(i, &node, &meta);
                     node = temp;
                 }
                 i++;
             }
-            atomic_dict_write_node_at(i, &temp, &meta);
+            AtomicDict_WriteNodeAt(i, &temp, &meta);
             goto done;
         }
     }
@@ -371,7 +371,7 @@ AtomicDict_Debug(AtomicDict *self)
 
     atomic_dict_node node;
     for (uint64_t i = 0; i < (1 << meta.log_size); i++) {
-        atomic_dict_read_node_at(i, &node, &meta);
+        AtomicDict_ReadNodeAt(i, &node, &meta);
         PyObject *n = Py_BuildValue("k", node.node);
         if (n == NULL)
             goto fail;

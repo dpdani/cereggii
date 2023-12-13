@@ -7,7 +7,7 @@
 
 
 atomic_dict_reservation_buffer *
-atomic_dict_get_reservation_buffer(AtomicDict *dk)
+AtomicDict_GetReservationBuffer(AtomicDict *dk)
 {
     assert(dk->tss_key != NULL);
     atomic_dict_reservation_buffer *rb = PyThread_tss_get(dk->tss_key);
@@ -42,7 +42,7 @@ atomic_dict_get_reservation_buffer(AtomicDict *dk)
  * caller must ensure no segfaults, et similia.
  * */
 void
-atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc, int n)
+AtomicDict_ReservationBufferPut(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc, int n)
 {
     // use asserts to check for circular buffer correctness (don't return and check for error)
 
@@ -67,7 +67,7 @@ atomic_dict_reservation_buffer_put(atomic_dict_reservation_buffer *rb, atomic_di
 }
 
 void
-atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc)
+AtomicDict_ReservationBufferPop(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc)
 {
     if (rb->count == 0) {
         entry_loc->entry = NULL;
