@@ -26,6 +26,8 @@ atomic_dict_get_reservation_buffer(AtomicDict *dk)
         int appended = PyList_Append(dk->reservation_buffers, (PyObject *) rb);
         if (appended == -1)
             goto fail;
+
+        memset(rb->reservations, 0, sizeof(atomic_dict_entry_loc) * RESERVATION_BUFFER_SIZE);
     }
 
     return rb;
@@ -75,6 +77,7 @@ atomic_dict_reservation_buffer_pop(atomic_dict_reservation_buffer *rb, atomic_di
     atomic_dict_entry_loc *tail = &rb->reservations[rb->tail];
     entry_loc->entry = tail->entry;
     entry_loc->location = tail->location;
+    memset(&rb->reservations[rb->tail], 0, sizeof(atomic_dict_entry_loc));
     rb->tail++;
     if (rb->tail == 64) {
         rb->tail = 0;

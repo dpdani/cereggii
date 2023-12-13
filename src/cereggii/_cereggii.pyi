@@ -8,7 +8,7 @@ Cancel = NewType("Cancel", object)
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: Iterable | None = None, *, initial_size: int | None = None, **kwargs):
+    def __init__(self, iterable: Iterable | None = None, *, min_size: int | None = None, **kwargs):
         """Constructor method
 
         :param initial_size: the size initially allocated. Using this
