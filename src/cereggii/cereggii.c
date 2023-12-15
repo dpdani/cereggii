@@ -4,8 +4,31 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "atomic_int.h"
 #include "atomic_ref.h"
 #include "atomic_dict.h"
+
+
+static PyMethodDef AtomicInt_methods[] = {
+    {"get",             (PyCFunction) AtomicInt_Get,                    METH_NOARGS, NULL},
+    {"set",             (PyCFunction) AtomicInt_Set_callable,           METH_O,      NULL},
+    {"compare_and_set", (PyCFunction) AtomicInt_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",     (PyCFunction) AtomicInt_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicInt_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicInt",
+    .tp_doc = PyDoc_STR("An int that may be updated atomically."),
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_basicsize = sizeof(AtomicInt),
+    .tp_itemsize = 0,
+    .tp_new = AtomicInt_new,
+    .tp_init = (initproc) AtomicInt_init,
+    .tp_dealloc = (destructor) AtomicInt_dealloc,
+    .tp_methods = AtomicInt_methods,
+};
 
 
 static PyMethodDef AtomicRef_methods[] = {
@@ -32,8 +55,8 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug", (PyCFunction) AtomicDict_Debug, METH_NOARGS, NULL},
-    {"get", (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"debug", (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"get",   (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
@@ -75,6 +98,8 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicInt_Type) < 0)
+        return NULL;
 
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
@@ -89,6 +114,12 @@ PyInit__cereggii(void)
     Py_INCREF(&AtomicRef_Type);
     if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
         Py_DECREF(&AtomicRef_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicInt_Type);
+    if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
+        Py_DECREF(&AtomicInt_Type);
         goto fail;
     }
 
