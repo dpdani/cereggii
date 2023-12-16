@@ -139,6 +139,8 @@ PyObject *AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other);
 
 PyObject *AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *other);
 
+PyObject *AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op);
+
 
 /// handle
 
@@ -241,6 +243,8 @@ PyObject *AtomicIntHandle_Index(AtomicIntHandle *self, PyObject *other);
 PyObject *AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other);
 
 PyObject *AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *other);
+
+PyObject *AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op);
 
 
 /// type methods

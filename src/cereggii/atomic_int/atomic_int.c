@@ -379,3 +379,19 @@ AtomicInt_InplaceMultiply(AtomicInt *self, PyObject *other)
 {
     return AtomicInt_InplaceMultiply_internal(self, other, 1);
 }
+
+inline PyObject *
+AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyObject_RichCompare(current, other, op);
+
+    fail:
+    return NULL;
+}

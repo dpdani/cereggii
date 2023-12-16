@@ -134,3 +134,9 @@ AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *other)
 {
     return AtomicInt_InplaceMultiply_internal(self->integer, other, 0);
 }
+
+inline PyObject *
+AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op)
+{
+    return AtomicInt_RichCompare(self->integer, other, op);
+}

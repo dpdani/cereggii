@@ -1,10 +1,10 @@
-from typing import NewType, SupportsComplex
+from typing import NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)
 Cancel = NewType("Cancel", object)
 
-Number = SupportsComplex
+Number = SupportsInt | SupportsFloat | SupportsComplex
 
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
@@ -151,6 +151,8 @@ class AtomicInt:
     def __isub__(self, other: int) -> None: ...
     def __mul__(self, other: Number) -> Number: ...
     def __imul__(self, other: int) -> None: ...
+    def __eq__(self, other: Number) -> bool: ...
+    def __lt__(self, other: Number) -> bool: ...
 
 class AtomicIntHandle(AtomicInt):
     pass
