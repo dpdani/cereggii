@@ -20,8 +20,8 @@ static PyMethodDef AtomicInt_methods[] = {
 
 static PyNumberMethods AtomicInt_as_number = {
     .nb_add = (binaryfunc) AtomicInt_Add,
-//    .nb_subtract = (binaryfunc) AtomicInt_Subtract,
-//    .nb_multiply = (binaryfunc) AtomicInt_Multiply,
+    .nb_subtract = (binaryfunc) AtomicInt_Subtract,
+    .nb_multiply = (binaryfunc) AtomicInt_Multiply,
 //    .nb_remainder = (binaryfunc) AtomicInt_Remainder,
 //    .nb_divmod = (binaryfunc) AtomicInt_Divmod,
 //    .nb_power = (ternaryfunc) AtomicInt_Power,
@@ -39,8 +39,8 @@ static PyNumberMethods AtomicInt_as_number = {
 //    .nb_float = (unaryfunc) AtomicInt_Float,
 
     .nb_inplace_add = (binaryfunc) AtomicInt_InplaceAdd,
-//    .nb_inplace_subtract = (binaryfunc) AtomicInt_InplaceSubtract,
-//    .nb_inplace_multiply = (binaryfunc) AtomicInt_InplaceMultiply,
+    .nb_inplace_subtract = (binaryfunc) AtomicInt_InplaceSubtract,
+    .nb_inplace_multiply = (binaryfunc) AtomicInt_InplaceMultiply,
 //    .nb_inplace_remainder = (binaryfunc) AtomicInt_InplaceRemainder,
 //    .nb_inplace_power = (ternaryfunc) AtomicInt_InplacePower,
 //    .nb_inplace_lshift = (binaryfunc) AtomicInt_InplaceLshift,
@@ -85,8 +85,8 @@ static PyMethodDef AtomicIntHandle_methods[] = {
 
 static PyNumberMethods AtomicIntHandle_as_number = {
     .nb_add = (binaryfunc) AtomicIntHandle_Add,
-//    .nb_subtract = (binaryfunc) AtomicIntHandle_Subtract,
-//    .nb_multiply = (binaryfunc) AtomicIntHandle_Multiply,
+    .nb_subtract = (binaryfunc) AtomicIntHandle_Subtract,
+    .nb_multiply = (binaryfunc) AtomicIntHandle_Multiply,
 //    .nb_remainder = (binaryfunc) AtomicIntHandle_Remainder,
 //    .nb_divmod = (binaryfunc) AtomicIntHandle_Divmod,
 //    .nb_power = (ternaryfunc) AtomicIntHandle_Power,
@@ -104,8 +104,8 @@ static PyNumberMethods AtomicIntHandle_as_number = {
 //    .nb_float = (unaryfunc) AtomicIntHandle_Float,
 
     .nb_inplace_add = (binaryfunc) AtomicIntHandle_InplaceAdd,
-//    .nb_inplace_subtract = (binaryfunc) AtomicIntHandle_InplaceSubtract,
-//    .nb_inplace_multiply = (binaryfunc) AtomicIntHandle_InplaceMultiply,
+    .nb_inplace_subtract = (binaryfunc) AtomicIntHandle_InplaceSubtract,
+    .nb_inplace_multiply = (binaryfunc) AtomicIntHandle_InplaceMultiply,
 //    .nb_inplace_remainder = (binaryfunc) AtomicIntHandle_InplaceRemainder,
 //    .nb_inplace_power = (ternaryfunc) AtomicIntHandle_InplacePower,
 //    .nb_inplace_lshift = (binaryfunc) AtomicIntHandle_InplaceLshift,

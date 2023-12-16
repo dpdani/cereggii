@@ -49,14 +49,14 @@ PyObject *AtomicInt_GetHandle(AtomicInt *self);
 
 /// java-esque methods
 
-int64_t AtomicInt_IncrementAndGet(AtomicInt *self, int64_t amount);
+int64_t AtomicInt_IncrementAndGet(AtomicInt *self, int64_t other);
 
-int64_t AtomicInt_GetAndIncrement(AtomicInt *self, int64_t amount);
+int64_t AtomicInt_GetAndIncrement(AtomicInt *self, int64_t other);
 
 
-int64_t AtomicInt_DecrementAndGet(AtomicInt *self, int64_t amount);
+int64_t AtomicInt_DecrementAndGet(AtomicInt *self, int64_t other);
 
-int64_t AtomicInt_GetAndDecrement(AtomicInt *self, int64_t amount);
+int64_t AtomicInt_GetAndDecrement(AtomicInt *self, int64_t other);
 
 
 int64_t AtomicInt_GetAndUpdate(AtomicInt *self, PyObject *callable);
@@ -66,78 +66,78 @@ int64_t AtomicInt_UpdateAndGet(AtomicInt *self, PyObject *callable);
 
 /// number methods
 
-PyObject *AtomicInt_Add(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Add(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Subtract(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Subtract(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Multiply(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Multiply(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Remainder(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Remainder(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Divmod(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Divmod(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Power(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Power(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Negative(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Negative(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Positive(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Positive(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Absolute(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Absolute(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Bool(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Bool(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Invert(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Invert(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Lshift(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Lshift(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Rshift(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Rshift(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_And(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_And(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Xor(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Xor(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Or(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Or(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Int(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Int(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Float(AtomicInt *self, PyObject *amount);
-
-
-PyObject *AtomicInt_InplaceAdd(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceSubtract(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceMultiply(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceRemainder(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplacePower(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceLshift(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceRshift(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceAnd(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceXor(AtomicInt *self, PyObject *amount);
-
-PyObject *AtomicInt_InplaceOr(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_Float(AtomicInt *self, PyObject *other);
 
 
-PyObject *AtomicInt_FloorDivide(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_InplaceAdd(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_TrueDivide(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_InplaceSubtract(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_InplaceFloorDivide(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_InplaceMultiply(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_InplaceTrueDivide(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_InplaceRemainder(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplacePower(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceLshift(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceRshift(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceAnd(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceXor(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceOr(AtomicInt *self, PyObject *other);
 
 
-PyObject *AtomicInt_Index(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_FloorDivide(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_TrueDivide(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *amount);
+PyObject *AtomicInt_InplaceFloorDivide(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceTrueDivide(AtomicInt *self, PyObject *other);
+
+
+PyObject *AtomicInt_Index(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other);
+
+PyObject *AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *other);
 
 
 /// handle
@@ -160,87 +160,87 @@ PyObject *AtomicIntHandle_GetAndSet_callable(AtomicIntHandle *self, PyObject *ar
 
 PyObject *AtomicIntHandle_GetHandle(AtomicIntHandle *self);
 
-int64_t AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t amount);
+int64_t AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t other);
 
-int64_t AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t amount);
+int64_t AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t other);
 
-int64_t AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t amount);
+int64_t AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t other);
 
-int64_t AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t amount);
+int64_t AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t other);
 
 int64_t AtomicIntHandle_GetAndUpdate(AtomicIntHandle *self, PyObject *callable);
 
 int64_t AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable);
 
-PyObject *AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Subtract(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Subtract(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Multiply(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Multiply(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Remainder(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Remainder(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Divmod(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Divmod(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Power(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Power(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Negative(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Negative(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Positive(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Positive(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Absolute(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Absolute(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Bool(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Bool(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Invert(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Invert(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Lshift(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Lshift(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Rshift(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Rshift(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_And(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_And(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Xor(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Xor(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Or(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Or(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Int(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Int(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Float(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Float(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceSubtract(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceSubtract(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceRemainder(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceRemainder(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplacePower(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplacePower(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceLshift(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceLshift(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceRshift(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceRshift(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceAnd(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceAnd(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceXor(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceXor(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceOr(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceOr(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_FloorDivide(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_FloorDivide(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_TrueDivide(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_TrueDivide(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceFloorDivide(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceFloorDivide(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceTrueDivide(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceTrueDivide(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Index(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_Index(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *amount);
+PyObject *AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *other);
 
 
 /// type methods

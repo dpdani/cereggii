@@ -100,13 +100,37 @@ AtomicIntHandle_GetHandle(AtomicIntHandle *self)
 }
 
 inline PyObject *
-AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *py_amount)
+AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other)
 {
-    return AtomicInt_Add_internal(self->integer, py_amount, 0, 0);
+    return AtomicInt_Add(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *py_amount)
+AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other)
 {
-    return AtomicInt_Add_internal(self->integer, py_amount, 1, 0);
+    return AtomicInt_InplaceAdd_internal(self->integer, other, 0);
+}
+
+inline PyObject *
+AtomicIntHandle_Subtract(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_Subtract(self->integer, other);
+}
+
+inline PyObject *
+AtomicIntHandle_InplaceSubtract(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_InplaceSubtract_internal(self->integer, other, 0);
+}
+
+inline PyObject *
+AtomicIntHandle_Multiply(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_Multiply(self->integer, other);
+}
+
+inline PyObject *
+AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_InplaceMultiply_internal(self->integer, other, 0);
 }

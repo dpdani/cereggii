@@ -69,7 +69,7 @@ AtomicInt_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 }
 
 inline int
-AtomicInt_MulOrOverflowException(int64_t current, int64_t to_mul, int64_t *result)
+AtomicInt_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
 {
     int overflowed = __builtin_smull_overflow(current, to_mul, result);
 
@@ -245,13 +245,27 @@ AtomicInt_GetHandle(AtomicInt *self)
     return NULL;
 }
 
+inline PyObject *
+AtomicInt_Add(AtomicInt *self, PyObject *other)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_Add(current, other);
+    fail:
+    return NULL;
+}
+
 PyObject *
-AtomicInt_Add_internal(AtomicInt *self, PyObject *py_amount, int return_self, int do_refcount)
+AtomicInt_InplaceAdd_internal(AtomicInt *self, PyObject *other, int do_refcount)
 {
     int64_t amount, current, updated;
-    PyObject *to_return = (PyObject *) self;
 
-    if (!AtomicInt_ConvertToCLongOrSetException(py_amount, &amount))
+    if (!AtomicInt_ConvertToCLongOrSetException(other, &amount))
         goto fail;
 
     do {
@@ -262,25 +276,106 @@ AtomicInt_Add_internal(AtomicInt *self, PyObject *py_amount, int return_self, in
 
     } while (!AtomicInt_CompareAndSet(self, current, updated));
 
-    if (!return_self)
-        to_return = PyLong_FromLong(updated);
-
     if (do_refcount)
-        Py_XINCREF(to_return);
+        Py_XINCREF(self);
 
-    return to_return;
+    return (PyObject *) self;
     fail:
     return NULL;
 }
 
 inline PyObject *
-AtomicInt_Add(AtomicInt *self, PyObject *py_amount)
+AtomicInt_InplaceAdd(AtomicInt *self, PyObject *other)
 {
-    return AtomicInt_Add_internal(self, py_amount, 0, 1);
+    return AtomicInt_InplaceAdd_internal(self, other, 1);
 }
 
 inline PyObject *
-AtomicInt_InplaceAdd(AtomicInt *self, PyObject *py_amount)
+AtomicInt_Subtract(AtomicInt *self, PyObject *other)
 {
-    return AtomicInt_Add_internal(self, py_amount, 1, 1);
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_Subtract(current, other);
+    fail:
+    return NULL;
+}
+
+PyObject *
+AtomicInt_InplaceSubtract_internal(AtomicInt *self, PyObject *other, int do_refcount)
+{
+    int64_t amount, current, updated;
+
+    if (!AtomicInt_ConvertToCLongOrSetException(other, &amount))
+        goto fail;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if (AtomicInt_SubOrSetOverflow(current, amount, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    if (do_refcount)
+        Py_XINCREF(self);
+
+    return (PyObject *) self;
+    fail:
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_InplaceSubtract(AtomicInt *self, PyObject *other)
+{
+    return AtomicInt_InplaceSubtract_internal(self, other, 1);
+}
+
+inline PyObject *
+AtomicInt_Multiply(AtomicInt *self, PyObject *other)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_Multiply(current, other);
+    fail:
+    return NULL;
+}
+
+PyObject *
+AtomicInt_InplaceMultiply_internal(AtomicInt *self, PyObject *other, int do_refcount)
+{
+    int64_t amount, current, updated;
+
+    if (!AtomicInt_ConvertToCLongOrSetException(other, &amount))
+        goto fail;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if (AtomicInt_MulOrSetOverflow(current, amount, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    if (do_refcount)
+        Py_XINCREF(self);
+
+    return (PyObject *) self;
+    fail:
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_InplaceMultiply(AtomicInt *self, PyObject *other)
+{
+    return AtomicInt_InplaceMultiply_internal(self, other, 1);
 }
