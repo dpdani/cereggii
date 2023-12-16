@@ -14,6 +14,7 @@ static PyMethodDef AtomicInt_methods[] = {
     {"set",             (PyCFunction) AtomicInt_Set_callable,           METH_O,      NULL},
     {"compare_and_set", (PyCFunction) AtomicInt_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicInt_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_handle",      (PyCFunction) AtomicInt_GetHandle,              METH_NOARGS, NULL},
     {NULL}
 };
 
@@ -63,7 +64,7 @@ PyTypeObject AtomicInt_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicInt",
     .tp_doc = PyDoc_STR("An int that may be updated atomically."),
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicInt),
     .tp_itemsize = 0,
     .tp_new = AtomicInt_new,
@@ -71,6 +72,71 @@ PyTypeObject AtomicInt_Type = {
     .tp_dealloc = (destructor) AtomicInt_dealloc,
     .tp_methods = AtomicInt_methods,
     .tp_as_number = &AtomicInt_as_number,
+};
+
+static PyMethodDef AtomicIntHandle_methods[] = {
+    {"get",             (PyCFunction) AtomicIntHandle_Get_callable,           METH_NOARGS, NULL},
+    {"set",             (PyCFunction) AtomicIntHandle_Set_callable,           METH_O,      NULL},
+    {"compare_and_set", (PyCFunction) AtomicIntHandle_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",     (PyCFunction) AtomicIntHandle_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_handle",      (PyCFunction) AtomicIntHandle_GetHandle,              METH_NOARGS, NULL},
+    {NULL}
+};
+
+static PyNumberMethods AtomicIntHandle_as_number = {
+    .nb_add = (binaryfunc) AtomicIntHandle_Add,
+//    .nb_subtract = (binaryfunc) AtomicIntHandle_Subtract,
+//    .nb_multiply = (binaryfunc) AtomicIntHandle_Multiply,
+//    .nb_remainder = (binaryfunc) AtomicIntHandle_Remainder,
+//    .nb_divmod = (binaryfunc) AtomicIntHandle_Divmod,
+//    .nb_power = (ternaryfunc) AtomicIntHandle_Power,
+//    .nb_negative = (unaryfunc) AtomicIntHandle_Negative,
+//    .nb_positive = (unaryfunc) AtomicIntHandle_Positive,
+//    .nb_absolute = (unaryfunc) AtomicIntHandle_Absolute,
+//    .nb_bool = (inquiry) AtomicIntHandle_Bool,
+//    .nb_invert = (unaryfunc) AtomicIntHandle_Invert,
+//    .nb_lshift = (binaryfunc) AtomicIntHandle_Lshift,
+//    .nb_rshift = (binaryfunc) AtomicIntHandle_Rshift,
+//    .nb_and = (binaryfunc) AtomicIntHandle_And,
+//    .nb_xor = (binaryfunc) AtomicIntHandle_Xor,
+//    .nb_or = (binaryfunc) AtomicIntHandle_Or,
+//    .nb_int = (unaryfunc) AtomicIntHandle_Int,
+//    .nb_float = (unaryfunc) AtomicIntHandle_Float,
+
+    .nb_inplace_add = (binaryfunc) AtomicIntHandle_InplaceAdd,
+//    .nb_inplace_subtract = (binaryfunc) AtomicIntHandle_InplaceSubtract,
+//    .nb_inplace_multiply = (binaryfunc) AtomicIntHandle_InplaceMultiply,
+//    .nb_inplace_remainder = (binaryfunc) AtomicIntHandle_InplaceRemainder,
+//    .nb_inplace_power = (ternaryfunc) AtomicIntHandle_InplacePower,
+//    .nb_inplace_lshift = (binaryfunc) AtomicIntHandle_InplaceLshift,
+//    .nb_inplace_rshift = (binaryfunc) AtomicIntHandle_InplaceRshift,
+//    .nb_inplace_and = (binaryfunc) AtomicIntHandle_InplaceAnd,
+//    .nb_inplace_xor = (binaryfunc) AtomicIntHandle_InplaceXor,
+//    .nb_inplace_or = (binaryfunc) AtomicIntHandle_InplaceOr,
+
+//    .nb_floor_divide = (binaryfunc) AtomicIntHandle_FloorDivide,
+//    .nb_true_divide = (binaryfunc) AtomicIntHandle_TrueDivide,
+//    .nb_inplace_floor_divide = (binaryfunc) AtomicIntHandle_InplaceFloorDivide,
+//    .nb_inplace_true_divide = (binaryfunc) AtomicIntHandle_InplaceTrueDivide,
+
+//    .nb_index = (unaryfunc) AtomicIntHandle_Index,
+
+//    .nb_matrix_multiply = (binaryfunc) AtomicIntHandle_MatrixMultiply,
+//    .nb_inplace_matrix_multiply = (binaryfunc) AtomicIntHandle_InplaceMatrixMultiply,
+};
+
+PyTypeObject AtomicIntHandle_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicIntHandle",
+    .tp_doc = PyDoc_STR("An immutable handle for referencing an AtomicInt."),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_basicsize = sizeof(AtomicIntHandle),
+    .tp_itemsize = 0,
+    .tp_new = AtomicIntHandle_new,
+    .tp_init = (initproc) AtomicIntHandle_init,
+    .tp_dealloc = (destructor) AtomicIntHandle_dealloc,
+    .tp_methods = AtomicIntHandle_methods,
+    .tp_as_number = &AtomicIntHandle_as_number,
 };
 
 
@@ -143,6 +209,8 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicInt_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicIntHandle_Type) < 0)
+        return NULL;
 
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
@@ -163,6 +231,12 @@ PyInit__cereggii(void)
     Py_INCREF(&AtomicInt_Type);
     if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
         Py_DECREF(&AtomicInt_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicIntHandle_Type);
+    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
+        Py_DECREF(&AtomicIntHandle_Type);
         goto fail;
     }
 

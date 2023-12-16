@@ -226,6 +226,26 @@ AtomicInt_GetAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwargs)
 }
 
 PyObject *
+AtomicInt_GetHandle(AtomicInt *self)
+{
+    PyObject *handle = NULL;
+
+    handle = AtomicIntHandle_new(&AtomicIntHandle_Type, NULL, NULL);
+
+    if (handle == NULL)
+        goto fail;
+
+    PyObject *args = Py_BuildValue("(O)", self);
+    if (AtomicIntHandle_init((AtomicIntHandle *) handle, args, NULL) < 0)
+        goto fail;
+
+    return handle;
+
+    fail:
+    return NULL;
+}
+
+PyObject *
 AtomicInt_Add_internal(AtomicInt *self, PyObject *py_amount, int return_self, int do_refcount)
 {
     int64_t amount, current, updated;
