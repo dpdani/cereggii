@@ -24,4 +24,18 @@ PyObject *AtomicInt_InplaceSubtract_internal(AtomicInt *self, PyObject *other, i
 
 PyObject *AtomicInt_InplaceMultiply_internal(AtomicInt *self, PyObject *other, int do_refcount);
 
+PyObject *AtomicInt_InplaceRemainder_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplacePower_internal(AtomicInt *self, PyObject *other, PyObject *mod, int do_refcount);
+
+PyObject *AtomicInt_InplaceLshift_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplaceRshift_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplaceAnd_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplaceXor_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplaceOr_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
 #endif //CEREGGII_ATOMIC_INT_INTERNAL_H

@@ -76,17 +76,17 @@ PyObject *AtomicInt_Remainder(AtomicInt *self, PyObject *other);
 
 PyObject *AtomicInt_Divmod(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Power(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Power(AtomicInt *self, PyObject *other, PyObject *mod);
 
-PyObject *AtomicInt_Negative(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Negative(AtomicInt *self);
 
-PyObject *AtomicInt_Positive(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Positive(AtomicInt *self);
 
-PyObject *AtomicInt_Absolute(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Absolute(AtomicInt *self);
 
-PyObject *AtomicInt_Bool(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Bool(AtomicInt *self);
 
-PyObject *AtomicInt_Invert(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Invert(AtomicInt *self);
 
 PyObject *AtomicInt_Lshift(AtomicInt *self, PyObject *other);
 
@@ -98,9 +98,9 @@ PyObject *AtomicInt_Xor(AtomicInt *self, PyObject *other);
 
 PyObject *AtomicInt_Or(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_Int(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Int(AtomicInt *self);
 
-PyObject *AtomicInt_Float(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Float(AtomicInt *self);
 
 
 PyObject *AtomicInt_InplaceAdd(AtomicInt *self, PyObject *other);
@@ -111,7 +111,7 @@ PyObject *AtomicInt_InplaceMultiply(AtomicInt *self, PyObject *other);
 
 PyObject *AtomicInt_InplaceRemainder(AtomicInt *self, PyObject *other);
 
-PyObject *AtomicInt_InplacePower(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_InplacePower(AtomicInt *self, PyObject *other, PyObject *mod);
 
 PyObject *AtomicInt_InplaceLshift(AtomicInt *self, PyObject *other);
 
@@ -144,19 +144,19 @@ PyObject *AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op);
 
 /// handle
 
-int64_t AtomicIntHandle_Get(AtomicIntHandle *self);
+__attribute__((unused)) int64_t AtomicIntHandle_Get(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_Get_callable(AtomicIntHandle *self);
 
-void AtomicIntHandle_Set(AtomicIntHandle *self, int64_t updated);
+__attribute__((unused)) void AtomicIntHandle_Set(AtomicIntHandle *self, int64_t updated);
 
 PyObject *AtomicIntHandle_Set_callable(AtomicIntHandle *self, PyObject *updated);
 
-int AtomicIntHandle_CompareAndSet(AtomicIntHandle *self, int64_t expected, int64_t updated);
+__attribute__((unused)) int AtomicIntHandle_CompareAndSet(AtomicIntHandle *self, int64_t expected, int64_t updated);
 
 PyObject *AtomicIntHandle_CompareAndSet_callable(AtomicIntHandle *self, PyObject *args, PyObject *kwargs);
 
-int64_t AtomicIntHandle_GetAndSet(AtomicIntHandle *self, int64_t updated);
+__attribute__((unused)) int64_t AtomicIntHandle_GetAndSet(AtomicIntHandle *self, int64_t updated);
 
 PyObject *AtomicIntHandle_GetAndSet_callable(AtomicIntHandle *self, PyObject *args, PyObject *kwargs);
 
@@ -184,17 +184,17 @@ PyObject *AtomicIntHandle_Remainder(AtomicIntHandle *self, PyObject *other);
 
 PyObject *AtomicIntHandle_Divmod(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Power(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Power(AtomicIntHandle *self, PyObject *other, PyObject *mod);
 
-PyObject *AtomicIntHandle_Negative(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Negative(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Positive(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Positive(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Absolute(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Absolute(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Bool(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Bool(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Invert(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Invert(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_Lshift(AtomicIntHandle *self, PyObject *other);
 
@@ -206,9 +206,9 @@ PyObject *AtomicIntHandle_Xor(AtomicIntHandle *self, PyObject *other);
 
 PyObject *AtomicIntHandle_Or(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Int(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Int(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Float(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Float(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other);
 
@@ -218,7 +218,7 @@ PyObject *AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *other
 
 PyObject *AtomicIntHandle_InplaceRemainder(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_InplacePower(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_InplacePower(AtomicIntHandle *self, PyObject *other, PyObject *mod);
 
 PyObject *AtomicIntHandle_InplaceLshift(AtomicIntHandle *self, PyObject *other);
 
