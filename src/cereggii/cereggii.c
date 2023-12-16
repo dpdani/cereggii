@@ -10,11 +10,53 @@
 
 
 static PyMethodDef AtomicInt_methods[] = {
-    {"get",             (PyCFunction) AtomicInt_Get,                    METH_NOARGS, NULL},
+    {"get",             (PyCFunction) AtomicInt_Get_callable,           METH_NOARGS, NULL},
     {"set",             (PyCFunction) AtomicInt_Set_callable,           METH_O,      NULL},
     {"compare_and_set", (PyCFunction) AtomicInt_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicInt_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
+};
+
+static PyNumberMethods AtomicInt_as_number = {
+    .nb_add = (binaryfunc) AtomicInt_Add,
+//    .nb_subtract = (binaryfunc) AtomicInt_Subtract,
+//    .nb_multiply = (binaryfunc) AtomicInt_Multiply,
+//    .nb_remainder = (binaryfunc) AtomicInt_Remainder,
+//    .nb_divmod = (binaryfunc) AtomicInt_Divmod,
+//    .nb_power = (ternaryfunc) AtomicInt_Power,
+//    .nb_negative = (unaryfunc) AtomicInt_Negative,
+//    .nb_positive = (unaryfunc) AtomicInt_Positive,
+//    .nb_absolute = (unaryfunc) AtomicInt_Absolute,
+//    .nb_bool = (inquiry) AtomicInt_Bool,
+//    .nb_invert = (unaryfunc) AtomicInt_Invert,
+//    .nb_lshift = (binaryfunc) AtomicInt_Lshift,
+//    .nb_rshift = (binaryfunc) AtomicInt_Rshift,
+//    .nb_and = (binaryfunc) AtomicInt_And,
+//    .nb_xor = (binaryfunc) AtomicInt_Xor,
+//    .nb_or = (binaryfunc) AtomicInt_Or,
+//    .nb_int = (unaryfunc) AtomicInt_Int,
+//    .nb_float = (unaryfunc) AtomicInt_Float,
+
+    .nb_inplace_add = (binaryfunc) AtomicInt_InplaceAdd,
+//    .nb_inplace_subtract = (binaryfunc) AtomicInt_InplaceSubtract,
+//    .nb_inplace_multiply = (binaryfunc) AtomicInt_InplaceMultiply,
+//    .nb_inplace_remainder = (binaryfunc) AtomicInt_InplaceRemainder,
+//    .nb_inplace_power = (ternaryfunc) AtomicInt_InplacePower,
+//    .nb_inplace_lshift = (binaryfunc) AtomicInt_InplaceLshift,
+//    .nb_inplace_rshift = (binaryfunc) AtomicInt_InplaceRshift,
+//    .nb_inplace_and = (binaryfunc) AtomicInt_InplaceAnd,
+//    .nb_inplace_xor = (binaryfunc) AtomicInt_InplaceXor,
+//    .nb_inplace_or = (binaryfunc) AtomicInt_InplaceOr,
+
+//    .nb_floor_divide = (binaryfunc) AtomicInt_FloorDivide,
+//    .nb_true_divide = (binaryfunc) AtomicInt_TrueDivide,
+//    .nb_inplace_floor_divide = (binaryfunc) AtomicInt_InplaceFloorDivide,
+//    .nb_inplace_true_divide = (binaryfunc) AtomicInt_InplaceTrueDivide,
+
+//    .nb_index = (unaryfunc) AtomicInt_Index,
+
+//    .nb_matrix_multiply = (binaryfunc) AtomicInt_MatrixMultiply,
+//    .nb_inplace_matrix_multiply = (binaryfunc) AtomicInt_InplaceMatrixMultiply,
 };
 
 PyTypeObject AtomicInt_Type = {
@@ -28,6 +70,7 @@ PyTypeObject AtomicInt_Type = {
     .tp_init = (initproc) AtomicInt_init,
     .tp_dealloc = (destructor) AtomicInt_dealloc,
     .tp_methods = AtomicInt_methods,
+    .tp_as_number = &AtomicInt_as_number,
 };
 
 

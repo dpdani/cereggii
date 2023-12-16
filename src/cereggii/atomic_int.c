@@ -28,12 +28,60 @@ AtomicInt_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, int6
     if (overflow) {
         PyErr_SetObject(
             PyExc_OverflowError,
-            PyUnicode_FromFormat("%R > 9223372036854775807 == (2 ** 63) - 1", py_integer)
+            PyUnicode_FromFormat("%R > %ld == (2 ** 63) - 1 or %R < %ld", py_integer, INT64_MAX, py_integer, INT64_MIN)
         );  // todo: docs link
         return 0;
     }
 
     return 1;
+}
+
+inline int
+AtomicInt_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
+{
+    int overflowed = __builtin_saddl_overflow(current, to_add, result);
+
+    if (overflowed) {
+        PyErr_SetObject(
+            PyExc_OverflowError,
+            PyUnicode_FromFormat("%ld + %ld > %ld == (2 ** 63) - 1 "
+                                 "or %ld + %ld < %ld", current, to_add, INT64_MAX, current, to_add, INT64_MIN)
+        );
+    }
+
+    return overflowed;
+}
+
+inline int
+AtomicInt_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
+{
+    int overflowed = __builtin_ssubl_overflow(current, to_sub, result);
+
+    if (overflowed) {
+        PyErr_SetObject(
+            PyExc_OverflowError,
+            PyUnicode_FromFormat("%ld - %ld > %ld == (2 ** 63) - 1 "
+                                 "or %ld - %ld < %ld", current, to_sub, INT64_MAX, current, to_sub, INT64_MIN)
+        );
+    }
+
+    return overflowed;
+}
+
+inline int
+AtomicInt_MulOrOverflowException(int64_t current, int64_t to_mul, int64_t *result)
+{
+    int overflowed = __builtin_smull_overflow(current, to_mul, result);
+
+    if (overflowed) {
+        PyErr_SetObject(
+            PyExc_OverflowError,
+            PyUnicode_FromFormat("%ld * %ld > %ld == (2 ** 63) - 1 "
+                                 "or %ld * %ld < %ld", current, to_mul, INT64_MAX, current, to_mul, INT64_MIN)
+        );
+    }
+
+    return overflowed;
 }
 
 
@@ -77,8 +125,14 @@ AtomicInt_dealloc(AtomicInt *self)
 }
 
 
-PyObject *
+inline int64_t
 AtomicInt_Get(AtomicInt *self)
+{
+    return self->integer;
+}
+
+PyObject *
+AtomicInt_Get_callable(AtomicInt *self)
 {
     int64_t integer = self->integer;
 
@@ -169,4 +223,44 @@ AtomicInt_GetAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwargs)
     int64_t previous = AtomicInt_GetAndSet(self, updated);
 
     return PyLong_FromLong(previous);  // may fail and return NULL
+}
+
+PyObject *
+AtomicInt_Add_internal(AtomicInt *self, PyObject *py_amount, int return_self, int do_refcount)
+{
+    int64_t amount, current, updated;
+    PyObject *to_return = (PyObject *) self;
+
+    if (!AtomicInt_ConvertToCLongOrSetException(py_amount, &amount))
+        goto fail;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if (AtomicInt_AddOrSetOverflow(current, amount, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    if (!return_self)
+        to_return = PyLong_FromLong(updated);
+
+    if (do_refcount)
+        Py_XINCREF(to_return);
+
+    return to_return;
+    fail:
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Add(AtomicInt *self, PyObject *py_amount)
+{
+    return AtomicInt_Add_internal(self, py_amount, 0, 1);
+}
+
+inline PyObject *
+AtomicInt_InplaceAdd(AtomicInt *self, PyObject *py_amount)
+{
+    return AtomicInt_Add_internal(self, py_amount, 1, 1);
 }
