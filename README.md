@@ -50,7 +50,7 @@ a += 1
 ```
 
 That is, if `a` is shared with multiple threads, and they attempt to modify `a`, the value of `a` after any
-number (> 1) of writes is undefined.
+number (> 1) of writes, is undefined.
 
 The following piece of code is instead thread-safe:
 
@@ -107,6 +107,27 @@ When using `AtomicIntHandle`, you should see your CPUs being fully used.
 
 `AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it should feel familiar to use, if you're
 coming to Python from Java.
+It also implements most numeric magic methods, so that it should feel comfortable to use for Pythonistas.
+
+It tries to mimic Python's `int` as close as possible, with some caveats:
+
+- it is bound to 64-bit integers, so you may encounter `OverflowError`;
+- hashing is based on the `AtomicInt`'s address in memory, so two distinct `AtomicInt`s will have distinct hashes, even
+  when they hold the same value (bonus feature: an `AtomicIntHandle` has the same hash of its
+  corresponding `AtomicInt`); [^1]
+- the following operations are not supported:
+    - `__itruediv__` (an `AtomicInt` cannot be used to store floats)
+    - `as_integer_ratio`
+    - `bit_length`
+    - `conjugate`
+    - `from_bytes`
+    - `to_bytes`
+    - `denominator`
+    - `numerator`
+    - `imag`
+    - `real`
+
+[^1]: This behavior ensures the hashing property that identity implies hash equality.
 
 ### An explanation of these claims
 
