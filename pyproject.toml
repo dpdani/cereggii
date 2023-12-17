@@ -1,0 +1,139 @@
+[build-system]
+requires = ["py-build-cmake"]
+build-backend = "py_build_cmake.build"
+
+
+[project]
+name = "cereggii"
+dynamic = ["version", "description"]
+readme = "README.md"
+requires-python = "~=3.9"
+license = { file = "LICENSE" }
+authors = [
+  { name = "dpdani", email = "git@danieleparmeggiani.me" },
+]
+keywords = [
+  "multithreading",
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Operating System :: OS Independent",
+  "Natural Language :: English",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "build==1.0.3",
+  "pytest==7.4.2",
+  "black==23.9.1",
+  "ruff==0.0.292",
+]
+
+
+[project.urls]
+Documentation = "https://github.com/dpdani/cereggii#readme"
+Issues = "https://github.com/dpdani/cereggii/issues"
+Source = "https://github.com/dpdani/cereggii"
+
+[tool.py-build-cmake.module]
+directory = "src"
+
+[tool.py-build-cmake.sdist]
+include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
+
+[tool.py-build-cmake.cmake]
+minimum_version = "3.18"
+build_type = "Debug"
+source_path = "src"
+build_args = ["-j"]
+install_components = ["python_modules"]
+
+
+[tool.black]
+target-version = ["py39"]
+line-length = 120
+skip-string-normalization = true
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+select = [
+  "A",
+  "ARG",
+  "B",
+  "C",
+  "DTZ",
+  "E",
+  "EM",
+  "F",
+  "FBT",
+  "I",
+  "ICN",
+  "ISC",
+  "N",
+  "PLC",
+  "PLE",
+  "PLR",
+  "PLW",
+  "Q",
+  "RUF",
+  "S",
+  "T",
+  "TID",
+  "UP",
+  "W",
+  "YTT",
+]
+ignore = [
+  # Allow non-abstract empty methods in abstract base classes
+  "B027",
+  # Allow boolean positional values in function calls, like `dict.get(... True)`
+  "FBT003",
+  # Ignore checks for possible passwords
+  "S105", "S106", "S107",
+  # Ignore complexity
+  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  # `print` found
+  "T201",
+  # Import block is un-sorted or un-formatted
+  "I001",
+  # Unnecessary `list` / `tuple` / `dict` call (rewrite as a literal)
+  "C408",
+]
+unfixable = [
+  # Don't touch unused imports
+  "F401",
+]
+
+[tool.ruff.isort]
+known-first-party = ["cereggii"]
+
+[tool.ruff.per-file-ignores]
+# Tests can use magic values, assertions, and relative imports
+"tests/**/*" = ["PLR2004", "S101", "TID252"]
+
+
+[tool.coverage.run]
+source_pkgs = ["src/cereggii", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/cereggii/__about__.py",
+]
+
+[tool.coverage.paths]
+cereggii = ["src/cereggi"]
+tests = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
