@@ -133,7 +133,8 @@ PyObject *AtomicInt_InplaceFloorDivide(AtomicInt *self, PyObject *other);
 PyObject *AtomicInt_InplaceTrueDivide(AtomicInt *self, PyObject *other);
 
 
-PyObject *AtomicInt_Index(AtomicInt *self, PyObject *other);
+PyObject *AtomicInt_Index(AtomicInt *self);
+
 
 PyObject *AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other);
 
@@ -238,7 +239,7 @@ PyObject *AtomicIntHandle_InplaceFloorDivide(AtomicIntHandle *self, PyObject *ot
 
 PyObject *AtomicIntHandle_InplaceTrueDivide(AtomicIntHandle *self, PyObject *other);
 
-PyObject *AtomicIntHandle_Index(AtomicIntHandle *self, PyObject *other);
+PyObject *AtomicIntHandle_Index(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other);
 

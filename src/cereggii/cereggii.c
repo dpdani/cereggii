@@ -49,12 +49,12 @@ static PyNumberMethods AtomicInt_as_number = {
     .nb_inplace_xor = (binaryfunc) AtomicInt_InplaceXor,
     .nb_inplace_or = (binaryfunc) AtomicInt_InplaceOr,
 
-//    .nb_floor_divide = (binaryfunc) AtomicInt_FloorDivide,
-//    .nb_true_divide = (binaryfunc) AtomicInt_TrueDivide,
-//    .nb_inplace_floor_divide = (binaryfunc) AtomicInt_InplaceFloorDivide,
-//    .nb_inplace_true_divide = (binaryfunc) AtomicInt_InplaceTrueDivide,
+    .nb_floor_divide = (binaryfunc) AtomicInt_FloorDivide,
+    .nb_true_divide = (binaryfunc) AtomicInt_TrueDivide,
+    .nb_inplace_floor_divide = (binaryfunc) AtomicInt_InplaceFloorDivide,
+    .nb_inplace_true_divide = (binaryfunc) AtomicInt_InplaceTrueDivide,
 
-//    .nb_index = (unaryfunc) AtomicInt_Index,
+    .nb_index = (unaryfunc) AtomicInt_Index,
 
     .nb_matrix_multiply = (binaryfunc) AtomicInt_MatrixMultiply,
     .nb_inplace_matrix_multiply = (binaryfunc) AtomicInt_InplaceMatrixMultiply,
@@ -115,12 +115,12 @@ static PyNumberMethods AtomicIntHandle_as_number = {
     .nb_inplace_xor = (binaryfunc) AtomicIntHandle_InplaceXor,
     .nb_inplace_or = (binaryfunc) AtomicIntHandle_InplaceOr,
 
-//    .nb_floor_divide = (binaryfunc) AtomicIntHandle_FloorDivide,
-//    .nb_true_divide = (binaryfunc) AtomicIntHandle_TrueDivide,
-//    .nb_inplace_floor_divide = (binaryfunc) AtomicIntHandle_InplaceFloorDivide,
-//    .nb_inplace_true_divide = (binaryfunc) AtomicIntHandle_InplaceTrueDivide,
+    .nb_floor_divide = (binaryfunc) AtomicIntHandle_FloorDivide,
+    .nb_true_divide = (binaryfunc) AtomicIntHandle_TrueDivide,
+    .nb_inplace_floor_divide = (binaryfunc) AtomicIntHandle_InplaceFloorDivide,
+    .nb_inplace_true_divide = (binaryfunc) AtomicIntHandle_InplaceTrueDivide,
 
-//    .nb_index = (unaryfunc) AtomicIntHandle_Index,
+    .nb_index = (unaryfunc) AtomicIntHandle_Index,
 
     .nb_matrix_multiply = (binaryfunc) AtomicIntHandle_MatrixMultiply,
     .nb_inplace_matrix_multiply = (binaryfunc) AtomicIntHandle_InplaceMatrixMultiply,

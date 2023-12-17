@@ -84,6 +84,33 @@ AtomicInt_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
     return overflowed;
 }
 
+inline int
+AtomicInt_DivOrSetException(int64_t current, int64_t to_div, int64_t *result)
+{
+    int overflowed = 0;
+
+    if (to_div == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        return 1;
+    }
+
+#if (INT64_MIN != -INT64_MAX)  // => two's complement
+    overflowed = (current == INT64_MIN && to_div == -1);
+#endif
+
+    *result = current / to_div;
+
+    if (overflowed) {
+        PyErr_SetObject(
+            PyExc_OverflowError,
+            PyUnicode_FromFormat("%ld / %ld > %ld == (2 ** 63) - 1 "
+                                 "or %ld / %ld < %ld", current, to_div, INT64_MAX, current, to_div, INT64_MIN)
+        );
+    }
+
+    return overflowed;
+}
+
 
 PyObject *
 AtomicInt_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
@@ -502,6 +529,51 @@ AtomicInt_Float(AtomicInt *self)
     return NULL;
 }
 
+PyObject *
+AtomicInt_FloorDivide(AtomicInt *self, PyObject *other)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_FloorDivide(current, other);
+    fail:
+    return NULL;
+}
+
+PyObject *
+AtomicInt_TrueDivide(AtomicInt *self, PyObject *other)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_TrueDivide(current, other);
+    fail:
+    return NULL;
+}
+
+PyObject *
+AtomicInt_Index(AtomicInt *self)
+{
+    PyObject *current = NULL;
+
+    current = AtomicInt_Get_callable(self);
+
+    if (current == NULL)
+        goto fail;
+
+    return PyNumber_Index(current);
+    fail:
+    return NULL;
+}
+
 
 PyObject *
 AtomicInt_InplaceAdd_internal(AtomicInt *self, PyObject *other, int do_refcount)
@@ -795,8 +867,48 @@ AtomicInt_InplaceOr(AtomicInt *self, PyObject *other)
     return AtomicInt_InplaceOr_internal(self, other, 1);
 }
 
+PyObject *
+AtomicInt_InplaceFloorDivide_internal(AtomicInt *self, PyObject *other, int do_refcount)
+{
+    int64_t amount, current, updated;
+
+    if (!AtomicInt_ConvertToCLongOrSetException(other, &amount))
+        goto fail;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if (AtomicInt_DivOrSetException(current, amount, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    if (do_refcount)
+        Py_XINCREF(self);
+
+    return (PyObject *) self;
+    fail:
+    return NULL;
+}
+
 inline PyObject *
-AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other)
+AtomicInt_InplaceFloorDivide(AtomicInt *self, PyObject *other)
+{
+    return AtomicInt_InplaceFloorDivide_internal(self, other, 1);
+}
+
+inline PyObject *
+AtomicInt_InplaceTrueDivide(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(other))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "AtomicInt cannot store float(), use AtomicInt() //= int() instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_MatrixMultiply(AtomicInt *Py_UNUSED(self), PyObject *other)
 {
     // just raise exception, because it's supposed to be unsupported
     // see https://peps.python.org/pep-0465/#non-definitions-for-built-in-types
@@ -805,7 +917,7 @@ AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other)
 }
 
 inline PyObject *
-AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *other)
+AtomicInt_InplaceMatrixMultiply(AtomicInt *Py_UNUSED(self), PyObject *other)
 {
     return PyNumber_InPlaceMatrixMultiply(PyLong_FromLong(0), other);
 }

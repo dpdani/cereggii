@@ -18,6 +18,8 @@ int AtomicInt_SubOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 
 int AtomicInt_MulOrSetOverflow(int64_t current, int64_t to_add, int64_t *result);
 
+int AtomicInt_DivOrSetException(int64_t current, int64_t to_div, int64_t *result);
+
 PyObject *AtomicInt_InplaceAdd_internal(AtomicInt *self, PyObject *other, int do_refcount);
 
 PyObject *AtomicInt_InplaceSubtract_internal(AtomicInt *self, PyObject *other, int do_refcount);
@@ -37,5 +39,7 @@ PyObject *AtomicInt_InplaceAnd_internal(AtomicInt *self, PyObject *other, int do
 PyObject *AtomicInt_InplaceXor_internal(AtomicInt *self, PyObject *other, int do_refcount);
 
 PyObject *AtomicInt_InplaceOr_internal(AtomicInt *self, PyObject *other, int do_refcount);
+
+PyObject *AtomicInt_InplaceFloorDivide_internal(AtomicInt *self, PyObject *other, int do_refcount);
 
 #endif //CEREGGII_ATOMIC_INT_INTERNAL_H

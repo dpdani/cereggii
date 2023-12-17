@@ -207,8 +207,27 @@ AtomicIntHandle_Float(AtomicIntHandle *self)
     return AtomicInt_Float(self->integer);
 }
 
-    inline PyObject *
-    AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other)
+inline PyObject *
+AtomicIntHandle_FloorDivide(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_FloorDivide(self->integer, other);
+}
+
+inline PyObject *
+AtomicIntHandle_TrueDivide(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_TrueDivide(self->integer, other);
+}
+
+inline PyObject *
+AtomicIntHandle_Index(AtomicIntHandle *self)
+{
+    return AtomicInt_Index(self->integer);
+}
+
+
+inline PyObject *
+AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other)
 {
     return AtomicInt_InplaceAdd_internal(self->integer, other, 0);
 }
@@ -265,6 +284,18 @@ inline PyObject *
 AtomicIntHandle_InplaceOr(AtomicIntHandle *self, PyObject *other)
 {
     return AtomicInt_InplaceOr_internal(self->integer, other, 0);
+}
+
+inline PyObject *
+AtomicIntHandle_InplaceFloorDivide(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_InplaceFloorDivide_internal(self->integer, other, 0);
+}
+
+inline PyObject *
+AtomicIntHandle_InplaceTrueDivide(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_InplaceTrueDivide(self->integer, other);
 }
 
 inline PyObject *
