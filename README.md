@@ -2,8 +2,8 @@
 
 Thread synchronization utilities for free-threaded Python.
 
-This library provides some atomic data types which are generally more performant compared to CPython's builtin types, in
-a multithreaded context.
+This library provides some atomic data types which, in a multithreaded context, are generally more performant compared
+to CPython's builtin types.
 
 ## Cereus greggii
 
@@ -23,7 +23,7 @@ May 2018, CC0. [source](https://www.flickr.com/photos/aspidoscelis/42926986382)_
 
 *This library is experimental*
 
-Using [colesbury's original nogil fork](https://github.com/colesbury/nogil?tab=readme-ov-file#installation) is required
+Using [@colesbury's original nogil fork](https://github.com/colesbury/nogil?tab=readme-ov-file#installation) is required
 to use this library.
 You can get it with pyenv:
 
@@ -37,21 +37,20 @@ Then, you may fetch this library [from PyPI](https://pypi.org/project/cereggii):
 pip install cereggii
 ```
 
-### If you happened to use a non-free-threaded interpreter
-
-This library may not be able to run, and if it does, you will see poor performance.
+If you happened to use a non-free-threaded interpreter, this library may not be able to run, and if it does, you will
+see poor performance.
 
 ## AtomicInt
 
-In free-threaded CPython, the following piece of code is not thread-safe:
+In Python (be it free-threaded or not), the following piece of code is not thread-safe:
 
 ```python
 a = 0
 a += 1
 ```
 
-That is, if `a` is shared with multiple threads, and they threads attempt to modify `a`, the value of `a` after any
-number of writes is undefined.
+That is, if `a` is shared with multiple threads, and they attempt to modify `a`, the value of `a` after any
+number (> 1) of writes is undefined.
 
 The following piece of code is instead thread-safe:
 
@@ -91,9 +90,8 @@ print(f"{spam.counter=}")
 ```
 
 The output you'll see onscreen is not known.
-If you subsititute `self.counter = 0` with `self.counter = AtomicInt(0)` in `Spam.__init__`, you'll be guaranteed to see
-2000000, and the program will
-run slightly faster.
+If you subsititute `self.counter = 0` with `self.counter = AtomicInt(0)`, you'll be guaranteed to see
+`2_000_000`, and the program should run slightly faster.
 
 If you make an additional modification, your program will run much faster:
 
@@ -106,6 +104,9 @@ def incr():
 ```
 
 When using `AtomicIntHandle`, you should see your CPUs being fully used.
+
+`AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it should feel familiar to use, if you're
+coming to Python from Java.
 
 ### An explanation of these claims
 
@@ -134,23 +135,21 @@ These contentions are eliminated by `AtomicInt`, cf.:
 1. `spam.count` is accessed indirectly through an `AtomicIntHandle` which avoids contention on its reference count (it
    is contended only during the `.get_handle()` call);
 2. this is avoided by not creating `int` objects during the increment;
-3. consider again the increment and the corresponding bytecode, you can see the reference of `spam.counter` is changed
-   from one `int` to another with the `STORE_FAST` call, but the reference `spam.count` is not changing when
-   using `AtomicInt` and instead keeps pointing to the same object.
+3. again, using the handle instead of the `AtomicInt` itself avoids spurious contention.
 
-Also see nogil#121.
+Also see colesbury/nogil#121.
 
 ## AtomicDict
 
 Currently, the implementation of `AtomicDict` is quite limited:
 
-- #3 it can hold at most $2^{25}$ keys (~33.5M);
-- #4 it does not support deletions (`del d[k]`);
-- #5 it does not support dynamic resizing; and
+- (GH-3) it can hold at most $2^{25}$ keys (~33.5M);
+- (GH-4) it does not support deletions (`del d[k]`);
+- (GH-5) it does not support dynamic resizing; and
 - several common functionalities are missing.
 
-You can see that there is some more performance to be gained by simply using `AtomicDict`.
-Compare the following two programs.
+You can see that there is some more performance to be gained by simply using `AtomicDict`, comparing the following two
+programs.
 
 The usage of `AtomicInt` provides correctness, regardless of the hashmap implementation.
 But using `AtomicDict` instead of `dict` improves performance, even without using handles: writes to distinct keys do
@@ -214,7 +213,7 @@ i = 0
 
 r = cereggii.AtomicRef()
 assert r.get() is None
-assert r.compare_and_set(expected=None, updated=o)
+assert r.compare_and_set(None, o)
 assert r.get_and_set(d) == o
 r.set(i)  # always returns None
 ```
@@ -226,4 +225,3 @@ This library is experimental and should not be used in a production environment.
 After all, as of now, it requires a non-official fork in order to run.
 
 Porting to free-threaded Python 3.13 (3.13t) is planned.
-
