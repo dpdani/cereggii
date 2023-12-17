@@ -103,6 +103,8 @@ ignore = [
   "T201",
   # Import block is un-sorted or un-formatted
   "I001",
+  # Unnecessary `list` / `tuple` / `dict` call (rewrite as a literal)
+  "C408",
 ]
 unfixable = [
   # Don't touch unused imports

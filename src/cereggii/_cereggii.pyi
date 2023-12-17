@@ -1,8 +1,10 @@
-from typing import NewType
+from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)
 Cancel = NewType("Cancel", object)
+
+Number = SupportsInt | SupportsFloat | SupportsComplex
 
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
@@ -128,8 +130,52 @@ class AtomicDict:
 class AtomicRef:
     """An object reference that may be updated atomically."""
 
-    def __init__(self, reference: object): ...
-    def compare_and_set(self, expected: object, new: object) -> bool: ...
+    def __init__(self, reference: object | None = None): ...
+    def compare_and_set(self, expected: object, updated: object) -> bool: ...
     def get(self) -> object: ...
-    def get_and_set(self, new: object) -> object: ...
-    def set(self, new: object): ...  # noqa: A003
+    def get_and_set(self, updated: object) -> object: ...
+    def set(self, updated: object): ...  # noqa: A003
+
+class AtomicInt(int):
+    """An int that may be updated atomically."""
+
+    def __init__(self, initial_value: int | None = None): ...
+    def compare_and_set(self, expected: int, updated: int) -> bool: ...
+    def get(self) -> int: ...
+    def get_and_set(self, updated: int) -> int: ...
+    def set(self, updated: int) -> None: ...  # noqa: A003
+    def increment_and_get(self, amount: int | None = None) -> int: ...
+    def get_and_increment(self, amount: int | None = None) -> int: ...
+    def decrement_and_get(self, amount: int | None = None) -> int: ...
+    def get_and_decrement(self, amount: int | None = None) -> int: ...
+    def update_and_get(self, other: Callable[[int], int]) -> int: ...
+    def get_and_update(self, other: Callable[[int], int]) -> int: ...
+    def get_handle(self) -> AtomicIntHandle: ...
+    def __itruediv__(self, other):
+        raise NotImplementedError
+    def as_integer_ratio(self):
+        raise NotImplementedError
+    def bit_length(self):
+        raise NotImplementedError
+    def conjugate(self):
+        raise NotImplementedError
+    @classmethod
+    def from_bytes(cls, *args, **kwargs):
+        raise NotImplementedError
+    def to_bytes(self, *args, **kwargs):
+        raise NotImplementedError
+    @property
+    def denominator(self):
+        raise NotImplementedError
+    @property
+    def numerator(self):
+        raise NotImplementedError
+    @property
+    def imag(self):
+        raise NotImplementedError
+    @property
+    def real(self):
+        raise NotImplementedError
+
+class AtomicIntHandle(AtomicInt):
+    pass
