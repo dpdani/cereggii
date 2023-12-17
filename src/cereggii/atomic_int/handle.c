@@ -268,6 +268,18 @@ AtomicIntHandle_InplaceOr(AtomicIntHandle *self, PyObject *other)
 }
 
 inline PyObject *
+AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_MatrixMultiply(self->integer, other);
+}
+
+inline PyObject *
+AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_InplaceMatrixMultiply(self->integer, other);
+}
+
+inline PyObject *
 AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op)
 {
     return AtomicInt_RichCompare(self->integer, other, op);

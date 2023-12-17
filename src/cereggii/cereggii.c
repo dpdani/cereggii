@@ -56,8 +56,8 @@ static PyNumberMethods AtomicInt_as_number = {
 
 //    .nb_index = (unaryfunc) AtomicInt_Index,
 
-//    .nb_matrix_multiply = (binaryfunc) AtomicInt_MatrixMultiply,
-//    .nb_inplace_matrix_multiply = (binaryfunc) AtomicInt_InplaceMatrixMultiply,
+    .nb_matrix_multiply = (binaryfunc) AtomicInt_MatrixMultiply,
+    .nb_inplace_matrix_multiply = (binaryfunc) AtomicInt_InplaceMatrixMultiply,
 };
 
 PyTypeObject AtomicInt_Type = {
@@ -122,8 +122,8 @@ static PyNumberMethods AtomicIntHandle_as_number = {
 
 //    .nb_index = (unaryfunc) AtomicIntHandle_Index,
 
-//    .nb_matrix_multiply = (binaryfunc) AtomicIntHandle_MatrixMultiply,
-//    .nb_inplace_matrix_multiply = (binaryfunc) AtomicIntHandle_InplaceMatrixMultiply,
+    .nb_matrix_multiply = (binaryfunc) AtomicIntHandle_MatrixMultiply,
+    .nb_inplace_matrix_multiply = (binaryfunc) AtomicIntHandle_InplaceMatrixMultiply,
 };
 
 PyTypeObject AtomicIntHandle_Type = {

@@ -795,6 +795,20 @@ AtomicInt_InplaceOr(AtomicInt *self, PyObject *other)
     return AtomicInt_InplaceOr_internal(self, other, 1);
 }
 
+inline PyObject *
+AtomicInt_MatrixMultiply(AtomicInt *self, PyObject *other)
+{
+    // just raise exception, because it's supposed to be unsupported
+    // see https://peps.python.org/pep-0465/#non-definitions-for-built-in-types
+    // bonus: raise the same exception as `int(...) @ other`
+    return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
+}
+
+inline PyObject *
+AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *other)
+{
+    return PyNumber_InPlaceMatrixMultiply(PyLong_FromLong(0), other);
+}
 
 inline PyObject *
 AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op)
