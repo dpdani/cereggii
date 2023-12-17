@@ -11,6 +11,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ "nogil-3.9" ]
+    permissions:
+      id-token: write  # necessary for OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
       - uses: actions/checkout@v3
@@ -29,5 +31,3 @@ jobs:
         run: python -m build
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
