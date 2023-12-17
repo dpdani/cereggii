@@ -35,7 +35,9 @@ def test_weird_init():
     with raises(KeyError):
         assert d[1] == 0
     d.debug()
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
     assert d["iterable"] == {1: 0}
 
     with raises(TypeError):
@@ -50,9 +52,13 @@ def test_debug():
     assert "index" in dbg
     assert "blocks" in dbg
     del dbg
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
     d.debug()
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
 
 
 def test_log_size_bumped():
@@ -220,7 +226,9 @@ def test_node_size_64_unavailable():
 def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
 
 
 def test_concurrent_insert():

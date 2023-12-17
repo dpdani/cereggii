@@ -6,12 +6,6 @@ Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
-class DummyProperty:
-    def __get__(self, instance, owner):
-        raise NotImplementedError
-    def __set__(self, instance, value):
-        raise NotImplementedError
-
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 

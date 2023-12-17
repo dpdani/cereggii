@@ -62,8 +62,8 @@ def test_swap():
     result_0 = Result()
     result_1 = Result()
 
-    def thread(result, ref):
-        result.result = i.get_and_set(ref)
+    def thread(result, updated):
+        result.result = i.get_and_set(updated)
 
     obj_0 = 500
     id_0 = id(obj_0)
@@ -162,7 +162,9 @@ def test_get_handle():
 
 def test_dealloc():
     AtomicInt()
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
 
 
 def test_hash():

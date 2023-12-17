@@ -165,9 +165,7 @@ AtomicInt_Get_callable(AtomicInt *self)
 {
     int64_t integer = self->integer;
 
-    PyObject *py_integer = PyLong_FromLong(integer);  // NULL on error => return NULL
-
-    return py_integer;
+    return PyLong_FromLong(integer);  // NULL on error => return NULL
 }
 
 void
@@ -984,7 +982,6 @@ AtomicInt_InplacePower_internal(AtomicInt *self, PyObject *other, PyObject *mod,
         if (py_updated == NULL)
             goto fail;
 
-        // todo: check this for i.set(2); i **= 62
         if (!AtomicInt_ConvertToCLongOrSetException(py_updated, &updated))
             goto fail;
 

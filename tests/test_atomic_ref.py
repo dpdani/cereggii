@@ -99,5 +99,7 @@ def test_dealloc():
     r = AtomicRef(obj)
     assert r.get() is obj
     del r
-    gc.collect()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
     assert id(obj) == id_obj
