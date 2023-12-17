@@ -163,9 +163,9 @@ Also see colesbury/nogil#121.
 
 Currently, the implementation of `AtomicDict` is quite limited:
 
-- (GH-3) it can hold at most $2^{25}$ keys (~33.5M);
-- (GH-4) it does not support deletions (`del d[k]`);
-- (GH-5) it does not support dynamic resizing; and
+- (dpdani/cereggii#3) it can hold at most $2^{25}$ keys (~33.5M);
+- (dpdani/cereggii#4) it does not support deletions (`del d[k]`);
+- (dpdani/cereggii#5) it does not support dynamic resizing; and
 - several common functionalities are missing.
 
 You can see that there is some more performance to be gained by simply using `AtomicDict`, comparing the following two
