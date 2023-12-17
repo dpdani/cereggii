@@ -172,16 +172,16 @@ class AtomicInt(int):
         raise NotImplementedError
     @property
     def denominator(self):
-        NotImplementedError
+        raise NotImplementedError
     @property
     def numerator(self):
-        NotImplementedError
+        raise NotImplementedError
     @property
     def imag(self):
-        NotImplementedError
+        raise NotImplementedError
     @property
     def real(self):
-        NotImplementedError
+        raise NotImplementedError
 
 class AtomicIntHandle(AtomicInt):
     pass
