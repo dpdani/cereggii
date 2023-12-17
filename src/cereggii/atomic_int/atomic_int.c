@@ -273,12 +273,16 @@ AtomicInt_IncrementAndGet(AtomicInt *self, int64_t other, int *overflow)
 }
 
 PyObject *
-AtomicInt_IncrementAndGet_callable(AtomicInt *self, PyObject *py_other)
+AtomicInt_IncrementAndGet_callable(AtomicInt *self, PyObject *args)
 {
     int overflow;
     int64_t other, updated;
+    PyObject *py_other = NULL;
 
-    if (py_other == Py_None) {
+    if (!PyArg_ParseTuple(args, "|O", &py_other))
+        goto fail;
+
+    if (py_other == NULL || py_other == Py_None) {
         other = 1;
     } else {
         if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
@@ -314,12 +318,16 @@ AtomicInt_GetAndIncrement(AtomicInt *self, int64_t other, int *overflow)
 }
 
 PyObject *
-AtomicInt_GetAndIncrement_callable(AtomicInt *self, PyObject *py_other)
+AtomicInt_GetAndIncrement_callable(AtomicInt *self, PyObject *args)
 {
     int overflow;
     int64_t other, updated;
+    PyObject *py_other = NULL;
 
-    if (py_other == Py_None) {
+    if (!PyArg_ParseTuple(args, "|O", &py_other))
+        goto fail;
+
+    if (py_other == NULL || py_other == Py_None) {
         other = 1;
     } else {
         if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
@@ -355,12 +363,16 @@ AtomicInt_DecrementAndGet(AtomicInt *self, int64_t other, int *overflow)
 }
 
 PyObject *
-AtomicInt_DecrementAndGet_callable(AtomicInt *self, PyObject *py_other)
+AtomicInt_DecrementAndGet_callable(AtomicInt *self, PyObject *args)
 {
     int overflow;
     int64_t other, updated;
+    PyObject *py_other = NULL;
 
-    if (py_other == Py_None) {
+    if (!PyArg_ParseTuple(args, "|O", &py_other))
+        goto fail;
+
+    if (py_other == NULL || py_other == Py_None) {
         other = 1;
     } else {
         if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
@@ -396,12 +408,16 @@ AtomicInt_GetAndDecrement(AtomicInt *self, int64_t other, int *overflow)
 }
 
 PyObject *
-AtomicInt_GetAndDecrement_callable(AtomicInt *self, PyObject *py_other)
+AtomicInt_GetAndDecrement_callable(AtomicInt *self, PyObject *args)
 {
     int overflow;
     int64_t other, updated;
+    PyObject *py_other = NULL;
 
-    if (py_other == Py_None) {
+    if (!PyArg_ParseTuple(args, "|O", &py_other))
+        goto fail;
+
+    if (py_other == NULL || py_other == Py_None) {
         other = 1;
     } else {
         if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
