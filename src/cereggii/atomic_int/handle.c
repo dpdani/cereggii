@@ -232,7 +232,7 @@ AtomicIntHandle_Absolute(AtomicIntHandle *self)
     return AtomicInt_Absolute(self->integer);
 }
 
-inline PyObject *
+inline int
 AtomicIntHandle_Bool(AtomicIntHandle *self)
 {
     return AtomicInt_Bool(self->integer);

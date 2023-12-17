@@ -682,15 +682,15 @@ AtomicInt_Absolute(AtomicInt *self)
     return NULL;
 }
 
-inline PyObject *
+inline int
 AtomicInt_Bool(AtomicInt *self)
 {
     int64_t current = AtomicInt_Get(self);
 
     if (current)
-        Py_RETURN_TRUE;
+        return 1;
     else
-        Py_RETURN_FALSE;
+        return 0;
 }
 
 inline PyObject *
@@ -974,7 +974,8 @@ AtomicInt_InplacePower_internal(AtomicInt *self, PyObject *other, PyObject *mod,
     PyObject *py_current, *py_updated;
 
     do {
-        py_current = AtomicInt_Get_callable(self);
+        current = AtomicInt_Get(self);
+        py_current = PyLong_FromLong(current);
 
         if (py_current == NULL)
             goto fail;

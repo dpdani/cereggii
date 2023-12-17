@@ -99,7 +99,7 @@ PyObject *AtomicInt_Positive(AtomicInt *self);
 
 PyObject *AtomicInt_Absolute(AtomicInt *self);
 
-PyObject *AtomicInt_Bool(AtomicInt *self);
+int AtomicInt_Bool(AtomicInt *self);
 
 PyObject *AtomicInt_Invert(AtomicInt *self);
 
@@ -252,7 +252,7 @@ PyObject *AtomicIntHandle_Positive(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_Absolute(AtomicIntHandle *self);
 
-PyObject *AtomicIntHandle_Bool(AtomicIntHandle *self);
+int AtomicIntHandle_Bool(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_Invert(AtomicIntHandle *self);
 
