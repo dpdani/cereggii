@@ -48,20 +48,33 @@ PyObject *AtomicInt_GetHandle(AtomicInt *self);
 
 
 /// java-esque methods
+// see https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicInteger.html
 
-int64_t AtomicInt_IncrementAndGet(AtomicInt *self, int64_t other);
+int64_t AtomicInt_IncrementAndGet(AtomicInt *self, int64_t other, int *overflow);
 
-int64_t AtomicInt_GetAndIncrement(AtomicInt *self, int64_t other);
+PyObject *AtomicInt_IncrementAndGet_callable(AtomicInt *self, PyObject *py_other);
+
+int64_t AtomicInt_GetAndIncrement(AtomicInt *self, int64_t other, int *overflow);
+
+PyObject *AtomicInt_GetAndIncrement_callable(AtomicInt *self, PyObject *py_other);
 
 
-int64_t AtomicInt_DecrementAndGet(AtomicInt *self, int64_t other);
+int64_t AtomicInt_DecrementAndGet(AtomicInt *self, int64_t other, int *overflow);
 
-int64_t AtomicInt_GetAndDecrement(AtomicInt *self, int64_t other);
+PyObject *AtomicInt_DecrementAndGet_callable(AtomicInt *self, PyObject *other);
+
+int64_t AtomicInt_GetAndDecrement(AtomicInt *self, int64_t other, int *overflow);
+
+PyObject *AtomicInt_GetAndDecrement_callable(AtomicInt *self, PyObject *other);
 
 
-int64_t AtomicInt_GetAndUpdate(AtomicInt *self, PyObject *callable);
+int64_t AtomicInt_GetAndUpdate(AtomicInt *self, PyObject *callable, int *error);
 
-int64_t AtomicInt_UpdateAndGet(AtomicInt *self, PyObject *callable);
+PyObject *AtomicInt_GetAndUpdate_callable(AtomicInt *self, PyObject *callable);
+
+int64_t AtomicInt_UpdateAndGet(AtomicInt *self, PyObject *callable, int *error);
+
+PyObject *AtomicInt_UpdateAndGet_callable(AtomicInt *self, PyObject *callable);
 
 
 /// number methods
@@ -163,17 +176,29 @@ PyObject *AtomicIntHandle_GetAndSet_callable(AtomicIntHandle *self, PyObject *ar
 
 PyObject *AtomicIntHandle_GetHandle(AtomicIntHandle *self);
 
-int64_t AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t other);
+__attribute__((unused)) int64_t AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow);
 
-int64_t AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t other);
+PyObject *AtomicIntHandle_IncrementAndGet_callable(AtomicIntHandle *self, PyObject *other);
 
-int64_t AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t other);
+__attribute__((unused)) int64_t AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t other, int *overflow);
 
-int64_t AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t other);
+PyObject *AtomicIntHandle_GetAndIncrement_callable(AtomicIntHandle *self, PyObject *other);
 
-int64_t AtomicIntHandle_GetAndUpdate(AtomicIntHandle *self, PyObject *callable);
+__attribute__((unused)) int64_t AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow);
 
-int64_t AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable);
+PyObject *AtomicIntHandle_DecrementAndGet_callable(AtomicIntHandle *self, PyObject *other);
+
+__attribute__((unused)) int64_t AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t other, int *overflow);
+
+PyObject *AtomicIntHandle_GetAndDecrement_callable(AtomicIntHandle *self, PyObject *other);
+
+__attribute__((unused)) int64_t AtomicIntHandle_GetAndUpdate(AtomicIntHandle *self, PyObject *callable, int *overflow);
+
+PyObject *AtomicIntHandle_GetAndUpdate_callable(AtomicIntHandle *self, PyObject *callable);
+
+__attribute__((unused)) int64_t AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable, int *overflow);
+
+PyObject *AtomicIntHandle_UpdateAndGet_callable(AtomicIntHandle *self, PyObject *callable);
 
 PyObject *AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other);
 

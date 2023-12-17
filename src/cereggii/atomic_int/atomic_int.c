@@ -252,6 +252,257 @@ AtomicInt_GetAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwargs)
     return PyLong_FromLong(previous);  // may fail and return NULL
 }
 
+int64_t
+AtomicInt_IncrementAndGet(AtomicInt *self, int64_t other, int *overflow)
+{
+    int64_t current, updated;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if ((*overflow = AtomicInt_AddOrSetOverflow(current, other, &updated)))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return updated;
+    fail:
+    return -1;
+}
+
+PyObject *
+AtomicInt_IncrementAndGet_callable(AtomicInt *self, PyObject *py_other)
+{
+    int overflow;
+    int64_t other, updated;
+
+    if (py_other == Py_None) {
+        other = 1;
+    } else {
+        if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
+            goto fail;
+    }
+
+    updated = AtomicInt_IncrementAndGet(self, other, &overflow);
+
+    if (overflow)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+int64_t
+AtomicInt_GetAndIncrement(AtomicInt *self, int64_t other, int *overflow)
+{
+    int64_t current, updated;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if ((*overflow = AtomicInt_AddOrSetOverflow(current, other, &updated)))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return current;
+    fail:
+    return -1;
+}
+
+PyObject *
+AtomicInt_GetAndIncrement_callable(AtomicInt *self, PyObject *py_other)
+{
+    int overflow;
+    int64_t other, updated;
+
+    if (py_other == Py_None) {
+        other = 1;
+    } else {
+        if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
+            goto fail;
+    }
+
+    updated = AtomicInt_GetAndIncrement(self, other, &overflow);
+
+    if (overflow)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+int64_t
+AtomicInt_DecrementAndGet(AtomicInt *self, int64_t other, int *overflow)
+{
+    int64_t current, updated;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if ((*overflow = AtomicInt_SubOrSetOverflow(current, other, &updated)))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return updated;
+    fail:
+    return -1;
+}
+
+PyObject *
+AtomicInt_DecrementAndGet_callable(AtomicInt *self, PyObject *py_other)
+{
+    int overflow;
+    int64_t other, updated;
+
+    if (py_other == Py_None) {
+        other = 1;
+    } else {
+        if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
+            goto fail;
+    }
+
+    updated = AtomicInt_DecrementAndGet(self, other, &overflow);
+
+    if (overflow)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+int64_t
+AtomicInt_GetAndDecrement(AtomicInt *self, int64_t other, int *overflow)
+{
+    int64_t current, updated;
+
+    do {
+        current = AtomicInt_Get(self);
+
+        if ((*overflow = AtomicInt_SubOrSetOverflow(current, other, &updated)))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return current;
+    fail:
+    return -1;
+}
+
+PyObject *
+AtomicInt_GetAndDecrement_callable(AtomicInt *self, PyObject *py_other)
+{
+    int overflow;
+    int64_t other, updated;
+
+    if (py_other == Py_None) {
+        other = 1;
+    } else {
+        if (!AtomicInt_ConvertToCLongOrSetException(py_other, &other))
+            goto fail;
+    }
+
+    updated = AtomicInt_GetAndDecrement(self, other, &overflow);
+
+    if (overflow)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+int64_t
+AtomicInt_GetAndUpdate(AtomicInt *self, PyObject *callable, int *error)
+{
+    int64_t current, updated;
+    PyObject *py_current = NULL, *py_updated = NULL;
+    *error = 0;
+
+    do {
+        current = AtomicInt_Get(self);
+        py_current = PyLong_FromLong(current);
+
+        if (py_current == NULL)
+            goto fail;
+
+        py_updated = PyObject_CallOneArg(callable, py_current);
+
+        if (!AtomicInt_ConvertToCLongOrSetException(py_updated, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return current;
+    fail:
+    *error = 1;
+    return -1;
+}
+
+PyObject *
+AtomicInt_GetAndUpdate_callable(AtomicInt *self, PyObject *callable)
+{
+    int error;
+    int64_t updated;
+
+    updated = AtomicInt_GetAndUpdate(self, callable, &error);
+
+    if (error)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+int64_t
+AtomicInt_UpdateAndGet(AtomicInt *self, PyObject *callable, int *error)
+{
+    int64_t current, updated;
+    PyObject *py_current = NULL, *py_updated = NULL;
+    *error = 0;
+
+    do {
+        current = AtomicInt_Get(self);
+        py_current = PyLong_FromLong(current);
+
+        if (py_current == NULL)
+            goto fail;
+
+        py_updated = PyObject_CallOneArg(callable, py_current);
+
+        if (!AtomicInt_ConvertToCLongOrSetException(py_updated, &updated))
+            goto fail;
+
+    } while (!AtomicInt_CompareAndSet(self, current, updated));
+
+    return updated;
+    fail:
+    *error = 1;
+    return -1;
+}
+
+PyObject *
+AtomicInt_UpdateAndGet_callable(AtomicInt *self, PyObject *callable)
+{
+    int error;
+    int64_t updated;
+
+    updated = AtomicInt_UpdateAndGet(self, callable, &error);
+
+    if (error)
+        goto fail;
+
+    return PyLong_FromLong(updated);
+    fail:
+    return NULL;
+}
+
+
 PyObject *
 AtomicInt_GetHandle(AtomicInt *self)
 {

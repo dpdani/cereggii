@@ -10,11 +10,17 @@
 
 
 static PyMethodDef AtomicInt_methods[] = {
-    {"get",             (PyCFunction) AtomicInt_Get_callable,           METH_NOARGS, NULL},
-    {"set",             (PyCFunction) AtomicInt_Set_callable,           METH_O,      NULL},
-    {"compare_and_set", (PyCFunction) AtomicInt_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",     (PyCFunction) AtomicInt_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_handle",      (PyCFunction) AtomicInt_GetHandle,              METH_NOARGS, NULL},
+    {"get",               (PyCFunction) AtomicInt_Get_callable,             METH_NOARGS, NULL},
+    {"set",               (PyCFunction) AtomicInt_Set_callable,             METH_O,      NULL},
+    {"compare_and_set",   (PyCFunction) AtomicInt_CompareAndSet_callable,   METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",       (PyCFunction) AtomicInt_GetAndSet_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
+    {"increment_and_get", (PyCFunction) AtomicInt_IncrementAndGet_callable, METH_O,      NULL},
+    {"get_and_increment", (PyCFunction) AtomicInt_GetAndIncrement_callable, METH_O,      NULL},
+    {"decrement_and_get", (PyCFunction) AtomicInt_DecrementAndGet_callable, METH_O,      NULL},
+    {"get_and_decrement", (PyCFunction) AtomicInt_GetAndDecrement_callable, METH_O,      NULL},
+    {"update_and_get",    (PyCFunction) AtomicInt_UpdateAndGet_callable,    METH_O,      NULL},
+    {"get_and_update",    (PyCFunction) AtomicInt_GetAndUpdate_callable,    METH_O,      NULL},
+    {"get_handle",        (PyCFunction) AtomicInt_GetHandle,                METH_NOARGS, NULL},
     {NULL}
 };
 
@@ -76,11 +82,17 @@ PyTypeObject AtomicInt_Type = {
 };
 
 static PyMethodDef AtomicIntHandle_methods[] = {
-    {"get",             (PyCFunction) AtomicIntHandle_Get_callable,           METH_NOARGS, NULL},
-    {"set",             (PyCFunction) AtomicIntHandle_Set_callable,           METH_O,      NULL},
-    {"compare_and_set", (PyCFunction) AtomicIntHandle_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",     (PyCFunction) AtomicIntHandle_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_handle",      (PyCFunction) AtomicIntHandle_GetHandle,              METH_NOARGS, NULL},
+    {"get",               (PyCFunction) AtomicIntHandle_Get_callable,           METH_NOARGS, NULL},
+    {"set",               (PyCFunction) AtomicIntHandle_Set_callable,           METH_O,      NULL},
+    {"compare_and_set",   (PyCFunction) AtomicIntHandle_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",       (PyCFunction) AtomicIntHandle_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"increment_and_get", (PyCFunction) AtomicIntHandle_IncrementAndGet_callable,     METH_O,      NULL},
+    {"get_and_increment", (PyCFunction) AtomicIntHandle_GetAndIncrement_callable,     METH_O,      NULL},
+    {"decrement_and_get", (PyCFunction) AtomicIntHandle_DecrementAndGet_callable,     METH_O,      NULL},
+    {"get_and_decrement", (PyCFunction) AtomicIntHandle_GetAndDecrement_callable,     METH_O,      NULL},
+    {"update_and_get",    (PyCFunction) AtomicIntHandle_UpdateAndGet_callable,        METH_O,      NULL},
+    {"get_and_update",    (PyCFunction) AtomicIntHandle_GetAndUpdate_callable,        METH_O,      NULL},
+    {"get_handle",        (PyCFunction) AtomicIntHandle_GetHandle,              METH_NOARGS, NULL},
     {NULL}
 };
 

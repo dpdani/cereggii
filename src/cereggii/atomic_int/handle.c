@@ -93,6 +93,79 @@ AtomicIntHandle_GetAndSet_callable(AtomicIntHandle *self, PyObject *args, PyObje
     return AtomicInt_GetAndSet_callable(self->integer, args, kwargs);
 }
 
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow)
+{
+    return AtomicInt_IncrementAndGet(self->integer, other, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_IncrementAndGet_callable(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_IncrementAndGet_callable(self->integer, other);
+}
+
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t other, int *overflow)
+{
+    return AtomicInt_GetAndIncrement(self->integer, other, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_GetAndIncrement_callable(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_GetAndIncrement_callable(self->integer, other);
+}
+
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow)
+{
+    return AtomicInt_DecrementAndGet(self->integer, other, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_DecrementAndGet_callable(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_DecrementAndGet_callable(self->integer, other);
+}
+
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t other, int *overflow)
+{
+    return AtomicInt_GetAndDecrement(self->integer, other, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_GetAndDecrement_callable(AtomicIntHandle *self, PyObject *other)
+{
+    return AtomicInt_GetAndDecrement_callable(self->integer, other);
+}
+
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_GetAndUpdate(AtomicIntHandle *self, PyObject *callable, int *overflow)
+{
+    return AtomicInt_GetAndUpdate(self->integer, callable, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_GetAndUpdate_callable(AtomicIntHandle *self, PyObject *callable)
+{
+    return AtomicInt_GetAndUpdate_callable(self->integer, callable);
+}
+
+__attribute__((unused)) inline int64_t
+AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable, int *overflow)
+{
+    return AtomicInt_UpdateAndGet(self->integer, callable, overflow);
+}
+
+inline PyObject *
+AtomicIntHandle_UpdateAndGet_callable(AtomicIntHandle *self, PyObject *callable)
+{
+    return AtomicInt_UpdateAndGet_callable(self->integer, callable);
+}
+
+
 inline PyObject *
 AtomicIntHandle_GetHandle(AtomicIntHandle *self)
 {
