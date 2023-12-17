@@ -158,6 +158,36 @@ PyObject *AtomicInt_InplaceMatrixMultiply(AtomicInt *self, PyObject *other);
 PyObject *AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op);
 
 
+/// int-specific methods
+// these are explicitly not supported
+
+PyObject *AtomicInt_AsIntegerRatio(AtomicInt *self);
+
+PyObject *AtomicInt_BitLength(AtomicInt *self);
+
+PyObject *AtomicInt_Conjugate(AtomicInt *self);
+
+PyObject *AtomicInt_FromBytes(AtomicInt *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicInt_ToBytes(AtomicInt *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicInt_Denominator_Get(AtomicInt *self, void *closure);
+
+PyObject *AtomicInt_Denominator_Set(AtomicInt *self, PyObject *value, void *closure);
+
+PyObject *AtomicInt_Numerator_Get(AtomicInt *self, void *closure);
+
+PyObject *AtomicInt_Numerator_Set(AtomicInt *self, PyObject *value, void *closure);
+
+PyObject *AtomicInt_Imag_Get(AtomicInt *self, void *closure);
+
+PyObject *AtomicInt_Imag_Set(AtomicInt *self, PyObject *value, void *closure);
+
+PyObject *AtomicInt_Real_Get(AtomicInt *self, void *closure);
+
+PyObject *AtomicInt_Real_Set(AtomicInt *self, PyObject *value, void *closure);
+
+
 /// handle
 
 __attribute__((unused)) int64_t AtomicIntHandle_Get(AtomicIntHandle *self);
@@ -275,6 +305,32 @@ PyObject *AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other)
 PyObject *AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *other);
 
 PyObject *AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op);
+
+PyObject *AtomicIntHandle_AsIntegerRatio(AtomicIntHandle *self);
+
+PyObject *AtomicIntHandle_BitLength(AtomicIntHandle *self);
+
+PyObject *AtomicIntHandle_Conjugate(AtomicIntHandle *self);
+
+PyObject *AtomicIntHandle_FromBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicIntHandle_ToBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicIntHandle_Denominator_Get(AtomicIntHandle *self, void *closure);
+
+PyObject *AtomicIntHandle_Denominator_Set(AtomicIntHandle *self, PyObject *value, void *closure);
+
+PyObject *AtomicIntHandle_Numerator_Get(AtomicIntHandle *self, void *closure);
+
+PyObject *AtomicIntHandle_Numerator_Set(AtomicIntHandle *self, PyObject *value, void *closure);
+
+PyObject *AtomicIntHandle_Imag_Get(AtomicIntHandle *self, void *closure);
+
+PyObject *AtomicIntHandle_Imag_Set(AtomicIntHandle *self, PyObject *value, void *closure);
+
+PyObject *AtomicIntHandle_Real_Get(AtomicIntHandle *self, void *closure);
+
+PyObject *AtomicIntHandle_Real_Set(AtomicIntHandle *self, PyObject *value, void *closure);
 
 
 /// type methods

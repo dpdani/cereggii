@@ -21,7 +21,21 @@ static PyMethodDef AtomicInt_methods[] = {
     {"update_and_get",    (PyCFunction) AtomicInt_UpdateAndGet_callable,    METH_O,      NULL},
     {"get_and_update",    (PyCFunction) AtomicInt_GetAndUpdate_callable,    METH_O,      NULL},
     {"get_handle",        (PyCFunction) AtomicInt_GetHandle,                METH_NOARGS, NULL},
+    {"as_integer_ratio",  (PyCFunction) AtomicInt_AsIntegerRatio,           METH_NOARGS, NULL},
+    {"bit_length",        (PyCFunction) AtomicInt_BitLength,                METH_NOARGS, NULL},
+    {"conjugate",         (PyCFunction) AtomicInt_Conjugate,                METH_NOARGS, NULL},
+    {"from_bytes",        (PyCFunction) AtomicInt_FromBytes,                METH_VARARGS | METH_KEYWORDS |
+                                                                            METH_CLASS,                   NULL},
+    {"to_bytes",          (PyCFunction) AtomicInt_ToBytes,                  METH_NOARGS, NULL},
     {NULL}
+};
+
+static PyGetSetDef AtomicInt_properties[] = {
+    {"denominator", (getter) AtomicInt_Denominator_Get, (setter) AtomicInt_Denominator_Set, NULL, NULL},
+    {"numerator",   (getter) AtomicInt_Numerator_Get,   (setter) AtomicInt_Numerator_Set,   NULL, NULL},
+    {"imag",        (getter) AtomicInt_Imag_Get,        (setter) AtomicInt_Imag_Set,        NULL, NULL},
+    {"real",        (getter) AtomicInt_Real_Get,        (setter) AtomicInt_Real_Set,        NULL, NULL},
+    {NULL},
 };
 
 static PyNumberMethods AtomicInt_as_number = {
@@ -80,21 +94,36 @@ PyTypeObject AtomicInt_Type = {
     .tp_as_number = &AtomicInt_as_number,
     .tp_richcompare = (richcmpfunc) AtomicInt_RichCompare,
     .tp_hash = (hashfunc) AtomicInt_Hash,
+    .tp_getset = AtomicInt_properties,
 };
 
 static PyMethodDef AtomicIntHandle_methods[] = {
-    {"get",               (PyCFunction) AtomicIntHandle_Get_callable,           METH_NOARGS, NULL},
-    {"set",               (PyCFunction) AtomicIntHandle_Set_callable,           METH_O,      NULL},
-    {"compare_and_set",   (PyCFunction) AtomicIntHandle_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",       (PyCFunction) AtomicIntHandle_GetAndSet_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
-    {"increment_and_get", (PyCFunction) AtomicIntHandle_IncrementAndGet_callable,     METH_O,      NULL},
-    {"get_and_increment", (PyCFunction) AtomicIntHandle_GetAndIncrement_callable,     METH_O,      NULL},
-    {"decrement_and_get", (PyCFunction) AtomicIntHandle_DecrementAndGet_callable,     METH_O,      NULL},
-    {"get_and_decrement", (PyCFunction) AtomicIntHandle_GetAndDecrement_callable,     METH_O,      NULL},
-    {"update_and_get",    (PyCFunction) AtomicIntHandle_UpdateAndGet_callable,        METH_O,      NULL},
-    {"get_and_update",    (PyCFunction) AtomicIntHandle_GetAndUpdate_callable,        METH_O,      NULL},
-    {"get_handle",        (PyCFunction) AtomicIntHandle_GetHandle,              METH_NOARGS, NULL},
+    {"get",               (PyCFunction) AtomicIntHandle_Get_callable,             METH_NOARGS, NULL},
+    {"set",               (PyCFunction) AtomicIntHandle_Set_callable,             METH_O,      NULL},
+    {"compare_and_set",   (PyCFunction) AtomicIntHandle_CompareAndSet_callable,   METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",       (PyCFunction) AtomicIntHandle_GetAndSet_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
+    {"increment_and_get", (PyCFunction) AtomicIntHandle_IncrementAndGet_callable, METH_O,      NULL},
+    {"get_and_increment", (PyCFunction) AtomicIntHandle_GetAndIncrement_callable, METH_O,      NULL},
+    {"decrement_and_get", (PyCFunction) AtomicIntHandle_DecrementAndGet_callable, METH_O,      NULL},
+    {"get_and_decrement", (PyCFunction) AtomicIntHandle_GetAndDecrement_callable, METH_O,      NULL},
+    {"update_and_get",    (PyCFunction) AtomicIntHandle_UpdateAndGet_callable,    METH_O,      NULL},
+    {"get_and_update",    (PyCFunction) AtomicIntHandle_GetAndUpdate_callable,    METH_O,      NULL},
+    {"get_handle",        (PyCFunction) AtomicIntHandle_GetHandle,                METH_NOARGS, NULL},
+    {"as_integer_ratio",  (PyCFunction) AtomicIntHandle_AsIntegerRatio,           METH_NOARGS, NULL},
+    {"bit_length",        (PyCFunction) AtomicIntHandle_BitLength,                METH_NOARGS, NULL},
+    {"conjugate",         (PyCFunction) AtomicIntHandle_Conjugate,                METH_NOARGS, NULL},
+    {"from_bytes",        (PyCFunction) AtomicIntHandle_FromBytes,                METH_VARARGS | METH_KEYWORDS |
+                                                                                  METH_CLASS,                   NULL},
+    {"to_bytes",          (PyCFunction) AtomicIntHandle_ToBytes,                  METH_NOARGS, NULL},
     {NULL}
+};
+
+static PyGetSetDef AtomicIntHandle_properties[] = {
+    {"denominator", (getter) AtomicIntHandle_Denominator_Get, (setter) AtomicIntHandle_Denominator_Set, NULL, NULL},
+    {"numerator",   (getter) AtomicIntHandle_Numerator_Get,   (setter) AtomicIntHandle_Numerator_Set,   NULL, NULL},
+    {"imag",        (getter) AtomicIntHandle_Imag_Get,        (setter) AtomicIntHandle_Imag_Set,        NULL, NULL},
+    {"real",        (getter) AtomicIntHandle_Real_Get,        (setter) AtomicIntHandle_Real_Set,        NULL, NULL},
+    {NULL},
 };
 
 static PyNumberMethods AtomicIntHandle_as_number = {
@@ -153,6 +182,7 @@ PyTypeObject AtomicIntHandle_Type = {
     .tp_as_number = &AtomicIntHandle_as_number,
     .tp_richcompare = (richcmpfunc) AtomicIntHandle_RichCompare,
     .tp_hash = (hashfunc) AtomicIntHandle_Hash,
+    .tp_getset = AtomicIntHandle_properties,
 };
 
 

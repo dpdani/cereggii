@@ -6,6 +6,12 @@ Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
+class DummyProperty:
+    def __get__(self, instance, owner):
+        raise NotImplementedError
+    def __set__(self, instance, value):
+        raise NotImplementedError
+
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
@@ -136,7 +142,7 @@ class AtomicRef:
     def get_and_set(self, updated: object) -> object: ...
     def set(self, updated: object): ...  # noqa: A003
 
-class AtomicInt:
+class AtomicInt(int):
     """An int that may be updated atomically."""
 
     def __init__(self, initial_value: int | None = None): ...
@@ -151,14 +157,31 @@ class AtomicInt:
     def update_and_get(self, other: Callable[[int], int]) -> int: ...
     def get_and_update(self, other: Callable[[int], int]) -> int: ...
     def get_handle(self) -> AtomicIntHandle: ...
-    def __add__(self, other: Number) -> Number: ...
-    def __iadd__(self, other: int) -> None: ...
-    def __sub__(self, other: Number) -> Number: ...
-    def __isub__(self, other: int) -> None: ...
-    def __mul__(self, other: Number) -> Number: ...
-    def __imul__(self, other: int) -> None: ...
-    def __eq__(self, other: Number) -> bool: ...
-    def __lt__(self, other: Number) -> bool: ...
+    def __itruediv__(self, other):
+        raise NotImplementedError
+    def as_integer_ratio(self):
+        raise NotImplementedError
+    def bit_length(self):
+        raise NotImplementedError
+    def conjugate(self):
+        raise NotImplementedError
+    @classmethod
+    def from_bytes(cls, *args, **kwargs):
+        raise NotImplementedError
+    def to_bytes(self, *args, **kwargs):
+        raise NotImplementedError
+    @property
+    def denominator(self):
+        NotImplementedError
+    @property
+    def numerator(self):
+        NotImplementedError
+    @property
+    def imag(self):
+        NotImplementedError
+    @property
+    def real(self):
+        NotImplementedError
 
 class AtomicIntHandle(AtomicInt):
     pass

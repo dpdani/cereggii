@@ -1169,7 +1169,7 @@ AtomicInt_InplaceTrueDivide(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(othe
 inline PyObject *
 AtomicInt_MatrixMultiply(AtomicInt *Py_UNUSED(self), PyObject *other)
 {
-    // just raise exception, because it's supposed to be unsupported
+    // just raise an exception; because it's supposed to be unsupported:
     // see https://peps.python.org/pep-0465/#non-definitions-for-built-in-types
     // bonus: raise the same exception as `int(...) @ other`
     return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
@@ -1196,3 +1196,134 @@ AtomicInt_RichCompare(AtomicInt *self, PyObject *other, int op)
     fail:
     return NULL;
 }
+
+inline PyObject *
+AtomicInt_AsIntegerRatio(AtomicInt *Py_UNUSED(self))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().as_integer_ratio instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_BitLength(AtomicInt *Py_UNUSED(self))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().bit_length instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Conjugate(AtomicInt *Py_UNUSED(self))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().conjugate instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_FromBytes(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use int.from_bytes instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_ToBytes(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().to_bytes instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Denominator_Get(AtomicInt *Py_UNUSED(self), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().denominator.__get__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Denominator_Set(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().denominator.__set__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Numerator_Get(AtomicInt *Py_UNUSED(self), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().numerator.__get__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Numerator_Set(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().numerator.__set__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Imag_Get(AtomicInt *Py_UNUSED(self), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().imag.__get__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Imag_Set(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().imag.__set__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Real_Get(AtomicInt *Py_UNUSED(self), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().real.__get__ instead."
+    );
+    return NULL;
+}
+
+inline PyObject *
+AtomicInt_Real_Set(AtomicInt *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
+{
+    PyErr_SetString(
+        PyExc_NotImplementedError,
+        "use AtomicInt().get().real.__set__ instead."
+    );
+    return NULL;
+}
+

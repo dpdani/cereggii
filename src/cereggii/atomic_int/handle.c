@@ -395,3 +395,80 @@ AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op)
     return AtomicInt_RichCompare(self->integer, other, op);
 }
 
+inline PyObject *
+AtomicIntHandle_AsIntegerRatio(AtomicIntHandle *self)
+{
+    return AtomicInt_AsIntegerRatio(self->integer);
+}
+
+inline PyObject *
+AtomicIntHandle_BitLength(AtomicIntHandle *self)
+{
+    return AtomicInt_BitLength(self->integer);
+}
+
+inline PyObject *
+AtomicIntHandle_Conjugate(AtomicIntHandle *self)
+{
+    return AtomicInt_Conjugate(self->integer);
+}
+
+inline PyObject *
+AtomicIntHandle_FromBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+{
+    return AtomicInt_FromBytes(self->integer, args, kwargs);
+}
+
+inline PyObject *
+AtomicIntHandle_ToBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+{
+    return AtomicInt_ToBytes(self->integer, args, kwargs);
+}
+
+inline PyObject *
+AtomicIntHandle_Denominator_Get(AtomicIntHandle *self, void *closure)
+{
+    return AtomicInt_Denominator_Get(self->integer, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Denominator_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+{
+    return AtomicInt_Denominator_Set(self->integer, value, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Numerator_Get(AtomicIntHandle *self, void *closure)
+{
+    return AtomicInt_Numerator_Get(self->integer, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Numerator_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+{
+    return AtomicInt_Numerator_Set(self->integer, value, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Imag_Get(AtomicIntHandle *self, void *closure)
+{
+    return AtomicInt_Imag_Get(self->integer, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Imag_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+{
+    return AtomicInt_Imag_Set(self->integer, value, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Real_Get(AtomicIntHandle *self, void *closure)
+{
+    return AtomicInt_Real_Get(self->integer, closure);
+}
+
+inline PyObject *
+AtomicIntHandle_Real_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+{
+    return AtomicInt_Real_Set(self->integer, value, closure);
+}
