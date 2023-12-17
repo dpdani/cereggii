@@ -7,6 +7,7 @@ import threading
 from fractions import Fraction
 from typing import Union
 
+import cereggii
 from cereggii import AtomicInt
 from pytest import raises
 
@@ -150,6 +151,13 @@ def test_update_and_get():
 
     with raises(TypeError):
         i.update_and_get(lambda _, mmm: _ + mmm)
+
+
+def test_get_handle():
+    i = AtomicInt()
+    h = i.get_handle()
+    assert isinstance(h, cereggii.AtomicIntHandle)
+    assert isinstance(h.get_handle(), cereggii.AtomicIntHandle)
 
 
 def test_dealloc():
