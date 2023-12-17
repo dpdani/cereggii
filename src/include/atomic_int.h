@@ -79,6 +79,8 @@ PyObject *AtomicInt_UpdateAndGet_callable(AtomicInt *self, PyObject *callable);
 
 /// number methods
 
+Py_hash_t AtomicInt_Hash(AtomicInt *self);
+
 PyObject *AtomicInt_Add(AtomicInt *self, PyObject *other);
 
 PyObject *AtomicInt_Subtract(AtomicInt *self, PyObject *other);
@@ -199,6 +201,8 @@ PyObject *AtomicIntHandle_GetAndUpdate_callable(AtomicIntHandle *self, PyObject 
 __attribute__((unused)) int64_t AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable, int *overflow);
 
 PyObject *AtomicIntHandle_UpdateAndGet_callable(AtomicIntHandle *self, PyObject *callable);
+
+Py_hash_t AtomicIntHandle_Hash(AtomicIntHandle *self);
 
 PyObject *AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other);
 

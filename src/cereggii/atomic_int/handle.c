@@ -172,6 +172,12 @@ AtomicIntHandle_GetHandle(AtomicIntHandle *self)
     return AtomicInt_GetHandle(self->integer);
 }
 
+inline Py_hash_t
+AtomicIntHandle_Hash(AtomicIntHandle *self)
+{
+    return AtomicInt_Hash(self->integer);
+}
+
 inline PyObject *
 AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other)
 {

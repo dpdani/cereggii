@@ -5,6 +5,8 @@
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
 
+#include "pyhash.h"
+
 
 inline int
 AtomicInt_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, int64_t *integer)
@@ -521,6 +523,12 @@ AtomicInt_GetHandle(AtomicInt *self)
 
     fail:
     return NULL;
+}
+
+Py_hash_t
+AtomicInt_Hash(AtomicInt *self)
+{
+    return _Py_HashPointer(self);
 }
 
 inline PyObject *

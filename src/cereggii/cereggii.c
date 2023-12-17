@@ -79,6 +79,7 @@ PyTypeObject AtomicInt_Type = {
     .tp_methods = AtomicInt_methods,
     .tp_as_number = &AtomicInt_as_number,
     .tp_richcompare = (richcmpfunc) AtomicInt_RichCompare,
+    .tp_hash = (hashfunc) AtomicInt_Hash,
 };
 
 static PyMethodDef AtomicIntHandle_methods[] = {
@@ -151,6 +152,7 @@ PyTypeObject AtomicIntHandle_Type = {
     .tp_methods = AtomicIntHandle_methods,
     .tp_as_number = &AtomicIntHandle_as_number,
     .tp_richcompare = (richcmpfunc) AtomicIntHandle_RichCompare,
+    .tp_hash = (hashfunc) AtomicIntHandle_Hash,
 };
 
 
