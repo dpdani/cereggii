@@ -3,20 +3,17 @@ project(cereggii)
 
 set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
-include_directories("include/")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options("-march=native")
 
-# Find the Python development files
-set(python_base "$ENV{HOME}/.pyenv/versions/nogil-3.9.10-1-debug")
-message("CI=" $ENV{CI})
-if ("$ENV{CI}" STREQUAL "true")
-    set(python_base "$ENV{HOME}/nogil-3.9.10")
-endif ()
-set(Python3_INCLUDE_DIR "${python_base}/include/python3.9/")
-
+message("Python3_INCLUDE_DIR=" ${Python3_INCLUDE_DIR})
+execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
+message("Python3_INCLUDE_DIR=" ${Python3_INCLUDE_DIR})
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
+
+
+include_directories("include/")
 
 # Add the module to compile
 Python3_add_library(_cereggii MODULE
