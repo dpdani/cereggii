@@ -55,55 +55,40 @@ number (> 1) of writes, is undefined.
 The following piece of code is instead thread-safe:
 
 ```python
+import cereggii
+
+
 a = cereggii.AtomicInt(0)
 a += 1
 ```
 
-Also, consider the following piece of code:
+Also, consider the [counter example](./examples/atomic_int/counter.py) where three counter implementations are compared:
 
-```python
-import threading
+1. using a built-in `int`,
+2. using `AtomicInt`, and
+3. using `AtomicInt` with `AtomicIntHandle`.
 
+```text
+A counter using the built-in int.
+spam.counter=0
+spam.counter=5019655
+Took 39.17 seconds.
 
-class Spam:
-    def __init__(self):
-        self.counter = 0
+A counter using cereggii.AtomicInt.
+spam.counter.get()=0
+spam.counter.get()=15000000
+Took 36.78 seconds (1.07x faster).
 
-
-spam = Spam()
-print(f"{spam.counter=}")
-
-
-def incr():
-    for i in range(1_000_000):
-        spam.counter += 1
-
-
-t1 = threading.Thread(target=incr)
-t2 = threading.Thread(target=incr)
-t1.start()
-t2.start()
-t1.join()
-t2.join()
-
-print(f"{spam.counter=}")
+A counter using cereggii.AtomicInt and cereggii.AtomicIntHandle.
+spam.counter.get()=0
+spam.counter.get()=15000000
+Took 2.64 seconds (14.86x faster).
 ```
 
-The output you'll see onscreen is not known.
-If you subsititute `self.counter = 0` with `self.counter = AtomicInt(0)`, you'll be guaranteed to see
-`2_000_000`, and the program should run slightly faster.
-
-If you make an additional modification, your program will run much faster:
-
-```python
-def incr():
-    h = spam.counter.get_handle()
-
-    for i in range(1_000_000):
-        h += 1
-```
-
-When using `AtomicIntHandle`, you should see your CPUs being fully used.
+Notice that when using `AtomicInt` the count is correctly computed, and that using `AtomicInt.get_handle`
+to access the counter greatly improves performance.
+When using `AtomicIntHandle`, you should see your CPUs being fully used, because no implicit lock
+prevents the execution of any thread. [^implicitlock]
 
 `AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it should feel familiar to use, if you're
 coming to Python from Java.
@@ -126,6 +111,10 @@ It tries to mimic Python's `int` as close as possible, with some caveats:
     - `imag`
     - `real`
 
+[^implicitlock]: Put simply, in a free-threaded build,
+the [global interpreter lock](https://docs.python.org/3/glossary.html#term-global-interpreter-lock) is substituted with
+many per-object locks.
+
 [^1]: This behavior ensures the hashing property that identity implies hash equality.
 
 ### An explanation of these claims
@@ -144,7 +133,8 @@ another thread, so that one or multiple increments may be lost.
 Second, the performance problem.
 How come the speedup?
 
-If we look again at the code, there are a couple of implicit memory locations which are being contended by threads:
+If we look again at [the example code](./examples/atomic_int/counter.py), there are a couple of implicit memory
+locations which are being contended by threads:
 
 1. the reference count of `spam.count`;
 2. the reference counts of the `int` objects themselves; and
@@ -168,53 +158,23 @@ Currently, the implementation of `AtomicDict` is quite limited:
 - (dpdani/cereggii#5) it does not support dynamic resizing; and
 - several common functionalities are missing.
 
-You can see that there is some more performance to be gained by simply using `AtomicDict`, comparing the following two
-programs.
+You can see that there is some more performance to be gained by simply using `AtomicDict`, looking at the execution
+of [the count keys example](./examples/atomic_dict/count_keys.py).
+
+```text
+Counting keys using the built-in dict.
+Took 35.46 seconds.
+
+Counting keys using cereggii.AtomicDict.
+Took 7.51 seconds (4.72x faster).
+```
+
+Notice that the performance gain was achieved by simply wrapping the dictionary initialization with `AtomicDict`
+(compare `Spam.d` and `AtomicSpam.d` in [the example source](./examples/atomic_dict/count_keys.py)).
 
 The usage of `AtomicInt` provides correctness, regardless of the hashmap implementation.
 But using `AtomicDict` instead of `dict` improves performance, even without using handles: writes to distinct keys do
 not generate contention.
-
-With `dict`:
-
-```python
-import threading
-
-from cereggii import AtomicDict, AtomicInt
-
-
-class Spam:
-    def __init__(self):
-        self.d = {k: AtomicInt(0) for k in range(10)}
-
-
-spam = Spam()
-print(
-    f"{spam.d[0].get()=} {spam.d[1].get()=} {spam.d[2].get()=} {spam.d[3].get()=} {spam.d[4].get()=} "
-    f"{spam.d[5].get()=} {spam.d[6].get()=} {spam.d[7].get()=} {spam.d[8].get()=} {spam.d[9].get()=} "
-)
-
-
-def incr():
-    keys = list(range(10))
-    for _ in range(5_000_000):
-        spam.d[keys[_ % len(keys)]] += 1
-
-
-threads = [threading.Thread(target=incr) for _ in range(3)]
-for t in threads:
-    t.start()
-
-for t in threads:
-    t.join()
-
-print(
-    f"{spam.d[0].get()=} {spam.d[1].get()=} {spam.d[2].get()=} {spam.d[3].get()=} {spam.d[4].get()=} "
-    f"{spam.d[5].get()=} {spam.d[6].get()=} {spam.d[7].get()=} {spam.d[8].get()=} {spam.d[9].get()=} "
-)
-```
-
-To use `AtomicDict`, substitute in `self.d = AtomicDict({k: AtomicInt(0) for k in range(10)})`.
 
 ## AtomicRef
 
