@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-
-Concurrent threading utilities for Python
-
+Thread synchronization utilities for free-threaded Python.
 """
 
 import sys

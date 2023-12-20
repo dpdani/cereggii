@@ -23,6 +23,9 @@ May 2018, CC0. [source](https://www.flickr.com/photos/aspidoscelis/42926986382)_
 
 *This library is experimental*
 
+*Arm disclaimer:* `aarch64` processors are generally not supported, but this library was successfully used with Apple
+Silicon.
+
 Using [@colesbury's original nogil fork](https://github.com/colesbury/nogil?tab=readme-ov-file#installation) is required
 to use this library.
 You can get it with pyenv:
