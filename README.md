@@ -45,11 +45,11 @@ see poor performance.
 In Python (be it free-threaded or not), the following piece of code is not thread-safe:
 
 ```python
-a = 0
-a += 1
+i = 0
+i += 1
 ```
 
-That is, if `a` is shared with multiple threads, and they attempt to modify `a`, the value of `a` after any
+That is, if `i` is shared with multiple threads, and they attempt to modify `i`, the value of `i` after any
 number (> 1) of writes, is undefined.
 
 The following piece of code is instead thread-safe:
@@ -58,8 +58,9 @@ The following piece of code is instead thread-safe:
 import cereggii
 
 
-a = cereggii.AtomicInt(0)
-a += 1
+i = cereggii.AtomicInt(0)
+i += 1
+print(i.get())
 ```
 
 Also, consider the [counter example](./examples/atomic_int/counter.py) where three counter implementations are compared:
@@ -122,9 +123,9 @@ many per-object locks.
 First, `a += 1` in CPython actually translates to more than one bytecode instruction, namely:
 
 ```text
-              0 LOAD_CONST               2 (1)
-              2 INPLACE_ADD              0 (a)
-              4 STORE_FAST               0 (a)
+LOAD_CONST               2 (1)
+INPLACE_ADD              0 (a)
+STORE_FAST               0 (a)
 ```
 
 This means that between the `INPLACE_ADD` and the `STORE_FAST` instructions, the value of `a` may have been changed by
@@ -145,7 +146,8 @@ These contentions are eliminated by `AtomicInt`, cf.:
 1. `spam.count` is accessed indirectly through an `AtomicIntHandle` which avoids contention on its reference count (it
    is contended only during the `.get_handle()` call);
 2. this is avoided by not creating `int` objects during the increment;
-3. again, using the handle instead of the `AtomicInt` itself avoids spurious contention.
+3. again, using the handle instead of the `AtomicInt` itself avoids spurious contention, because `spam.__dict__` is not
+   modified.
 
 Also see colesbury/nogil#121.
 
