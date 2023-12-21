@@ -115,7 +115,7 @@ AtomicInt_DivOrSetException(int64_t current, int64_t to_div, int64_t *result)
 
 
 PyObject *
-AtomicInt_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
+AtomicInt_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
     AtomicInt *self;
     self = (AtomicInt *) type->tp_alloc(type, 0);
@@ -542,7 +542,7 @@ AtomicInt_GetHandle(AtomicInt *self)
 Py_hash_t
 AtomicInt_Hash(AtomicInt *self)
 {
-    return _Py_HashPointer(self);
+    return _Py_HashPointer(self); // this will be public in 3.13
 }
 
 inline PyObject *
