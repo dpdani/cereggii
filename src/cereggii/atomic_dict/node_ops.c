@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <stdatomic.h>
-#include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "atomic_ops.h"
 
 // these functions take a pointer to meta, but to avoid multiple reads
 // you should dereference dk->meta (i.e. make a thread-local copy) and
@@ -279,18 +278,18 @@ AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, at
     uint8_t *index_address = AtomicDict_IndexAddressOf(ix, meta);
     switch (must_write) {
         case 1:
-            return __sync_bool_compare_and_swap_1(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt8(index_address, expected_raw, new_raw);
         case 2:
-            return __sync_bool_compare_and_swap_2(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt16((uint16_t *) index_address, expected_raw, new_raw);
         case 4:
-            return __sync_bool_compare_and_swap_4(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt32((uint32_t *) index_address, expected_raw, new_raw);
         case 8:
-            return __sync_bool_compare_and_swap_8(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt64((uint64_t *) index_address, expected_raw, new_raw);
         case 16:
             // assert memory access is aligned
             // this is not required for <=8 bytes CAS on x86_64
             assert(AtomicDict_IndexAddressIsAligned(ix, 16, meta));
-            return __sync_bool_compare_and_swap_16(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt128((__uint128_t *) index_address, expected_raw, new_raw);
         default:
             assert(0);
     }
