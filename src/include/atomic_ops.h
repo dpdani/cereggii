@@ -142,6 +142,8 @@ int CereggiiAtomic_CompareExchangeInt32(int32_t *obj, int32_t expected, int32_t 
 
 int CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t updated);
 
+int CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t updated);
+
 int CereggiiAtomic_CompareExchangeIntPtr(intptr_t *obj, intptr_t expected, intptr_t updated);
 
 int CereggiiAtomic_CompareExchangeUInt(unsigned int *obj, unsigned int expected, unsigned int updated);
@@ -154,11 +156,13 @@ int CereggiiAtomic_CompareExchangeUInt32(uint32_t *obj, uint32_t expected, uint3
 
 int CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t updated);
 
+int CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t updated);
+
 int CereggiiAtomic_CompareExchangeUIntPtr(uintptr_t *obj, uintptr_t expected, uintptr_t updated);
 
 int CereggiiAtomic_CompareExchangeSsize(Py_ssize_t *obj, Py_ssize_t expected, Py_ssize_t updated);
 
-int CereggiiAtomic_CompareExchangePtr(void **obj, void *expected, void *value);
+int CereggiiAtomic_CompareExchangePtr(void *obj, void *expected, void *value);
 
 
 // --- CereggiiAtomic_Exchange ---------------------------------------------------
@@ -218,7 +222,7 @@ uint32_t CereggiiAtomic_OrUInt32(uint32_t *obj, uint32_t value);
 
 uint64_t CereggiiAtomic_OrUInt64(uint64_t *obj, uint64_t value);
 
-uintptr_t CereggiiAtomic_OrUIntptr(uintptr_t *obj, uintptr_t value);
+uintptr_t CereggiiAtomic_OrUIntPtr(uintptr_t *obj, uintptr_t value);
 
 
 // --- CereggiiAtomic_load -------------------------------------------------------
@@ -308,7 +312,7 @@ void CereggiiAtomic_StoreUInt32(uint32_t *obj, uint32_t value);
 
 void CereggiiAtomic_StoreUInt64(uint64_t *obj, uint64_t value);
 
-void CereggiiAtomic_StoreUIntptr(uintptr_t *obj, uintptr_t value);
+void CereggiiAtomic_StoreUIntPtr(uintptr_t *obj, uintptr_t value);
 
 void CereggiiAtomic_StoreUInt(unsigned int *obj, unsigned int value);
 
@@ -372,26 +376,6 @@ void CereggiiAtomic_FenceSeqCst(void);
 
 // Release fence
 void CereggiiAtomic_FenceRelease(void);
-
-
-#ifndef _CEREGGII_ATOMIC_OPS_GCC
-#  if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
-#    define _CEREGGII_ATOMIC_OPS_GCC 1
-#  elif defined(__clang__)
-#    if __has_builtin(__atomic_load)
-#      define _CEREGGII_ATOMIC_OPS_GCC 1
-#    endif
-#  endif
-#endif
-
-#if _CEREGGII_ATOMIC_OPS_GCC
-#elif __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
-#  define _CEREGGII_ATOMIC_OPS_STD
-#elif defined(_MSC_VER)
-#  define _CEREGGII_ATOMIC_OPS_MSC
-#else
-#  error "no available atomic implementation for this platform/compiler"
-#endif
 
 
 // --- aliases ---------------------------------------------------------------

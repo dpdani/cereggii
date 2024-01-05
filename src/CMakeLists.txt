@@ -5,7 +5,7 @@ set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-add_compile_options("-march=native")
+add_compile_options("-mcx16")
 
 message("Python3_INCLUDE_DIR=" ${Python3_INCLUDE_DIR})
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
@@ -29,9 +29,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/reservation_buffer.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
-        "cereggii/atomic_ops_gcc.c"
-        "cereggii/atomic_ops_msc.c"
-        "cereggii/atomic_ops_std.c"
+        "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
 )
