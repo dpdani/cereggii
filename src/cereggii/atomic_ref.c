@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "atomic_ref.h"
+#include "atomic_ops.h"
 
 
 PyObject *
@@ -73,7 +74,7 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
     Py_INCREF(reference);
-    while (!_Py_atomic_compare_exchange_ptr(&self->reference, current_reference, reference)) {
+    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, reference)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
@@ -88,7 +89,7 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
     assert(new != NULL);
 
     Py_INCREF(new);
-    int retval = _Py_atomic_compare_exchange_ptr(&self->reference, expected, new);
+    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, new);
     if (retval) {
         Py_DECREF(expected);
         return 1;
@@ -120,7 +121,7 @@ PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new)
     assert(new != NULL);
 
     Py_INCREF(new);
-    PyObject *current_reference = _Py_atomic_exchange_ptr(&self->reference, new);
+    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, new);
     // don't decref current_reference: passing it to python
     return current_reference;
 }

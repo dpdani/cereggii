@@ -7,6 +7,7 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
+#include "atomic_ops.h"
 #include "pythread.h"
 
 
@@ -186,7 +187,7 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
         return retry;
     }
 
-    if (_Py_atomic_compare_exchange_ptr(&entry_p->value, entry.value, value)) {
+    if (CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, entry.value, value)) {
         Py_DECREF(entry.value);
         return updated;
     }
