@@ -155,9 +155,9 @@ CereggiiAtomic_CompareExchangeSsize(Py_ssize_t *obj, Py_ssize_t expected, Py_ssi
 }
 
 inline int
-CereggiiAtomic_CompareExchangePtr(void *obj, void *expected, void *desired)
+CereggiiAtomic_CompareExchangePtr(void **obj, void *expected, void *desired)
 {
-    return atomic_compare_exchange_strong_explicit((void **) obj, (void **) expected, desired, memory_order_acq_rel,
+    return atomic_compare_exchange_strong_explicit(obj, &expected, desired, memory_order_acq_rel,
                                                    memory_order_acquire);
 }
 

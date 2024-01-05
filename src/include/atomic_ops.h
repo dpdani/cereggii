@@ -7,91 +7,6 @@
 
 #include "Python.h"
 
-// This header provides cross-platform low-level atomic operations
-// similar to C11 atomics.
-//
-// Operations are sequentially consistent unless they have a suffix indicating
-// otherwise. If in doubt, prefer the sequentially consistent operations.
-//
-// The "_relaxed" suffix for load and store operations indicates the "relaxed"
-// memory order. They don't provide synchronization, but (roughly speaking)
-// guarantee somewhat sane behavior for races instead of undefined behavior.
-// In practice, they correspond to "normal" hardware load and store
-// instructions, so they are almost as inexpensive as plain loads and stores
-// in C.
-//
-// Note that atomic read-modify-write operations like CereggiiAtomic_add_* return
-// the previous value of the atomic variable, not the new value.
-//
-// See https://en.cppreference.com/w/c/atomic for more information on C11
-// atomics.
-// See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2055r0.pdf
-// "A Relaxed Guide to memory_order_relaxed" for discussion of and common usage
-// or relaxed atomics.
-//
-// Functions with pseudo Python code:
-//
-//   def CereggiiAtomic_load(obj):
-//        return obj  # sequential consistency
-//
-//   def CereggiiAtomic_loadRelaxed(obj):
-//       return obj  # relaxed consistency
-//
-//   def CereggiiAtomic_store(obj, value):
-//       obj = value  # sequential consistency
-//
-//   def CereggiiAtomic_storeRelaxed(obj, value):
-//       obj = value  # relaxed consistency
-//
-//   def CereggiiAtomic_Exchange(obj, value):
-//       # sequential consistency
-//       old_obj = obj
-//       obj = value
-//       return old_obj
-//
-//   def CereggiiAtomic_CompareExchange(obj, expected, updated):
-//       # sequential consistency
-//       if obj == expected:
-//           obj = updated
-//           return True
-//       else:
-//           expected = obj
-//           return False
-//
-//   def CereggiiAtomic_add(obj, value):
-//       # sequential consistency
-//       old_obj = obj
-//       obj += value
-//       return old_obj
-//
-//   def CereggiiAtomic_and(obj, value):
-//       # sequential consistency
-//       old_obj = obj
-//       obj &= value
-//       return old_obj
-//
-//   def CereggiiAtomic_or(obj, value):
-//       # sequential consistency
-//       old_obj = obj
-//       obj |= value
-//       return old_obj
-//
-// Other functions:
-//
-//   def CereggiiAtomic_load_ptr_acquire(obj):
-//       return obj  # acquire
-//
-//   def CereggiiAtomic_store_ptr_release(obj):
-//       return obj  # release
-//
-//   def CereggiiAtomic_fence_seq_cst():
-//       # sequential consistency
-//       ...
-//
-//   def CereggiiAtomic_fence_release():
-//       # release
-//       ...
-
 // --- CereggiiAtomic_Add --------------------------------------------------------
 // Atomically adds `value` to `obj` and returns the previous value
 
@@ -125,44 +40,44 @@ Py_ssize_t CereggiiAtomic_AddSsize(Py_ssize_t *obj, Py_ssize_t value);
 // --- CereggiiAtomic_CompareExchange -------------------------------------------
 // Performs an atomic compare-and-exchange.
 //
-// - If `*obj` and `*expected` are equal, store `updated` into `*obj`
+// - If `*obj` and `*expected` are equal, store `desired` into `*obj`
 //   and return 1 (success).
 // - Otherwise, store the `*obj` current value into `*expected`
 //   and return 0 (failure).
 //
 // These correspond to the C11 atomic_compare_exchange_strong() function.
 
-int CereggiiAtomic_CompareExchangeInt(int *obj, int expected, int updated);
+int CereggiiAtomic_CompareExchangeInt(int *obj, int expected, int desired);
 
-int CereggiiAtomic_CompareExchangeInt8(int8_t *obj, int8_t expected, int8_t updated);
+int CereggiiAtomic_CompareExchangeInt8(int8_t *obj, int8_t expected, int8_t desired);
 
-int CereggiiAtomic_CompareExchangeInt16(int16_t *obj, int16_t expected, int16_t updated);
+int CereggiiAtomic_CompareExchangeInt16(int16_t *obj, int16_t expected, int16_t desired);
 
-int CereggiiAtomic_CompareExchangeInt32(int32_t *obj, int32_t expected, int32_t updated);
+int CereggiiAtomic_CompareExchangeInt32(int32_t *obj, int32_t expected, int32_t desired);
 
-int CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t updated);
+int CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t desired);
 
-int CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t updated);
+int CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t desired);
 
-int CereggiiAtomic_CompareExchangeIntPtr(intptr_t *obj, intptr_t expected, intptr_t updated);
+int CereggiiAtomic_CompareExchangeIntPtr(intptr_t *obj, intptr_t expected, intptr_t desired);
 
-int CereggiiAtomic_CompareExchangeUInt(unsigned int *obj, unsigned int expected, unsigned int updated);
+int CereggiiAtomic_CompareExchangeUInt(unsigned int *obj, unsigned int expected, unsigned int desired);
 
-int CereggiiAtomic_CompareExchangeUInt8(uint8_t *obj, uint8_t expected, uint8_t updated);
+int CereggiiAtomic_CompareExchangeUInt8(uint8_t *obj, uint8_t expected, uint8_t desired);
 
-int CereggiiAtomic_CompareExchangeUInt16(uint16_t *obj, uint16_t expected, uint16_t updated);
+int CereggiiAtomic_CompareExchangeUInt16(uint16_t *obj, uint16_t expected, uint16_t desired);
 
-int CereggiiAtomic_CompareExchangeUInt32(uint32_t *obj, uint32_t expected, uint32_t updated);
+int CereggiiAtomic_CompareExchangeUInt32(uint32_t *obj, uint32_t expected, uint32_t desired);
 
-int CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t updated);
+int CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t desired);
 
-int CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t updated);
+int CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t desired);
 
-int CereggiiAtomic_CompareExchangeUIntPtr(uintptr_t *obj, uintptr_t expected, uintptr_t updated);
+int CereggiiAtomic_CompareExchangeUIntPtr(uintptr_t *obj, uintptr_t expected, uintptr_t desired);
 
-int CereggiiAtomic_CompareExchangeSsize(Py_ssize_t *obj, Py_ssize_t expected, Py_ssize_t updated);
+int CereggiiAtomic_CompareExchangeSsize(Py_ssize_t *obj, Py_ssize_t expected, Py_ssize_t desired);
 
-int CereggiiAtomic_CompareExchangePtr(void *obj, void *expected, void *value);
+int CereggiiAtomic_CompareExchangePtr(void **obj, void *expected, void *desired);
 
 
 // --- CereggiiAtomic_Exchange ---------------------------------------------------
