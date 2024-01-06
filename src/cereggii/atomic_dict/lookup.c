@@ -10,25 +10,30 @@
 
 void
 AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                  int look_into_reservations, atomic_dict_search_result *result)
+                  atomic_dict_search_result *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    uint64_t ix = hash & ((1 << meta->log_size) - 1);
-    int probe;
-    int reservations = 0;
+    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    uint8_t is_compact;
+    uint64_t probe, reservations;
+    int64_t zone;
+    atomic_dict_node read_buffer[16];
+    int idx_in_buffer, nodes_offset;
 
-    for (probe = 0; probe < meta->log_size; probe++) {
-        AtomicDict_ReadNodeAt((ix + probe + reservations) % (1 << meta->log_size), &result->node, meta);
+    beginning:
+    is_compact = meta->is_compact;
+    reservations = 0;
+    zone = -1;
+
+    for (probe = 0; probe < meta->size; probe++) {
+        AtomicDict_ReadNodesFromZoneIntoBuffer(ix + probe + reservations, &zone, read_buffer, &result->node,
+                                               &idx_in_buffer, &nodes_offset, meta);
 
         if (AtomicDict_NodeIsReservation(&result->node, meta)) {
             probe--;
             reservations++;
-            if (look_into_reservations) {
-                result->is_reservation = 1;
-                goto check_entry;
-            } else {
-                continue;
-            }
+            result->is_reservation = 1;
+            goto check_entry;
         }
         result->is_reservation = 0;
 
@@ -36,7 +41,11 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
             goto not_found;
         }
 
-        if (ix + probe + reservations - result->node.distance > ix) {
+        if (
+            is_compact && (
+                (ix + probe + reservations - result->node.distance > ix)
+                || (probe >= meta->log_size)
+            )) {
             goto not_found;
         }
 
@@ -68,6 +77,9 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
     }  // probes exhausted
 
     not_found:
+    if (is_compact != meta->is_compact) {
+        goto beginning;
+    }
     result->error = 0;
     result->entry_p = NULL;
     return;
@@ -92,7 +104,7 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
     result.entry.value = NULL;
-    AtomicDict_Lookup(meta, key, hash, 0, &result);
+    AtomicDict_Lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
 

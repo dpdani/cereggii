@@ -61,11 +61,11 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_res
             CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        if (greatest_allocated_block + 1 >= (1 << meta->log_size) >> 6) {
+        if (greatest_allocated_block + 1 >= meta->size >> 6) {
             AtomicDict_Grow(dk);
             goto beginning;
         }
-        assert(greatest_allocated_block + 1 <= (1 << meta->log_size) >> 6);
+        assert(greatest_allocated_block + 1 <= meta->size >> 6);
 
         atomic_dict_block *block = AtomicDict_NewBlock(meta);
         if (block == NULL)
@@ -73,7 +73,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_res
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
-            if (greatest_allocated_block + 2 < (1 << meta->log_size) >> 6) {
+            if (greatest_allocated_block + 2 < meta->size >> 6) {
                 meta->blocks[greatest_allocated_block + 2] = NULL;
             }
             assert(CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
