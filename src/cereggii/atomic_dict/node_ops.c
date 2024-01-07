@@ -13,7 +13,7 @@
 inline void
 AtomicDict_ComputeRawNode(atomic_dict_node *node, atomic_dict_meta *meta)
 {
-    assert(node->index < (1 << meta->log_size));
+    assert(node->index < meta->size);
     assert(node->distance <= meta->max_distance);
     node->node =
         (node->index << (meta->node_size - meta->log_size))
@@ -30,8 +30,20 @@ AtomicDict_NodeIsReservation(atomic_dict_node *node, atomic_dict_meta *meta)
 inline uint64_t
 AtomicDict_RegionOf(uint64_t ix, atomic_dict_meta *meta)
 {
-    ix = ix % (1 << meta->log_size);
+    ix = ix % meta->size;
     return (ix & ~meta->shift_mask) / meta->nodes_in_region;
+}
+
+inline uint64_t
+AtomicDict_ZoneOf(uint64_t ix, atomic_dict_meta *meta)
+{
+    return AtomicDict_RegionOf(ix, meta) & 0;
+}
+
+inline uint64_t
+AtomicDict_Distance0Of(Py_hash_t hash, atomic_dict_meta *meta)
+{
+    return hash & (meta->size - 1);
 }
 
 inline uint64_t
@@ -73,6 +85,14 @@ AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, atomic_dict_node *n
     uint64_t node_raw =
         (region & (meta->node_mask << (shift * meta->node_size))) >> (shift * meta->node_size);
     AtomicDict_ParseNodeFromRaw(node_raw, node, meta);
+}
+
+inline void
+AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer)
+{
+    for (int i = 0; i < 16; ++i) {
+        to_buffer[i] = from_buffer[i];
+    }
 }
 
 void
@@ -203,6 +223,21 @@ AtomicDict_Read16NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta 
     }
 }
 
+inline void
+AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer, atomic_dict_node *node,
+                                       int *idx_in_buffer, int *nodes_offset, atomic_dict_meta *meta)
+{
+    idx &= (int64_t) (meta->size - 1);
+
+    if (*zone != AtomicDict_ZoneOf(idx, meta)) {
+        meta->read_nodes_in_zone(idx, buffer, meta);
+        *zone = (int64_t) AtomicDict_RegionOf(idx, meta) | 1;
+        *nodes_offset = (int) -(idx % meta->nodes_in_zone);
+    }
+    *idx_in_buffer = (int) (idx % meta->nodes_in_zone + *nodes_offset);
+    *node = buffer[*idx_in_buffer];
+}
+
 
 int
 AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta)
@@ -233,10 +268,7 @@ AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta)
     if (n_bytes <= 8) {
         return 8;
     }
-    if (n_bytes <= 16) {
-        return 16;
-    }
-    assert(0);
+    return 16;
 }
 
 int
@@ -244,8 +276,7 @@ AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, at
                               atomic_dict_meta *meta)
 {
     assert(n > 0);
-    assert(n <= meta->nodes_in_two_regions);
-
+    assert(n <= meta->nodes_in_zone);
 
     uint64_t little = AtomicDict_RegionOf(ix, meta);
     uint64_t middle = AtomicDict_RegionOf(ix + n / 2, meta);

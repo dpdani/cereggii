@@ -34,10 +34,6 @@ def test_weird_init():
     d = AtomicDict(min_size=64, iterable={1: 0})
     with raises(KeyError):
         assert d[1] == 0
-    d.debug()
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
     assert d["iterable"] == {1: 0}
 
     with raises(TypeError):
@@ -166,19 +162,12 @@ def test_setitem_distance_1_insert():
     assert d.debug()["index"][2] == 10
 
 
-def test_insert_with_reservation():
-    d = AtomicDict({k: None for k in range(48)})
+def test_insert_non_compact():
+    d = AtomicDict({k: None for k in range(60)})
     d[64] = 1
-    for k in range(16):
+    for k in range(60):
         assert d[k] is None
     assert d[64] == 1
-
-    # d = AtomicDict({k: None for k in range(60)})  # fixme
-    # breakpoint()
-    # d[64] = 1
-    # for k in range(16):
-    #     assert d[k] is None
-    # assert d[64] == 1
 
 
 def test_full_dict():
@@ -267,3 +256,55 @@ def test_get_default():
     assert d.get(1) is None
     assert d.get(1, "default") == "default"
     assert d.get("key") == "value"
+
+
+def test_delete():
+    d = AtomicDict({"spam": "lovely", "atomic": True})
+    del d["atomic"]
+    with raises(KeyError):
+        del d["atomic"]
+
+    d["flower"] = "cereus greggii"
+    del d["flower"]
+    with raises(KeyError):
+        del d["flower"]
+
+
+def test_delete_concurrent():
+    d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
+
+    key_error_1 = False
+    key_error_2 = False
+
+    def thread_1():
+        del d["spam"]
+        try:
+            del d["flower"]
+        except KeyError:
+            nonlocal key_error_1
+            key_error_1 = True
+
+    def thread_2():
+        del d["atomic"]
+        try:
+            del d["flower"]
+        except KeyError:
+            nonlocal key_error_2
+            key_error_2 = True
+
+    t1 = threading.Thread(target=thread_1)
+    t2 = threading.Thread(target=thread_2)
+
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    with raises(KeyError):
+        d["spam"]
+    with raises(KeyError):
+        d["atomic"]
+    with raises(KeyError):
+        d["flower"]
+
+    assert key_error_1 or key_error_2
