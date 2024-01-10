@@ -27,6 +27,12 @@ AtomicDict_NodeIsReservation(atomic_dict_node *node, atomic_dict_meta *meta)
     return node->node != 0 && node->distance == (1 << meta->distance_size) - 1;
 }
 
+inline int
+AtomicDict_NodeIsTombstone(atomic_dict_node *node, atomic_dict_meta *meta)
+{
+    return node->node == meta->tombstone.node;
+}
+
 inline uint64_t
 AtomicDict_RegionOf(uint64_t ix, atomic_dict_meta *meta)
 {
