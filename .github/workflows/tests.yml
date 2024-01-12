@@ -36,9 +36,9 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
-          mkdir -p $PWD/cores
-          chmod 777 $PWD/cores
-          echo "$PWD/cores" | sudo tee /proc/sys/kernel/core_pattern
+          mkdir -p cores
+          chmod 777 cores
+          echo "/cores/" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
           sudo -H $pythonLocation/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
@@ -51,7 +51,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: core-dump
-          path: /home/runner/work/cereggii/cereggii/cores
+          path: /cores
         if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
