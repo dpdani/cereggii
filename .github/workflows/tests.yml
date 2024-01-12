@@ -24,10 +24,12 @@ jobs:
         run: |
           uname -a
           cat /proc/cpuinfo
-      - name: enable access to core dump files
+      - name: generate core dump files
         run: |
+          ulimit -c unlimited
+          ulimit -c
           sudo mkdir -p /cores/
-          sudo chmod -R +rwx /cores/*
+          sudo chmod -R +rwx /cores/
       - name: check nogil
         run: |
           python -c "import sys; print(sys.flags.nogil);"
@@ -37,8 +39,6 @@ jobs:
           pip install .[dev]
       - name: test with pytest
         run: |
-          ulimit -c unlimited
-          ulimit -c
           sudo pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: upload core dump file
         uses: actions/upload-artifact@v3
