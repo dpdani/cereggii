@@ -24,6 +24,9 @@ jobs:
         run: |
           uname -a
           cat /proc/cpuinfo
+      - name: generate core dump files
+        run: |
+          ulimit -c unlimited
       - name: check nogil
         run: |
           python -c "import sys; print(sys.flags.nogil);"
@@ -34,6 +37,11 @@ jobs:
       - name: test with pytest
         run: |
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+      - name: upload core dump file
+        uses: actions/upload-artifact@v3
+        with:
+          name: core-dump
+          path: core
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
         with:
