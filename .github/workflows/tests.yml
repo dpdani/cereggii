@@ -43,7 +43,9 @@ jobs:
           sudo -H $pythonLocation/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: search for core dump
         run: |
-          find /usr/share/apport/apport -name *
+          ls -al /usr/share/apport/apport
+          ls -al .
+          ls -al ~
         if: ${{ always() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
