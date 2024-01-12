@@ -39,6 +39,7 @@ jobs:
           sudo mkdir -p /cores/
           sudo mkdir -p ./so-libs
           sudo chmod -R 777 /cores/
+          sudo chmod -R 777 ./so-libs
           echo "/cores/core-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
