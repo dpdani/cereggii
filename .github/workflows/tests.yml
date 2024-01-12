@@ -39,7 +39,8 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
-          sudo su - 'pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml'
+          sudo su - 
+          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
