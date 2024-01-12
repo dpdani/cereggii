@@ -38,15 +38,10 @@ jobs:
           ulimit -c
           sudo mkdir -p /cores/
           sudo chmod -R 777 /cores/
-          echo "/cores/" | sudo tee /proc/sys/kernel/core_pattern
+          echo "/cores/core-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
-      - name: ls
-        if: ${{ always() }}
-        run: |
-          ls -al
-          ls -al ./cores
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
