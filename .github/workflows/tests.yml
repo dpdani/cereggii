@@ -41,6 +41,10 @@ jobs:
           sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
+      - name: ls
+        run: |
+          ls -al
+          ls -al ./cores
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
