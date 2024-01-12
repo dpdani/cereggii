@@ -24,10 +24,11 @@ jobs:
         run: |
           uname -a
           cat /proc/cpuinfo
-#      - name: enable access to core dump files
-#        run: |
-#          sudo mkdir -p /cores/
-#          sudo chmod -R +rwx /cores/
+      - name: enable access to core dump files
+        run: |
+          sudo mkdir -p /cores
+          sudo chmod 777 /cores
+          sudo bash -c 'echo "/cores/%e.%p.%t" > /proc/sys/kernel/core_pattern'
       - name: check nogil
         run: |
           python -c "import sys; print(sys.flags.nogil);"
@@ -41,11 +42,6 @@ jobs:
           ulimit -c unlimited
           ulimit -c
           sudo -H $pythonLocation/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
-      - name: search for core dump
-        run: |
-          ls -al /usr/share/apport/apport
-          ls -al .
-          ls -al ~
         if: ${{ always() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
