@@ -34,6 +34,10 @@ def test_weird_init():
     d = AtomicDict(min_size=64, iterable={1: 0})
     with raises(KeyError):
         assert d[1] == 0
+    d.debug()
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
     assert d["iterable"] == {1: 0}
 
     with raises(TypeError):
