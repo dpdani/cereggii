@@ -358,6 +358,7 @@ AtomicDict_Debug(AtomicDict *self)
                                        "index_mask\0", Py_BuildValue("k", meta->index_mask),
                                        "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
                                        "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
+                                       "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
                                        "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
                                        "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
                                        "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),

@@ -154,9 +154,16 @@ void AtomicDict_Read16NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_
 
 void AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer);
 
+void AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+                                     int *begin_write, int *end_write, int64_t *start_ix);
+
 void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
                                             atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
                                             atomic_dict_meta *meta);
+
+void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
+                                                 atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
+                                                 atomic_dict_meta *meta);
 
 int AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta);
 
@@ -166,12 +173,11 @@ int AtomicDict_NodeIsTombstone(atomic_dict_node *node, atomic_dict_meta *meta);
 
 int AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta);
 
-int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
+int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *desired,
                                   atomic_dict_meta *meta);
 
 
 /// migrations
-
 int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
@@ -202,6 +208,21 @@ void AtomicDict_ReservationBufferPop(atomic_dict_reservation_buffer *rb, atomic_
 
 void AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
                               atomic_dict_entry_loc *entry_loc, Py_hash_t hash);
+
+
+/// robin hood hashing
+typedef enum AtomicDict_RobinHoodResult {
+    ok,
+    failed,
+    grow,
+} AtomicDict_RobinHoodResult;
+
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(atomic_dict_meta *meta, atomic_dict_node *nodes,
+                                                      atomic_dict_node *to_insert, int distance_0_ix);
+
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(atomic_dict_meta *meta, atomic_dict_node *nodes,
+                                                      int to_delete);
+
 
 /// semi-internal
 typedef struct {
