@@ -40,7 +40,7 @@ jobs:
           chmod 777 $PWD/cores
           echo "$PWD/cores" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
-          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          sudo -H $pythonLocation/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
       - name: ls
         if: ${{ always() }}
