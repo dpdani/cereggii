@@ -27,7 +27,6 @@ def test_init():
     AtomicDict(min_size=120)
 
 
-@pytest.mark.skip()
 def test_weird_init():
     # this may be confusing: the iterable is the input parameter for initializing
     # the dictionary, but it is a positional-only parameter. thus, when passing it
