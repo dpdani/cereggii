@@ -42,7 +42,6 @@ jobs:
         with:
           name: core-dump
           path: core
-        if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
         with:
