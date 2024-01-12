@@ -27,7 +27,7 @@ jobs:
       - name: enable access to core dump files
         run: |
           sudo mkdir -p /cores/
-          sudo chmod -R +rwx /cores/*
+          sudo chmod -R +rwx /cores/
       - name: check nogil
         run: |
           python -c "import sys; print(sys.flags.nogil);"
