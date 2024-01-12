@@ -40,7 +40,7 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
-          sudo -H source /home/runner/nogil-3.9.10/bin/activate && pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          sudo -H /home/runner/nogil-3.9.10/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
