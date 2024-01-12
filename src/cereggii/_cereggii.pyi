@@ -1,7 +1,7 @@
 from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
-Value = NewType("Value", object | None)
+Value = NewType("Value", object)
 Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex

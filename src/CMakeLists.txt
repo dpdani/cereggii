@@ -27,7 +27,6 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/node_ops.c"
         "cereggii/atomic_dict/node_sizes_table.c"
         "cereggii/atomic_dict/reservation_buffer.c"
-        "cereggii/atomic_dict/robin_hood.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
         "cereggii/atomic_ops.c"

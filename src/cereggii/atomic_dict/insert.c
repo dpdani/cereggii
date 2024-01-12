@@ -4,10 +4,69 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "pythread.h"
+
+
+typedef enum AtomicDict_RobinHoodResult {
+    ok,
+    failed,
+    grow,
+} AtomicDict_RobinHoodResult;
+
+AtomicDict_RobinHoodResult
+AtomicDict_RobinHood(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node *to_insert, int distance_0_ix)
+{
+    /*
+     * Lythe and listin, gentilmen,
+     * That be of frebore blode;
+     * I shall you tel of a gode yeman,
+     * His name was Robyn Hode.
+     * */
+
+    /*
+     * assumptions:
+     *   1. there are meta->nodes_in_two_regions valid nodes in `nodes`
+     *   2. there is at least 1 empty node
+     * */
+
+    atomic_dict_node current = *to_insert;
+    atomic_dict_node temp;
+    int probe = 0;
+    int cursor;
+
+    beginning:
+    for (; probe < meta->nodes_in_zone; probe++) {
+        if (probe >= meta->max_distance) {
+            return grow;
+        }
+        cursor = distance_0_ix + probe;
+        if (nodes[cursor].node == 0) {
+            if (!AtomicDict_NodeIsReservation(&current, meta)) {
+                current.distance = probe;
+            }
+            nodes[cursor] = current;
+            return ok;
+        }
+
+        if (nodes[cursor].distance < probe) {
+            if (!AtomicDict_NodeIsReservation(&current, meta)) {
+                current.distance = probe;
+                AtomicDict_ComputeRawNode(&current, meta);
+            }
+            temp = nodes[cursor];
+            nodes[cursor] = current;
+            current = temp;
+            distance_0_ix = cursor - temp.distance;
+            probe = temp.distance;
+            goto beginning;
+        }
+    }
+    return failed;
+}
 
 
 typedef enum AtomicDict_InsertedOrUpdated {
@@ -65,6 +124,43 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
     goto check_entry;
 }
 
+void
+AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+                                int *begin_write, int *end_write, int64_t *start_ix)
+{
+    int j;
+    *begin_write = -1;
+    for (j = 0; j < meta->nodes_in_zone; ++j) {
+        AtomicDict_ComputeRawNode(&temp[j], meta);
+        if (temp[j].node != read_buffer[j].node) {
+            *begin_write = j;
+            break;
+        }
+    }
+    assert(*begin_write != -1);
+    *end_write = -1;
+    for (j = *begin_write + 1; j < meta->nodes_in_zone; ++j) {
+        AtomicDict_ComputeRawNode(&temp[j], meta);
+        if (temp[j].node == read_buffer[j].node) {
+            *end_write = j;
+            break;
+        }
+    }
+    if (*end_write == -1) {
+        *end_write = meta->nodes_in_zone;
+    }
+    assert(*end_write > *begin_write);
+
+    if (AtomicDict_MustWriteBytes(*end_write - *begin_write, meta) == 16) {
+        while (!AtomicDict_IndexAddressIsAligned(*start_ix + *begin_write, 16, meta)) {
+            --*begin_write;
+        }
+        if (begin_write < 0) {
+            *start_ix += *begin_write;
+        }
+    }
+}
+
 AtomicDict_InsertedOrUpdated
 AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value, uint64_t distance_0,
@@ -83,7 +179,7 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
     for (int i = 0; i < meta->nodes_in_zone; ++i) {
         if (read_buffer[i].node == 0) {
             AtomicDict_CopyNodeBuffers(read_buffer, temp);
-            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHoodInsert(meta, temp, &node, 0);
+            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHood(meta, temp, &node, 0);
             if (rh == grow) {
                 AtomicDict_Grow(self);
                 return inserted;
@@ -173,8 +269,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
 
     // looped over the entire index without finding an emtpy slot
     AtomicDict_Grow(self);
-    // return inserted; // linearization point is inside grow()
-    goto error;
+    return inserted; // linearization point is inside grow()
 
     tail_found:
     reservation.index = entry_loc->location;
