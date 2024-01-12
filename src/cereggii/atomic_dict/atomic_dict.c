@@ -13,21 +13,24 @@
 PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
-    AtomicDict *self;
+    AtomicDict *self = NULL;
     self = (AtomicDict *) type->tp_alloc(type, 0);
     if (self != NULL) {
+        self->metadata = NULL;
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
         if (self->metadata == NULL)
             goto fail;
         AtomicRef_init(self->metadata, NULL, NULL);
 
+        self->new_gen_metadata = NULL;
         self->new_gen_metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
         if (self->new_gen_metadata == NULL)
             goto fail;
         AtomicRef_init(self->new_gen_metadata, NULL, NULL);
 
         self->reservation_buffer_size = 0;
-        Py_tss_t *tss_key = PyThread_tss_alloc();
+        Py_tss_t *tss_key = NULL;
+        tss_key = PyThread_tss_alloc();
         if (tss_key == NULL)
             goto fail;
         if (PyThread_tss_create(tss_key))
@@ -35,6 +38,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         assert(PyThread_tss_is_created(tss_key) != 0);
         self->tss_key = tss_key;
 
+        self->reservation_buffers = NULL;
         self->reservation_buffers = Py_BuildValue("[]");
         if (self->reservation_buffers == NULL)
             goto fail;
@@ -44,6 +48,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
     fail:
     Py_XDECREF(self->metadata);
     Py_XDECREF(self->new_gen_metadata);
+    Py_XDECREF(self->reservation_buffers);
     Py_XDECREF(self);
     return NULL;
 }
@@ -257,7 +262,8 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
-    atomic_dict_meta *meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    atomic_dict_meta *meta = NULL;
+    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
     PyMem_RawFree(meta->blocks);
     Py_DECREF(meta); // decref for the above atomic_ref_get_ref
     Py_CLEAR(self->metadata);
@@ -291,7 +297,7 @@ AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 int
 AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
-    atomic_dict_meta *meta;
+    atomic_dict_meta *meta = NULL;
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
     atomic_dict_block *block = meta->blocks[pos >> 6];
@@ -336,8 +342,10 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
         }
     }
     // probes exhausted
+    Py_DECREF(meta);
     return -1;
     done:
+    Py_DECREF(meta);
     Py_INCREF(key);
     Py_INCREF(value);
     return 0;
@@ -346,7 +354,7 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
 PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
-    atomic_dict_meta *meta;
+    atomic_dict_meta *meta = NULL;
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
     PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsO}",
                                        "log_size\0", Py_BuildValue("B", meta->log_size),

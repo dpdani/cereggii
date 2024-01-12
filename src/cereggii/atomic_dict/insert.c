@@ -210,11 +210,12 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         return -1;
     }
 
-    atomic_dict_reservation_buffer *rb = AtomicDict_GetReservationBuffer(self);
+    atomic_dict_reservation_buffer *rb = NULL;
+    rb = AtomicDict_GetReservationBuffer(self);
     if (rb == NULL)
         goto fail;
 
-    atomic_dict_meta *meta;
+    atomic_dict_meta *meta = NULL;
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
     atomic_dict_entry_loc entry_loc;

@@ -64,7 +64,9 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
 {
     assert(key != NULL);
 
-    atomic_dict_meta *meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    atomic_dict_meta *meta = NULL;
+    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;

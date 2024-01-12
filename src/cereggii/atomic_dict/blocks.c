@@ -14,7 +14,8 @@
 atomic_dict_block *
 AtomicDict_NewBlock(atomic_dict_meta *meta)
 {
-    atomic_dict_block *new = PyMem_RawMalloc(sizeof(atomic_dict_block));
+    atomic_dict_block *new = NULL;
+    new = PyMem_RawMalloc(sizeof(atomic_dict_block));
 
     if (new == NULL)
         return NULL;
@@ -67,9 +68,11 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_res
         }
         assert(greatest_allocated_block + 1 <= meta->size >> 6);
 
-        atomic_dict_block *block = AtomicDict_NewBlock(meta);
+        atomic_dict_block *block = NULL;
+        block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
+
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {

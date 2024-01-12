@@ -170,7 +170,7 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         goto fail;
 
     atomic_dict_search_result result;
-    atomic_dict_meta *meta;
+    atomic_dict_meta *meta = NULL;
     retry:
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
 
