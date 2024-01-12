@@ -46,10 +46,11 @@ jobs:
         if: ${{ always() }}
       - name: prepare shared libs
         run: |
-          find $pythonLocation/lib/python3.9 -name '*.so' -exec cp "{}" ./so-libs \;
-          cp /lib/x86_64-linux-gnu/libgcc_s.so.1 ./so-libs
-          cp /lib/x86_64-linux-gnu/libc.so.6 ./so-libs
-          cp /lib64/ld-linux-x86-64.so.2 ./so-libs
+          find $pythonLocation/lib/ -name '*.so' -exec cp "{}" ./so-libs/"{}" \;
+          cp /lib/x86_64-linux-gnu/libgcc_s.so.1 ./so-libs/lib/x86_64-linux-gnu/libgcc_s.so.1
+          cp /lib/x86_64-linux-gnu/libm.so.6 ./so-libs/lib/x86_64-linux-gnu/libm.so.6
+          cp /lib/x86_64-linux-gnu/libc.so.6 ./so-libs/lib/x86_64-linux-gnu/libc.so.6
+          cp /lib64/ld-linux-x86-64.so.2 ./so-libs/lib64/ld-linux-x86-64.so.2
         if: ${{ failure() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
