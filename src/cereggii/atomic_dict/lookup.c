@@ -111,12 +111,6 @@ AtomicDict_LookupEntry(atomic_dict_meta *meta, uint64_t entry_ix, Py_hash_t hash
         AtomicDict_ReadNodesFromZoneIntoBuffer(ix + probe + reservations, &zone, read_buffer, &result->node,
                                                &idx_in_buffer, &nodes_offset, meta);
 
-        if (AtomicDict_NodeIsTombstone(&result->node, meta)) {
-            probe--;
-            reservations++;
-            continue;
-        }
-
         if (AtomicDict_NodeIsReservation(&result->node, meta)) {
             probe--;
             reservations++;
