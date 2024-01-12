@@ -48,12 +48,27 @@ jobs:
         run: |
           find $pythonLocation/lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
           find $pythonLocation/lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
-          find /lib/x86_64-linux-gnu/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
-          find /lib/x86_64-linux-gnu/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
-          mkdir -p ./so-libs/lib64
-          cp /lib64/ld-linux-x86-64.so.2 ./so-libs/lib64/ld-linux-x86-64.so.2
           
-          tar czf so-libs.tar.gz ./so-libs
+          declare -a shared=(
+            "/home/runner/nogil-3.9.10/bin/python3.9"
+            "/usr/lib/locale/locale-archive"
+            "/usr/lib/x86_64-linux-gnu/libc.so.6"
+            "/usr/lib/x86_64-linux-gnu/libz.so.1.2.11"
+            "/usr/lib/locale/C.utf8/LC_CTYPE"
+            "/usr/lib/x86_64-linux-gnu/libm.so.6"
+            "/usr/lib/x86_64-linux-gnu/libutil.so.1"
+            "/usr/lib/x86_64-linux-gnu/libdl.so.2"
+            "/usr/lib/x86_64-linux-gnu/libpthread.so.0"
+            "/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache"
+            "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+            "/lib64/ld-linux-x86-64.so.2"
+          )
+          
+          for f in "${shared[@]}"
+          do
+            mkdir -p "./so-libs$f"
+            cp "$f" "./so-libs$f"
+          done
         if: ${{ failure() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
