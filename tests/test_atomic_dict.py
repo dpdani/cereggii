@@ -269,6 +269,88 @@ def test_delete():
     with raises(KeyError):
         del d["flower"]
 
+    d = AtomicDict({_: None for _ in range(15)})
+    del d[14]
+    with raises(KeyError):
+        d[14]
+    debug = d.debug()
+    assert debug['index'][14] == 0
+
+    d = AtomicDict({_: None for _ in range(16)})
+    del d[14]
+    with raises(KeyError):
+        d[14]
+    debug = d.debug()
+    assert debug['index'][14] == 0
+
+    d = AtomicDict({_: None for _ in range(15)})
+    d[64 + 14] = None
+    del d[14]
+    with raises(KeyError):
+        d[14]
+    debug = d.debug()
+    assert debug['index'][15] == debug['meta']['tombstone']
+
+    d = AtomicDict({_: None for _ in range(15)})
+    del d[7]
+    with raises(KeyError):
+        d[7]
+    debug = d.debug()
+    assert debug['index'][7] == 0
+
+    d = AtomicDict({_: None for _ in range(8)})
+    for _ in range(63 + 8, 63 + 8 + 7):
+        d[_] = None
+    debug = d.debug()
+    assert debug['index'][14] != 0
+    del d[7]
+    with raises(KeyError):
+        d[7]
+    debug = d.debug()
+    assert debug['index'][14] == 0
+
+    d = AtomicDict({_: None for _ in range(16)})
+    del d[15]
+    with raises(KeyError):
+        d[15]
+    debug = d.debug()
+    assert debug['index'][15] == debug['meta']['tombstone']
+
+    d = AtomicDict({_: None for _ in range(17)})
+    del d[15]
+    with raises(KeyError):
+        d[15]
+    debug = d.debug()
+    assert debug['index'][15] == debug['meta']['tombstone']
+
+    d = AtomicDict({16: None})
+    del d[16]
+    with raises(KeyError):
+        d[16]
+    debug = d.debug()
+    assert debug['index'][16] == 0
+
+    d = AtomicDict({16: None, 17: None})
+    del d[16]
+    with raises(KeyError):
+        d[16]
+    debug = d.debug()
+    assert debug['index'][16] == 0
+
+    d = AtomicDict({15: None, 16: None})
+    del d[16]
+    with raises(KeyError):
+        d[16]
+    debug = d.debug()
+    assert debug['index'][16] == 0
+
+    d = AtomicDict({15: None, 16: None, 17: None})
+    del d[16]
+    with raises(KeyError):
+        d[16]
+    debug = d.debug()
+    assert debug['index'][16] == 0
+
 
 def test_delete_concurrent():
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})

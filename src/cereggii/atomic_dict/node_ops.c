@@ -43,7 +43,7 @@ AtomicDict_RegionOf(uint64_t ix, atomic_dict_meta *meta)
 inline uint64_t
 AtomicDict_ZoneOf(uint64_t ix, atomic_dict_meta *meta)
 {
-    return AtomicDict_RegionOf(ix, meta) & 0;
+    return AtomicDict_RegionOf(ix, meta) & (ULONG_MAX - 1UL);
 }
 
 inline uint64_t
@@ -98,6 +98,43 @@ AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_b
 {
     for (int i = 0; i < 16; ++i) {
         to_buffer[i] = from_buffer[i];
+    }
+}
+
+void
+AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+                                int *begin_write, int *end_write, int64_t *start_ix)
+{
+    int j;
+    *begin_write = -1;
+    for (j = 0; j < meta->nodes_in_zone; ++j) {
+        AtomicDict_ComputeRawNode(&temp[j], meta);
+        if (temp[j].node != read_buffer[j].node) {
+            *begin_write = j;
+            break;
+        }
+    }
+    assert(*begin_write != -1);
+    *end_write = -1;
+    for (j = *begin_write + 1; j < meta->nodes_in_zone; ++j) {
+        AtomicDict_ComputeRawNode(&temp[j], meta);
+        if (temp[j].node == read_buffer[j].node) {
+            *end_write = j;
+            break;
+        }
+    }
+    if (*end_write == -1) {
+        *end_write = meta->nodes_in_zone;
+    }
+    assert(*end_write > *begin_write);
+
+    if (AtomicDict_MustWriteBytes(*end_write - *begin_write, meta) == 16) {
+        while (!AtomicDict_IndexAddressIsAligned(*start_ix + *begin_write, 16, meta)) {
+            --*begin_write;
+        }
+        if (begin_write < 0) {
+            *start_ix += *begin_write;
+        }
     }
 }
 
@@ -237,11 +274,23 @@ AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_
 
     if (*zone != AtomicDict_ZoneOf(idx, meta)) {
         meta->read_nodes_in_zone(idx, buffer, meta);
-        *zone = (int64_t) AtomicDict_RegionOf(idx, meta) | 1;
+        *zone = (int64_t) AtomicDict_ZoneOf(idx, meta);
         *nodes_offset = (int) -(idx % meta->nodes_in_zone);
     }
+
     *idx_in_buffer = (int) (idx % meta->nodes_in_zone + *nodes_offset);
+    assert(*idx_in_buffer < meta->nodes_in_zone);
     *node = buffer[*idx_in_buffer];
+}
+
+inline void
+AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
+                                            atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
+                                            atomic_dict_meta *meta)
+{
+    AtomicDict_ReadNodesFromZoneIntoBuffer(idx / meta->nodes_in_zone * meta->nodes_in_zone,
+                                           zone, buffer, node, idx_in_buffer, nodes_offset, meta);
+    *idx_in_buffer = (int) (idx % meta->nodes_in_zone + *nodes_offset);
 }
 
 
@@ -278,7 +327,7 @@ AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta)
 }
 
 int
-AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
+AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *desired,
                               atomic_dict_meta *meta)
 {
     assert(n > 0);
@@ -289,19 +338,19 @@ AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, at
     uint64_t big = AtomicDict_RegionOf(ix + n - 1, meta);
     assert(little <= middle <= little + 1); // XXX implement index circular behavior
     assert(middle <= big <= middle + 1); // XXX implement index circular behavior
-    __uint128_t expected_raw = 0, new_raw = 0, node; // il bello sta nelle piccole cose
+    __uint128_t expected_raw = 0, desired_raw = 0, node; // il bello sta nelle piccole cose
     int i;
     for (i = 0; i < n; ++i) {
         AtomicDict_ComputeRawNode(&expected[i], meta);
-        AtomicDict_ComputeRawNode(&new[i], meta);
+        AtomicDict_ComputeRawNode(&desired[i], meta);
     }
     for (i = 0; i < n; ++i) {
         node = expected[i].node;
         node <<= meta->node_size * i;
         expected_raw |= node;
-        node = new[i].node;
+        node = desired[i].node;
         node <<= meta->node_size * i;
-        new_raw |= node;
+        desired_raw |= node;
     }
 
     int must_write = AtomicDict_MustWriteBytes(n, meta);
@@ -309,24 +358,24 @@ AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, at
     for (; i < must_write_nodes; ++i) {
         node = expected[i].node;
         node <<= meta->node_size * (meta->node_size - i - 1);
-        new_raw |= node;
+        desired_raw |= node;
     }
 
     uint8_t *index_address = AtomicDict_IndexAddressOf(ix, meta);
     switch (must_write) {
         case 1:
-            return CereggiiAtomic_CompareExchangeUInt8(index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt8(index_address, expected_raw, desired_raw);
         case 2:
-            return CereggiiAtomic_CompareExchangeUInt16((uint16_t *) index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt16((uint16_t *) index_address, expected_raw, desired_raw);
         case 4:
-            return CereggiiAtomic_CompareExchangeUInt32((uint32_t *) index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt32((uint32_t *) index_address, expected_raw, desired_raw);
         case 8:
-            return CereggiiAtomic_CompareExchangeUInt64((uint64_t *) index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt64((uint64_t *) index_address, expected_raw, desired_raw);
         case 16:
             // assert memory access is aligned
             // this is not required for <=8 bytes CAS on x86_64
             assert(AtomicDict_IndexAddressIsAligned(ix, 16, meta));
-            return CereggiiAtomic_CompareExchangeUInt128((__uint128_t *) index_address, expected_raw, new_raw);
+            return CereggiiAtomic_CompareExchangeUInt128((__uint128_t *) index_address, expected_raw, desired_raw);
         default:
             assert(0);
     }

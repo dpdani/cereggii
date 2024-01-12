@@ -74,6 +74,11 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
     meta->max_distance = (1 << meta->distance_size) - 1;
     meta->tag_size = node_sizes.tag_size;
     meta->nodes_in_region = 8 / (meta->node_size / 8);
+//#if defined(__aarch64__) && !defined(__APPLE__)
+//    meta->nodes_in_zone = 8 / (meta->node_size / 8);
+//#else
+//    meta->nodes_in_zone = 16 / (meta->node_size / 8);
+//#endif
     meta->nodes_in_zone = 16 / (meta->node_size / 8);
     meta->node_mask = (1UL << node_sizes.node_size) - 1;
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
