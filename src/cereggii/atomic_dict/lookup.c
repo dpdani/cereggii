@@ -88,8 +88,73 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
     return;
     found:
     result->error = 0;
-    result->index = ix;
+    result->position = ix + probe + reservations;
 }
+
+void
+AtomicDict_LookupEntry(atomic_dict_meta *meta, uint64_t entry_ix, Py_hash_t hash,
+                       atomic_dict_search_result *result)
+{
+    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    uint8_t is_compact;
+    uint64_t probe, reservations;
+    int64_t zone;
+    atomic_dict_node read_buffer[16];
+    int idx_in_buffer, nodes_offset;
+
+    beginning:
+    is_compact = meta->is_compact;
+    reservations = 0;
+    zone = -1;
+
+    for (probe = 0; probe < meta->size; probe++) {
+        AtomicDict_ReadNodesFromZoneIntoBuffer(ix + probe + reservations, &zone, read_buffer, &result->node,
+                                               &idx_in_buffer, &nodes_offset, meta);
+
+        if (AtomicDict_NodeIsReservation(&result->node, meta)) {
+            probe--;
+            reservations++;
+            result->is_reservation = 1;
+            goto check_entry;
+        }
+        result->is_reservation = 0;
+
+        if (result->node.node == 0) {
+            goto not_found;
+        }
+
+        if (
+            is_compact && (
+                (ix + probe + reservations - result->node.distance > ix)
+                || (probe >= meta->log_size)
+            )) {
+            goto not_found;
+        }
+
+        check_entry:
+        if (result->node.index == entry_ix) {
+            result->entry_p = &(meta
+                ->blocks[result->node.index >> 6]
+                ->entries[result->node.index & 63]);
+            goto found;
+        }
+    }  // probes exhausted
+
+    not_found:
+    if (is_compact != meta->is_compact) {
+        goto beginning;
+    }
+    result->error = 0;
+    result->entry_p = NULL;
+    return;
+    error:
+    result->error = 1;
+    return;
+    found:
+    result->error = 0;
+    result->position = ix + probe + reservations;
+}
+
 
 PyObject *
 AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)

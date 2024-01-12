@@ -94,6 +94,8 @@ struct atomic_dict_meta {
     uint64_t tag_mask;
     uint64_t shift_mask;
 
+    atomic_dict_node tombstone;
+
     void (*read_nodes_in_region)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
 
     void (*read_nodes_in_zone)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
@@ -202,7 +204,7 @@ void AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dic
 /// semi-internal
 typedef struct {
     int error;
-    uint64_t index;
+    uint64_t position;
     atomic_dict_node node;
     atomic_dict_entry *entry_p;
     atomic_dict_entry entry;
@@ -211,6 +213,9 @@ typedef struct {
 
 void AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
                        atomic_dict_search_result *result);
+
+void AtomicDict_LookupEntry(atomic_dict_meta *meta, uint64_t entry_ix, Py_hash_t hash,
+                            atomic_dict_search_result *result);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
