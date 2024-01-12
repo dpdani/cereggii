@@ -291,10 +291,10 @@ AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 int
 AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
-    atomic_dict_meta meta;
-    meta = *(atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    atomic_dict_meta *meta;
+    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
-    atomic_dict_block *block = meta.blocks[pos >> 6];
+    atomic_dict_block *block = meta->blocks[pos >> 6];
     block->entries[pos & 63].flags = ENTRY_FLAGS_RESERVED;
     block->entries[pos & 63].hash = hash;
     block->entries[pos & 63].key = key;
@@ -305,14 +305,14 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
         .index = pos,
         .tag = hash,
     };
-    uint64_t ix = AtomicDict_Distance0Of(hash, &meta);
+    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
 
-    for (int probe = 0; probe < (1 << meta.distance_size); probe++) {
-        AtomicDict_ReadNodeAt(ix + probe, &temp, &meta);
+    for (int probe = 0; probe < (1 << meta->distance_size); probe++) {
+        AtomicDict_ReadNodeAt(ix + probe, &temp, meta);
 
         if (temp.node == 0) {
             node.distance = probe;
-            AtomicDict_WriteNodeAt(ix + probe, &node, &meta);
+            AtomicDict_WriteNodeAt(ix + probe, &node, meta);
             goto done;
         }
 
@@ -320,18 +320,18 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
             // non-atomic robin hood
             node.distance = probe;
             uint64_t i = ix + probe;
-            AtomicDict_WriteNodeAt(i, &node, &meta);
+            AtomicDict_WriteNodeAt(i, &node, meta);
             node = temp;
             i++;
             while (temp.node != 0) { // until first empty slot
-                AtomicDict_ReadNodeAt(i, &temp, &meta);
+                AtomicDict_ReadNodeAt(i, &temp, meta);
                 if (node.distance > temp.distance) {
-                    AtomicDict_WriteNodeAt(i, &node, &meta);
+                    AtomicDict_WriteNodeAt(i, &node, meta);
                     node = temp;
                 }
                 i++;
             }
-            AtomicDict_WriteNodeAt(i, &temp, &meta);
+            AtomicDict_WriteNodeAt(i, &temp, meta);
             goto done;
         }
     }
