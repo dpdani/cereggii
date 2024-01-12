@@ -107,11 +107,6 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
     meta->greatest_deleted_block = greatest_deleted_block;
     meta->greatest_refilled_block = greatest_refilled_block;
 
-    meta->tombstone.distance = 0;
-    meta->tombstone.index = 0;
-    meta->tombstone.tag = 0;
-    AtomicDict_ComputeRawNode(&meta->tombstone, meta);
-
     return meta;
     fail:
     Py_XDECREF(generation);
