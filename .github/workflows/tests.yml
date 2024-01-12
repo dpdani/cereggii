@@ -41,13 +41,16 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
-          sudo -H $pythonLocation/bin/python -m pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          mkdir -p $PWD/cores
+          echo "$PWD/cores" | sudo tee /proc/sys/kernel/core_pattern
+          sudo cat /proc/sys/kernel/core_pattern
+          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
           name: core-dump
-          path: /cores
+          path: ./cores
         if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
