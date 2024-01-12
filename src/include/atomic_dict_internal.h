@@ -162,6 +162,8 @@ int AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta
 
 int AtomicDict_NodeIsReservation(atomic_dict_node *node, atomic_dict_meta *meta);
 
+int AtomicDict_NodeIsTombstone(atomic_dict_node *node, atomic_dict_meta *meta);
+
 int AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta);
 
 int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *new,
