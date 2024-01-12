@@ -39,7 +39,7 @@ jobs:
           pip install .[dev]
       - name: test with pytest
         run: |
-          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          sudo pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
