@@ -264,7 +264,9 @@ AtomicDict_dealloc(AtomicDict *self)
     PyObject_GC_UnTrack(self);
     atomic_dict_meta *meta = NULL;
     meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
-    PyMem_RawFree(meta->blocks);
+    if ((PyObject *) meta != Py_None) {
+        PyMem_RawFree(meta->blocks);
+    }
     Py_DECREF(meta); // decref for the above atomic_ref_get_ref
     Py_CLEAR(self->metadata);
     Py_CLEAR(self->new_gen_metadata);
