@@ -46,14 +46,14 @@ jobs:
         if: ${{ always() }}
       - name: prepare shared libs
         run: |
-          find $pythonLocation/lib/ -name '*.so' -exec mkdir -p ./so-libs"{}" \;
-          find $pythonLocation/lib/ -name '*.so' -exec cp "{}" ./so-libs"{}" \;
-          mkdir -p ./so-libs/lib/x86_64-linux-gnu/
-          mkdir -p ./so-libs/lib64/
-          cp /lib/x86_64-linux-gnu/libgcc_s.so.1 ./so-libs/lib/x86_64-linux-gnu/libgcc_s.so.1
-          cp /lib/x86_64-linux-gnu/libm.so.6 ./so-libs/lib/x86_64-linux-gnu/libm.so.6
-          cp /lib/x86_64-linux-gnu/libc.so.6 ./so-libs/lib/x86_64-linux-gnu/libc.so.6
-          cp /lib64/ld-linux-x86-64.so.2 ./so-libs/lib64/ld-linux-x86-64.so.2
+          find $pythonLocation/lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
+          find $pythonLocation/lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
+          find /lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
+          find /lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
+          find /lib64/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
+          find /lib64/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
+          find /usr/lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
+          find /usr/lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
         if: ${{ failure() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
