@@ -36,8 +36,8 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
-          mkdir -p cores
-          chmod 777 cores
+          mkdir -p /cores/
+          chmod -R 777 /cores/
           echo "/cores/" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
