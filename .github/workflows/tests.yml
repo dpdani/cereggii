@@ -27,6 +27,8 @@ jobs:
       - name: generate core dump files
         run: |
           ulimit -c unlimited
+          ulimit -c
+          sudo chmod -R +rwx /cores/*
       - name: check nogil
         run: |
           python -c "import sys; print(sys.flags.nogil);"
@@ -41,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: core-dump
-          path: core
+          path: /cores
         if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
