@@ -48,8 +48,6 @@ jobs:
         run: |
           find $pythonLocation/lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
           find $pythonLocation/lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
-          find /usr/lib/x86_64-linux-gnu/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
-          find /usr/lib/x86_64-linux-gnu/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
           find /lib/x86_64-linux-gnu/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
           find /lib/x86_64-linux-gnu/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
           mkdir -p ./so-libs/lib64
