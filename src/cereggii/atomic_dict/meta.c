@@ -64,17 +64,15 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
     PyObject_Init((PyObject *) meta, &AtomicDictMeta);
 
     meta->log_size = log_size;
-    meta->size = 1UL << log_size;
     meta->generation = generation;
     meta->index = index;
     meta->blocks = blocks;
-    meta->is_compact = 1;
     meta->node_size = node_sizes.node_size;
     meta->distance_size = node_sizes.distance_size;
     meta->max_distance = (1 << meta->distance_size) - 1;
     meta->tag_size = node_sizes.tag_size;
     meta->nodes_in_region = 8 / (meta->node_size / 8);
-    meta->nodes_in_zone = 16 / (meta->node_size / 8);
+    meta->nodes_in_two_regions = 16 / (meta->node_size / 8);
     meta->node_mask = (1UL << node_sizes.node_size) - 1;
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
@@ -82,23 +80,23 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read8NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read16NodesAt;
+            meta->read_single_region_nodes_at = AtomicDict_Read8NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read16NodesAt;
             break;
         case 16:
             meta->shift_mask = 4 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read4NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read8NodesAt;
+            meta->read_single_region_nodes_at = AtomicDict_Read4NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read8NodesAt;
             break;
         case 32:
             meta->shift_mask = 2 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read2NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read4NodesAt;
+            meta->read_single_region_nodes_at = AtomicDict_Read2NodesAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read4NodesAt;
             break;
         case 64:
             meta->shift_mask = 1 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read1NodeAt;
-            meta->read_nodes_in_zone = AtomicDict_Read2NodesAt;
+            meta->read_single_region_nodes_at = AtomicDict_Read1NodeAt;
+            meta->read_double_region_nodes_at = AtomicDict_Read2NodesAt;
             break;
     }
 
