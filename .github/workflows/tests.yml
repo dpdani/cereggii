@@ -54,6 +54,8 @@ jobs:
           find /lib/x86_64-linux-gnu/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
           mkdir -p ./so-libs/lib64
           cp /lib64/ld-linux-x86-64.so.2 ./so-libs/lib64/ld-linux-x86-64.so.2
+          
+          tar czf so-libs.tar.gz ./so-libs
         if: ${{ failure() }}
       - name: upload core dump file
         uses: actions/upload-artifact@v3
