@@ -28,6 +28,7 @@ jobs:
         run: |
           ulimit -c unlimited
           ulimit -c
+          sudo mkdir -p /cores/
           sudo chmod -R +rwx /cores/*
       - name: check nogil
         run: |
