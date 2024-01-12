@@ -46,7 +46,7 @@ jobs:
         if: ${{ always() }}
       - name: prepare shared libs
         run: |
-          find $pythonLocation/lib/ -name '*.so*' -exec mkdir -p ./so-libs"{}" \;
+          find $pythonLocation/lib/ -name '*.so*' -exec mkdir -p $(dirname ./so-libs"{}") \;
           find $pythonLocation/lib/ -name '*.so*' -exec cp "{}" ./so-libs"{}" \;
           
           declare -a shared=(
