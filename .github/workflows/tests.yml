@@ -37,30 +37,16 @@ jobs:
           ulimit -c unlimited
           ulimit -c
           sudo mkdir -p /cores/
-          sudo mkdir -p ./so-libs
           sudo chmod -R 777 /cores/
           echo "/cores/core-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
           sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
-      - name: prepare shared libs
-        if: ${{ failed() }}
-        run: |
-          find $pythonLocation/lib/python3.9 -name '*.so' -exec cp "{}" ./so-libs \;
-          cp /lib/x86_64-linux-gnu/libgcc_s.so.1 ./so-libs
-          cp /lib/x86_64-linux-gnu/libc.so.6 ./so-libs
-          cp /lib64/ld-linux-x86-64.so.2 ./so-libs
       - name: upload core dump file
         uses: actions/upload-artifact@v3
         with:
           name: core-dump
           path: /cores
-        if: ${{ always() }}
-      - name: upload shared libs
-        uses: actions/upload-artifact@v3
-        with:
-          name: shared-libs
-          path: ./so-libs
         if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
