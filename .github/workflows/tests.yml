@@ -67,7 +67,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: shared-libs
-          path: ./so-libs
+          path: ./so-libs.tar.gz
         if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v3
