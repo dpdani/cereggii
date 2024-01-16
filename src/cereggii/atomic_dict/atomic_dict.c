@@ -62,7 +62,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t min_size = 0;
     int64_t buffer_size = 4;
     PyObject *init_dict = NULL;
-    atomic_dict_meta *meta = NULL;
+    AtomicDict_Meta *meta = NULL;
 
     if (args != NULL) {
         if (!PyArg_ParseTuple(args, "|O", &init_dict)) {
@@ -160,7 +160,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
     AtomicRef_Set(self->metadata, (PyObject *) meta);
 
-    atomic_dict_block *block;
+    AtomicDict_Block *block;
     int64_t i;
     for (i = 0; i < init_dict_size / 64; i++) {
         // allocate blocks
@@ -186,8 +186,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     meta->inserting_block = 0;
-    atomic_dict_reservation_buffer *rb;
-    atomic_dict_entry_loc entry_loc;
+    AtomicDict_ReservationBuffer *rb;
+    AtomicDict_EntryLoc entry_loc;
 
     if (init_dict != NULL && PyDict_Size(init_dict) > 0) {
         PyObject *key, *value;
@@ -262,8 +262,8 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
-    atomic_dict_meta *meta = NULL;
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     if ((PyObject *) meta != Py_None) {
         PyMem_RawFree(meta->blocks);
     }
@@ -299,17 +299,17 @@ AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 int
 AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
 {
-    atomic_dict_meta *meta = NULL;
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
-    atomic_dict_block *block = meta->blocks[pos >> 6];
+    AtomicDict_Block *block = meta->blocks[pos >> 6];
     block->entries[pos & 63].flags = ENTRY_FLAGS_RESERVED;
     block->entries[pos & 63].hash = hash;
     block->entries[pos & 63].key = key;
     block->entries[pos & 63].value = value;
 
-    atomic_dict_node temp;
-    atomic_dict_node node = {
+    AtomicDict_Node temp;
+    AtomicDict_Node node = {
         .index = pos,
         .tag = hash,
     };
@@ -356,8 +356,8 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
 PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
-    atomic_dict_meta *meta = NULL;
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsO}",
                                        "log_size\0", Py_BuildValue("B", meta->log_size),
                                        "generation\0", Py_BuildValue("O", meta->generation),
@@ -380,7 +380,7 @@ AtomicDict_Debug(AtomicDict *self)
     if (index_nodes == NULL)
         goto fail;
 
-    atomic_dict_node node;
+    AtomicDict_Node node;
     for (uint64_t i = 0; i < meta->size; i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
         PyObject *n = Py_BuildValue("k", node.node);
@@ -394,7 +394,7 @@ AtomicDict_Debug(AtomicDict *self)
     if (blocks == NULL)
         goto fail;
 
-    atomic_dict_block *block;
+    AtomicDict_Block *block;
     PyObject *entries = NULL;
     PyObject *entry_tuple = NULL;
     PyObject *block_info = NULL;

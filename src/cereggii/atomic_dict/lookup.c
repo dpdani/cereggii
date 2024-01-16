@@ -9,15 +9,15 @@
 
 
 void
-AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                  atomic_dict_search_result *result)
+AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                  AtomicDict_SearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
     uint64_t ix = AtomicDict_Distance0Of(hash, meta);
     uint8_t is_compact;
     uint64_t probe, reservations;
     int64_t zone;
-    atomic_dict_node read_buffer[16];
+    AtomicDict_Node read_buffer[16];
     int idx_in_buffer, nodes_offset;
 
     beginning:
@@ -92,14 +92,14 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
 }
 
 void
-AtomicDict_LookupEntry(atomic_dict_meta *meta, uint64_t entry_ix, Py_hash_t hash,
-                       atomic_dict_search_result *result)
+AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
+                       AtomicDict_SearchResult *result)
 {
     uint64_t ix = AtomicDict_Distance0Of(hash, meta);
     uint8_t is_compact;
     uint64_t probe, reservations;
     int64_t zone;
-    atomic_dict_node read_buffer[16];
+    AtomicDict_Node read_buffer[16];
     int idx_in_buffer, nodes_offset;
 
     beginning:
@@ -169,10 +169,10 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
     if (hash == -1)
         goto fail;
 
-    atomic_dict_search_result result;
-    atomic_dict_meta *meta = NULL;
+    AtomicDict_SearchResult result;
+    AtomicDict_Meta *meta = NULL;
     retry:
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     result.entry.value = NULL;
     AtomicDict_Lookup(meta, key, hash, &result);

@@ -14,7 +14,7 @@ typedef struct {
     Py_hash_t hash;
     PyObject *key;
     PyObject *value;
-} atomic_dict_entry;
+} AtomicDict_Entry;
 
 #define ENTRY_FLAGS_RESERVED    128
 #define ENTRY_FLAGS_TOMBSTONE   64
@@ -26,26 +26,26 @@ typedef struct {
 // #define ENTRY_FLAGS_?    1
 
 typedef struct {
-    atomic_dict_entry *entry;
+    AtomicDict_Entry *entry;
     uint64_t location;
-} atomic_dict_entry_loc;
+} AtomicDict_EntryLoc;
 
 
-typedef struct atomic_dict_node {
+typedef struct AtomicDict_Node {
     uint64_t node;
     uint64_t index;
     uint8_t distance;
     uint64_t tag;
-} atomic_dict_node;
+} AtomicDict_Node;
 
 
 typedef struct {
     PyObject_HEAD
-} atomic_dict_gen;
+} AtomicDict_Gen;
 
 static PyTypeObject AtomicDictGen = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_basicsize = sizeof(atomic_dict_gen),
+    .tp_basicsize = sizeof(AtomicDict_Gen),
     .tp_itemsize = 0,
     .tp_new = PyType_GenericNew,
 };
@@ -55,15 +55,15 @@ typedef struct {
     PyObject *generation;
 //    PyObject *iteration;
 
-    atomic_dict_entry entries[64];
-} atomic_dict_block;
+    AtomicDict_Entry entries[64];
+} AtomicDict_Block;
 
 
 /// meta
-struct atomic_dict_meta;
-typedef struct atomic_dict_meta atomic_dict_meta;
+struct AtomicDict_Meta;
+typedef struct AtomicDict_Meta AtomicDict_Meta;
 
-struct atomic_dict_meta {
+struct AtomicDict_Meta {
     PyObject_HEAD
 
     uint8_t log_size;  // = node index_size
@@ -73,7 +73,7 @@ struct atomic_dict_meta {
 
     uint64_t *index;
 
-    atomic_dict_block **blocks;
+    AtomicDict_Block **blocks;
     int64_t inserting_block;
     int64_t greatest_allocated_block;
     int64_t greatest_deleted_block;
@@ -94,87 +94,87 @@ struct atomic_dict_meta {
     uint64_t tag_mask;
     uint64_t shift_mask;
 
-    atomic_dict_node tombstone;
+    AtomicDict_Node tombstone;
 
-    void (*read_nodes_in_region)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_nodes_in_region)(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-    void (*read_nodes_in_zone)(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+    void (*read_nodes_in_zone)(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 };
 
-void AtomicDictMeta_dealloc(atomic_dict_meta *self);
+void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 
 static PyTypeObject AtomicDictMeta = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._atomic_dict_meta",
-    .tp_basicsize = sizeof(atomic_dict_meta),
+    .tp_basicsize = sizeof(AtomicDict_Meta),
     .tp_itemsize = 0,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
-atomic_dict_meta *AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta);
+AtomicDict_Meta *AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta);
 
-atomic_dict_block *AtomicDict_NewBlock(atomic_dict_meta *meta);
+AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
 
-atomic_dict_entry *AtomicDict_GetEntryAt(uint64_t ix, atomic_dict_meta *meta);
+AtomicDict_Entry *AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta);
 
 
 /// operations on nodes (see ./node_ops.c)
-void AtomicDict_ComputeRawNode(atomic_dict_node *node, atomic_dict_meta *meta);
+void AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-void AtomicDict_ParseNodeFromRaw(uint64_t node_raw, atomic_dict_node *node,
-                                 atomic_dict_meta *meta);
+void AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
+                                 AtomicDict_Meta *meta);
 
-void AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, atomic_dict_node *node,
-                                    atomic_dict_meta *meta);
+void AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Node *node,
+                                    AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_RegionOf(uint64_t ix, atomic_dict_meta *meta);
+uint64_t AtomicDict_RegionOf(uint64_t ix, AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_ZoneOf(uint64_t ix, atomic_dict_meta *meta);
+uint64_t AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_Distance0Of(Py_hash_t hash, atomic_dict_meta *meta);
+uint64_t AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_ShiftInRegionOf(uint64_t ix, atomic_dict_meta *meta);
+uint64_t AtomicDict_ShiftInRegionOf(uint64_t ix, AtomicDict_Meta *meta);
 
-uint8_t *AtomicDict_IndexAddressOf(uint64_t ix, atomic_dict_meta *meta);
+uint8_t *AtomicDict_IndexAddressOf(uint64_t ix, AtomicDict_Meta *meta);
 
-int AtomicDict_IndexAddressIsAligned(uint64_t ix, int alignment, atomic_dict_meta *meta);
+int AtomicDict_IndexAddressIsAligned(uint64_t ix, int alignment, AtomicDict_Meta *meta);
 
-void AtomicDict_ReadNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta);
+void AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-void AtomicDict_Read1NodeAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void AtomicDict_Read1NodeAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-void AtomicDict_Read2NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void AtomicDict_Read2NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-void AtomicDict_Read4NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void AtomicDict_Read4NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-void AtomicDict_Read8NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void AtomicDict_Read8NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-void AtomicDict_Read16NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta);
+void AtomicDict_Read16NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
-void AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer);
+void AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buffer);
 
-void AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+void AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
                                      int *begin_write, int *end_write, int64_t *start_ix);
 
-void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
-                                            atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
-                                            atomic_dict_meta *meta);
+void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
+                                            AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+                                            AtomicDict_Meta *meta);
 
-void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
-                                                 atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
-                                                 atomic_dict_meta *meta);
+void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
+                                                 AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+                                                 AtomicDict_Meta *meta);
 
-int AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta);
+int AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-int AtomicDict_NodeIsReservation(atomic_dict_node *node, atomic_dict_meta *meta);
+int AtomicDict_NodeIsReservation(AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-int AtomicDict_NodeIsTombstone(atomic_dict_node *node, atomic_dict_meta *meta);
+int AtomicDict_NodeIsTombstone(AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-int AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta);
+int AtomicDict_MustWriteBytes(int n, AtomicDict_Meta *meta);
 
-int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *desired,
-                                  atomic_dict_meta *meta);
+int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected, AtomicDict_Node *desired,
+                                  AtomicDict_Meta *meta);
 
 
 /// migrations
@@ -190,24 +190,24 @@ typedef struct {
     PyObject_HEAD
 
     int head, tail, count;
-    atomic_dict_entry_loc reservations[RESERVATION_BUFFER_SIZE];
-} atomic_dict_reservation_buffer;
+    AtomicDict_EntryLoc reservations[RESERVATION_BUFFER_SIZE];
+} AtomicDict_ReservationBuffer;
 
 static PyTypeObject AtomicDictReservationBuffer = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_basicsize = sizeof(atomic_dict_reservation_buffer),
+    .tp_basicsize = sizeof(AtomicDict_ReservationBuffer),
     .tp_itemsize = 0,
     .tp_new = PyType_GenericNew,
 };
 
-atomic_dict_reservation_buffer *AtomicDict_GetReservationBuffer(AtomicDict *dk);
+AtomicDict_ReservationBuffer *AtomicDict_GetReservationBuffer(AtomicDict *dk);
 
-void AtomicDict_ReservationBufferPut(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc, int n);
+void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n);
 
-void AtomicDict_ReservationBufferPop(atomic_dict_reservation_buffer *rb, atomic_dict_entry_loc *entry_loc);
+void AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc);
 
-void AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
-                              atomic_dict_entry_loc *entry_loc, Py_hash_t hash);
+void AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+                              AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
 
 
 /// robin hood hashing
@@ -217,10 +217,10 @@ typedef enum AtomicDict_RobinHoodResult {
     grow,
 } AtomicDict_RobinHoodResult;
 
-AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(atomic_dict_meta *meta, atomic_dict_node *nodes,
-                                                      atomic_dict_node *to_insert, int distance_0_ix);
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
+                                                      AtomicDict_Node *to_insert, int distance_0_ix);
 
-AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(atomic_dict_meta *meta, atomic_dict_node *nodes,
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       int to_delete);
 
 
@@ -228,22 +228,22 @@ AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(atomic_dict_meta *meta, at
 typedef struct {
     int error;
     uint64_t position;
-    atomic_dict_node node;
-    atomic_dict_entry *entry_p;
-    atomic_dict_entry entry;
+    AtomicDict_Node node;
+    AtomicDict_Entry *entry_p;
+    AtomicDict_Entry entry;
     int is_reservation;
-} atomic_dict_search_result;
+} AtomicDict_SearchResult;
 
-void AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                       atomic_dict_search_result *result);
+void AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                       AtomicDict_SearchResult *result);
 
-void AtomicDict_LookupEntry(atomic_dict_meta *meta, uint64_t entry_ix, Py_hash_t hash,
-                            atomic_dict_search_result *result);
+void AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
+                            AtomicDict_SearchResult *result);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
-int AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta,
-                              atomic_dict_entry_loc *entry_loc);
+int AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta,
+                              AtomicDict_EntryLoc *entry_loc);
 
 /// node sizes table
 /*

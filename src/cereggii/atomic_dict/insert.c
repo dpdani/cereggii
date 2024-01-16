@@ -19,8 +19,8 @@ typedef enum AtomicDict_InsertedOrUpdated {
 } AtomicDict_InsertedOrUpdated;
 
 AtomicDict_InsertedOrUpdated
-AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_dict_node *node,
-                                        atomic_dict_meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
+AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicDict_Node *node,
+                                        AtomicDict_Meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
 {
     if (AtomicDict_NodeIsReservation(node, meta))
         goto check_entry;
@@ -29,8 +29,8 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
     if (node->tag != (hash & meta->tag_mask))
         return nop;
 
-    atomic_dict_entry *entry_p;
-    atomic_dict_entry entry;
+    AtomicDict_Entry *entry_p;
+    AtomicDict_Entry entry;
     check_entry:
     entry_p = AtomicDict_GetEntryAt(node->index, meta);
     entry = *entry_p;
@@ -66,12 +66,12 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, atomic_
 }
 
 AtomicDict_InsertedOrUpdated
-AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc,
+AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value, uint64_t distance_0,
-                                          atomic_dict_node *read_buffer, atomic_dict_node *temp, int64_t *zone,
+                                          AtomicDict_Node *read_buffer, AtomicDict_Node *temp, int64_t *zone,
                                           int *idx_in_buffer, int *nodes_offset)
 {
-    atomic_dict_node node = {
+    AtomicDict_Node node = {
         .index = entry_loc->location,
         .tag = hash,
     }, _;
@@ -119,7 +119,7 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, atomic_dict_meta *me
 }
 
 int
-AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_entry_loc *entry_loc)
+AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc)
 {
     Py_hash_t hash = entry_loc->entry->hash;
     PyObject *key = entry_loc->entry->key;
@@ -128,9 +128,9 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, atomic_dict_meta *meta, atomic_dict_
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
     assert(distance_0 >= 0);
 
-    atomic_dict_node read_buffer[16];
-    atomic_dict_node temp[16];
-    atomic_dict_node node, reservation;
+    AtomicDict_Node read_buffer[16];
+    AtomicDict_Node temp[16];
+    AtomicDict_Node node, reservation;
     uint64_t idx;
     int64_t zone = -1;
     int nodes_offset, idx_in_buffer;
@@ -210,15 +210,15 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         return -1;
     }
 
-    atomic_dict_reservation_buffer *rb = NULL;
+    AtomicDict_ReservationBuffer *rb = NULL;
     rb = AtomicDict_GetReservationBuffer(self);
     if (rb == NULL)
         goto fail;
 
-    atomic_dict_meta *meta = NULL;
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
-    atomic_dict_entry_loc entry_loc;
+    AtomicDict_EntryLoc entry_loc;
     AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
     if (entry_loc.entry == NULL)
         goto fail;

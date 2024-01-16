@@ -12,8 +12,8 @@
 /**
  * previous_blocks may be NULL.
  */
-atomic_dict_meta *
-AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
+AtomicDict_Meta *
+AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
 {
     if (log_size > 25) {
         PyErr_SetString(PyExc_NotImplementedError, "log_size > 25. see https://github.com/dpdani/cereggii/issues/3");
@@ -31,7 +31,7 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
         goto fail;
     memset(index, 0, node_sizes.node_size / 8 * (1 << log_size));
 
-    atomic_dict_block **previous_blocks = NULL;
+    AtomicDict_Block **previous_blocks = NULL;
     int64_t inserting_block = -1;
     int64_t greatest_allocated_block = -1;
     int64_t greatest_deleted_block = -1;
@@ -47,8 +47,8 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
 
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    atomic_dict_block **blocks = PyMem_RawRealloc(previous_blocks,
-                                                  sizeof(atomic_dict_block *) * ((1 << log_size) >> 6));
+    AtomicDict_Block **blocks = PyMem_RawRealloc(previous_blocks,
+                                                 sizeof(AtomicDict_Block *) * ((1 << log_size) >> 6));
     if (blocks == NULL)
         goto fail;
 
@@ -58,7 +58,7 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
         blocks[greatest_allocated_block + 1] = NULL;
     }
 
-    atomic_dict_meta *meta = PyObject_New(atomic_dict_meta, &AtomicDictMeta);
+    AtomicDict_Meta *meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta);
     if (meta == NULL)
         goto fail;
     PyObject_Init((PyObject *) meta, &AtomicDictMeta);
@@ -127,7 +127,7 @@ AtomicDict_NewMeta(uint8_t log_size, atomic_dict_meta *previous_meta)
 }
 
 void
-AtomicDictMeta_dealloc(atomic_dict_meta *self)
+AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 {
     // not gc tracked (?)
     PyMem_RawFree(self->index);

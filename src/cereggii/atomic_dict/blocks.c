@@ -11,25 +11,25 @@
 #include "pythread.h"
 
 
-atomic_dict_block *
-AtomicDict_NewBlock(atomic_dict_meta *meta)
+AtomicDict_Block *
+AtomicDict_NewBlock(AtomicDict_Meta *meta)
 {
-    atomic_dict_block *new = NULL;
-    new = PyMem_RawMalloc(sizeof(atomic_dict_block));
+    AtomicDict_Block *new = NULL;
+    new = PyMem_RawMalloc(sizeof(AtomicDict_Block));
 
     if (new == NULL)
         return NULL;
 
     new->generation = meta->generation;
-    memset(new->entries, 0, sizeof(atomic_dict_entry) * 64);
+    memset(new->entries, 0, sizeof(AtomicDict_Entry) * 64);
 
     return new;
 }
 
 
 void
-AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_reservation_buffer *rb,
-                         atomic_dict_entry_loc *entry_loc, Py_hash_t hash)
+AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+                         AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
 {
     AtomicDict_ReservationBufferPop(rb, entry_loc);
 
@@ -68,7 +68,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_res
         }
         assert(greatest_allocated_block + 1 <= meta->size >> 6);
 
-        atomic_dict_block *block = NULL;
+        AtomicDict_Block *block = NULL;
         block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
@@ -102,8 +102,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, atomic_dict_meta *meta, atomic_dict_res
     entry_loc->entry = NULL;
 }
 
-inline atomic_dict_entry *
-AtomicDict_GetEntryAt(uint64_t ix, atomic_dict_meta *meta)
+inline AtomicDict_Entry *
+AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
     return &(meta->blocks[ix >> 6]->entries[ix & 63]);
 }

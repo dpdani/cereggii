@@ -7,9 +7,9 @@
 
 
 int
-AtomicDict_Delete(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash)
+AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
 {
-    atomic_dict_search_result result;
+    AtomicDict_SearchResult result;
     AtomicDict_Lookup(meta, key, hash, &result);
 
     if (result.error)
@@ -29,7 +29,7 @@ AtomicDict_Delete(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash)
                                                   result.entry.flags | ENTRY_FLAGS_TOMBSTONE));
 
     uint64_t entry_ix = result.node.index;
-    atomic_dict_node read_buffer[16], temp[16];
+    AtomicDict_Node read_buffer[16], temp[16];
     int64_t zone;
     int idx_in_buffer, nodes_offset, begin_write, end_write;
     int64_t start_ix = 0;
@@ -64,8 +64,8 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
 {
     assert(key != NULL);
 
-    atomic_dict_meta *meta = NULL;
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)

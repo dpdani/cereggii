@@ -8,7 +8,7 @@
 
 
 AtomicDict_RobinHoodResult
-AtomicDict_RobinHoodInsert(atomic_dict_meta *meta, atomic_dict_node *nodes, atomic_dict_node *to_insert,
+AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes, AtomicDict_Node *to_insert,
                            int distance_0_ix)
 {
     /*
@@ -24,8 +24,8 @@ AtomicDict_RobinHoodInsert(atomic_dict_meta *meta, atomic_dict_node *nodes, atom
      *   2. there is at least 1 empty node
      * */
 
-    atomic_dict_node current = *to_insert;
-    atomic_dict_node temp;
+    AtomicDict_Node current = *to_insert;
+    AtomicDict_Node temp;
     int probe = 0;
     int cursor;
 
@@ -60,12 +60,12 @@ AtomicDict_RobinHoodInsert(atomic_dict_meta *meta, atomic_dict_node *nodes, atom
 }
 
 AtomicDict_RobinHoodResult
-AtomicDict_RobinHoodDelete(atomic_dict_meta *meta, atomic_dict_node *nodes, int to_delete)
+AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes, int to_delete)
 {
     assert(to_delete >= 0);
     assert(to_delete < meta->nodes_in_zone);
 
-    atomic_dict_node temp;
+    AtomicDict_Node temp;
 
     nodes[to_delete] = meta->tombstone;
     int probe;

@@ -11,7 +11,7 @@
 
 
 inline void
-AtomicDict_ComputeRawNode(atomic_dict_node *node, atomic_dict_meta *meta)
+AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     assert(node->index < meta->size);
     assert(node->distance <= meta->max_distance);
@@ -22,44 +22,44 @@ AtomicDict_ComputeRawNode(atomic_dict_node *node, atomic_dict_meta *meta)
 }
 
 inline int
-AtomicDict_NodeIsReservation(atomic_dict_node *node, atomic_dict_meta *meta)
+AtomicDict_NodeIsReservation(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     return node->node != 0 && node->distance == (1 << meta->distance_size) - 1;
 }
 
 inline int
-AtomicDict_NodeIsTombstone(atomic_dict_node *node, atomic_dict_meta *meta)
+AtomicDict_NodeIsTombstone(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     return node->node == meta->tombstone.node;
 }
 
 inline uint64_t
-AtomicDict_RegionOf(uint64_t ix, atomic_dict_meta *meta)
+AtomicDict_RegionOf(uint64_t ix, AtomicDict_Meta *meta)
 {
     ix = ix % meta->size;
     return (ix & ~meta->shift_mask) / meta->nodes_in_region;
 }
 
 inline uint64_t
-AtomicDict_ZoneOf(uint64_t ix, atomic_dict_meta *meta)
+AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
 {
     return AtomicDict_RegionOf(ix, meta) & (ULONG_MAX - 1UL);
 }
 
 inline uint64_t
-AtomicDict_Distance0Of(Py_hash_t hash, atomic_dict_meta *meta)
+AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
     return hash & (meta->size - 1);
 }
 
 inline uint64_t
-AtomicDict_ShiftInRegionOf(uint64_t ix, atomic_dict_meta *meta)
+AtomicDict_ShiftInRegionOf(uint64_t ix, AtomicDict_Meta *meta)
 {
     return ix & meta->shift_mask;
 }
 
 inline uint8_t *
-AtomicDict_IndexAddressOf(uint64_t ix, atomic_dict_meta *meta)
+AtomicDict_IndexAddressOf(uint64_t ix, AtomicDict_Meta *meta)
 {
     uint64_t shift = AtomicDict_ShiftInRegionOf(ix, meta);
     uint64_t region = AtomicDict_RegionOf(ix, meta);
@@ -67,14 +67,14 @@ AtomicDict_IndexAddressOf(uint64_t ix, atomic_dict_meta *meta)
 }
 
 inline int
-AtomicDict_IndexAddressIsAligned(uint64_t ix, int alignment, atomic_dict_meta *meta)
+AtomicDict_IndexAddressIsAligned(uint64_t ix, int alignment, AtomicDict_Meta *meta)
 {
     return (int64_t) AtomicDict_IndexAddressOf(ix, meta) % alignment == 0;
 }
 
 inline void
-AtomicDict_ParseNodeFromRaw(uint64_t node_raw, atomic_dict_node *node,
-                            atomic_dict_meta *meta)
+AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
+                            AtomicDict_Meta *meta)
 {
     node->node = node_raw;
     node->index = (node_raw & meta->index_mask) >> (meta->node_size - meta->log_size);
@@ -84,8 +84,8 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, atomic_dict_node *node,
 
 
 inline void
-AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, atomic_dict_node *node,
-                               atomic_dict_meta *meta)
+AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Node *node,
+                               AtomicDict_Meta *meta)
 {
     uint64_t shift = AtomicDict_ShiftInRegionOf(ix, meta);
     uint64_t node_raw =
@@ -94,7 +94,7 @@ AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, atomic_dict_node *n
 }
 
 inline void
-AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_buffer)
+AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buffer)
 {
     for (int i = 0; i < 16; ++i) {
         to_buffer[i] = from_buffer[i];
@@ -102,7 +102,7 @@ AtomicDict_CopyNodeBuffers(atomic_dict_node *from_buffer, atomic_dict_node *to_b
 }
 
 void
-AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_buffer, atomic_dict_node *temp,
+AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
                                 int *begin_write, int *end_write, int64_t *start_ix)
 {
     int j;
@@ -139,7 +139,7 @@ AtomicDict_ComputeBeginEndWrite(atomic_dict_meta *meta, atomic_dict_node *read_b
 }
 
 void
-AtomicDict_ReadNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta)
+AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     uint64_t node_region = meta->index[AtomicDict_RegionOf(ix, meta)];
     AtomicDict_ParseNodeFromRegion(ix, node_region, node, meta);
@@ -153,14 +153,14 @@ AtomicDict_ReadNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *met
  **/
 
 void
-AtomicDict_Read1NodeAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+AtomicDict_Read1NodeAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta)
 {
     uint64_t node_region = meta->index[AtomicDict_RegionOf(ix, meta)];
     AtomicDict_ParseNodeFromRegion(ix, node_region, &nodes[0], meta);
 }
 
 void
-AtomicDict_Read2NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+AtomicDict_Read2NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta)
 {
     uint64_t little = AtomicDict_RegionOf(ix, meta);
     uint64_t big = AtomicDict_RegionOf(ix + 1, meta);
@@ -174,7 +174,7 @@ AtomicDict_Read2NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *
 }
 
 void
-AtomicDict_Read4NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+AtomicDict_Read4NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta)
 {
     assert(meta->node_size <= 32);
     uint64_t little = AtomicDict_RegionOf(ix, meta);
@@ -205,7 +205,7 @@ AtomicDict_Read4NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *
 }
 
 void
-AtomicDict_Read8NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+AtomicDict_Read8NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta)
 {
     assert(meta->node_size <= 16);
     uint64_t little = AtomicDict_RegionOf(ix, meta);
@@ -236,7 +236,7 @@ AtomicDict_Read8NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *
 }
 
 void
-AtomicDict_Read16NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta *meta)
+AtomicDict_Read16NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta)
 {
     assert(meta->node_size == 8);
     uint64_t little = AtomicDict_RegionOf(ix, meta);
@@ -267,8 +267,8 @@ AtomicDict_Read16NodesAt(uint64_t ix, atomic_dict_node *nodes, atomic_dict_meta 
 }
 
 inline void
-AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer, atomic_dict_node *node,
-                                       int *idx_in_buffer, int *nodes_offset, atomic_dict_meta *meta)
+AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer, AtomicDict_Node *node,
+                                       int *idx_in_buffer, int *nodes_offset, AtomicDict_Meta *meta)
 {
     idx &= (int64_t) (meta->size - 1);
 
@@ -284,9 +284,9 @@ AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_
 }
 
 inline void
-AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, atomic_dict_node *buffer,
-                                            atomic_dict_node *node, int *idx_in_buffer, int *nodes_offset,
-                                            atomic_dict_meta *meta)
+AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
+                                            AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+                                            AtomicDict_Meta *meta)
 {
     AtomicDict_ReadNodesFromZoneIntoBuffer(idx / meta->nodes_in_zone * meta->nodes_in_zone,
                                            zone, buffer, node, idx_in_buffer, nodes_offset, meta);
@@ -295,7 +295,7 @@ AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, atomic_
 
 
 int
-AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *meta)
+AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     AtomicDict_ComputeRawNode(node, meta);
     uint64_t shift = ix & meta->shift_mask;
@@ -307,7 +307,7 @@ AtomicDict_WriteNodeAt(uint64_t ix, atomic_dict_node *node, atomic_dict_meta *me
 }
 
 inline int
-AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta)
+AtomicDict_MustWriteBytes(int n, AtomicDict_Meta *meta)
 {
     int n_bytes = (meta->node_size >> 3) * n;
     assert(n_bytes <= 16);
@@ -327,8 +327,8 @@ AtomicDict_MustWriteBytes(int n, atomic_dict_meta *meta)
 }
 
 int
-AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, atomic_dict_node *expected, atomic_dict_node *desired,
-                              atomic_dict_meta *meta)
+AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected, AtomicDict_Node *desired,
+                              AtomicDict_Meta *meta)
 {
     assert(n > 0);
     assert(n <= meta->nodes_in_zone);
