@@ -51,8 +51,6 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     } while (!AtomicDict_AtomicWriteNodesAt(result.position - idx_in_buffer + begin_write, end_write - begin_write,
                                             &read_buffer[begin_write], &temp[begin_write], meta));
 
-    // todo: recycle entry
-
     return 1;
 
     fail:
