@@ -16,22 +16,22 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         goto fail;
 
     if (result.entry_p == NULL)
-        return 0;
+        goto not_found;
 
     do {
         result.entry = *result.entry_p;  // READ
 
         if (result.entry.flags & ENTRY_FLAGS_TOMBSTONE)
-            return 0;
+            goto not_found;
 
     } while (!CereggiiAtomic_CompareExchangeUInt8(&result.entry_p->flags,
                                                   result.entry.flags,
                                                   result.entry.flags | ENTRY_FLAGS_TOMBSTONE));
 
     uint64_t entry_ix = result.node.index;
-    AtomicDict_Node read_buffer[16], temp[16];
-    int64_t zone;
-    int idx_in_buffer, nodes_offset, begin_write, end_write;
+    AtomicDict_BufferedNodeReader reader;
+    AtomicDict_Node temp[16];
+    int begin_write, end_write;
     int64_t start_ix = 0;
 
     do {
@@ -40,18 +40,20 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         assert(result.entry_p != NULL);
         start_ix += (int64_t) result.position;
         start_ix = 0;
-        zone = -1;
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, &zone, read_buffer, &result.node,
-                                                    &idx_in_buffer, &nodes_offset, meta);
-        AtomicDict_CopyNodeBuffers(read_buffer, temp);
-        AtomicDict_RobinHoodDelete(meta, temp, idx_in_buffer);
-        AtomicDict_ComputeBeginEndWrite(meta, read_buffer, temp, &begin_write, &end_write, &start_ix);
+        reader.zone = -1;
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, (AtomicDict_BufferedNodeReader *) &reader, meta);
+        AtomicDict_CopyNodeBuffers(reader.buffer, temp);
+        AtomicDict_RobinHoodDelete(meta, temp, reader.idx_in_buffer);
+        AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write, &start_ix);
         if (begin_write < 0)
             continue;
-    } while (!AtomicDict_AtomicWriteNodesAt(result.position - idx_in_buffer + begin_write, end_write - begin_write,
-                                            &read_buffer[begin_write], &temp[begin_write], meta));
+    } while (!AtomicDict_AtomicWriteNodesAt(result.position - reader.idx_in_buffer + begin_write, end_write - begin_write,
+                                            &reader.buffer[begin_write], &temp[begin_write], meta));
 
     return 1;
+
+    not_found:
+    return 0;
 
     fail:
     return -1;

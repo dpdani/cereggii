@@ -10,15 +10,7 @@
 #include "pythread.h"
 
 
-typedef enum AtomicDict_InsertedOrUpdated {
-    error,
-    inserted,
-    updated,
-    nop,
-    retry,
-} AtomicDict_InsertedOrUpdated;
-
-AtomicDict_InsertedOrUpdated
+inline AtomicDict_InsertedOrUpdated
 AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicDict_Node *node,
                                         AtomicDict_Meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
 {
@@ -68,8 +60,7 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicD
 AtomicDict_InsertedOrUpdated
 AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc,
                                           Py_hash_t hash, PyObject *key, PyObject *value, uint64_t distance_0,
-                                          AtomicDict_Node *read_buffer, AtomicDict_Node *temp, int64_t *zone,
-                                          int *idx_in_buffer, int *nodes_offset)
+                                          AtomicDict_BufferedNodeReader *reader, AtomicDict_Node *temp)
 {
     AtomicDict_Node node = {
         .index = entry_loc->location,
@@ -77,30 +68,35 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *met
     }, _;
 
     beginning:
-    AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0, zone, read_buffer, &_, idx_in_buffer, nodes_offset, meta);
+    reader->zone = -1;
+    AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0, reader, meta);
     AtomicDict_InsertedOrUpdated check_result;
 
     for (int i = 0; i < meta->nodes_in_zone; ++i) {
-        if (read_buffer[i].node == 0) {
-            AtomicDict_CopyNodeBuffers(read_buffer, temp);
-            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHoodInsert(meta, temp, &node, 0);
+        if (reader->buffer[i].node == 0) {
+            AtomicDict_CopyNodeBuffers(reader->buffer, temp);
+            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHoodInsert(meta, temp, &node, reader->idx_in_buffer);
+
             if (rh == grow) {
                 AtomicDict_Grow(self);
                 return inserted;
             }
+
             assert(rh == ok);
             int begin_write, end_write;
-            AtomicDict_ComputeBeginEndWrite(meta, read_buffer, temp, &begin_write, &end_write, (int64_t *) &distance_0);
+            AtomicDict_ComputeBeginEndWrite(meta, reader->buffer, temp, &begin_write, &end_write,
+                                            (int64_t *) &distance_0);
             if (begin_write < 0)
                 goto beginning;
             if (AtomicDict_AtomicWriteNodesAt(distance_0 + begin_write, end_write - begin_write,
-                                              &read_buffer[begin_write], &temp[begin_write], meta)) {
+                                              &reader->buffer[begin_write], &temp[begin_write], meta)) {
                 return inserted;
             }
             goto beginning;
         }
 
-        check_result = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &read_buffer[i], meta, hash, key, value);
+        check_result = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &reader->buffer[i], meta, hash, key,
+                                                               value);
         if (check_result == retry) {
             goto beginning;
         }
@@ -128,16 +124,14 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
     assert(distance_0 >= 0);
 
-    AtomicDict_Node read_buffer[16];
+    AtomicDict_BufferedNodeReader reader;
     AtomicDict_Node temp[16];
-    AtomicDict_Node node, reservation;
+    AtomicDict_Node reservation;
     uint64_t idx;
-    int64_t zone = -1;
-    int nodes_offset, idx_in_buffer;
 
     AtomicDict_InsertedOrUpdated close_to_0;
     close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(self, meta, entry_loc, hash, key, value, distance_0,
-                                                           read_buffer, temp, &zone, &idx_in_buffer, &nodes_offset);
+                                                           &reader, temp);
     if (close_to_0 == error) {
         goto error;
     }
@@ -149,14 +143,13 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     for (int i = 0; i < meta->size; ++i) {
         idx = (distance_0 + i) % (meta->size);
 
-        AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0 + i, &zone, read_buffer, &node, &idx_in_buffer,
-                                               &nodes_offset, meta);
+        AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0 + i, &reader, meta);
 
-        if (node.node == 0)
+        if (reader.node.node == 0)
             goto tail_found;
 
         AtomicDict_InsertedOrUpdated check_entry;
-        check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &node, meta, hash, key, value);
+        check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &reader.node, meta, hash, key, value);
         switch (check_entry) {
             case retry:
                 goto beginning;
@@ -180,13 +173,13 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     reservation.index = entry_loc->location;
     reservation.distance = meta->max_distance;
     reservation.tag = hash;
-    assert(node.node == 0);
+    assert(reader.node.node == 0);
     if (meta->is_compact) {
         CereggiiAtomic_CompareExchangeUInt8(&meta->is_compact, 1, 0);
         // no need to handle failure
     }
-    if (!AtomicDict_AtomicWriteNodesAt(idx, 1, &read_buffer[idx_in_buffer], &reservation, meta)) {
-        zone = -1;
+    if (!AtomicDict_AtomicWriteNodesAt(idx, 1, &reader.buffer[reader.idx_in_buffer], &reservation, meta)) {
+        reader.zone = -1;
         goto beginning;
     }
 

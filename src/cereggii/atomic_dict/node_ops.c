@@ -267,30 +267,29 @@ AtomicDict_Read16NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *m
 }
 
 inline void
-AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer, AtomicDict_Node *node,
-                                       int *idx_in_buffer, int *nodes_offset, AtomicDict_Meta *meta)
+AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader, AtomicDict_Meta *meta)
 {
     idx &= (int64_t) (meta->size - 1);
 
-    if (*zone != AtomicDict_ZoneOf(idx, meta)) {
-        meta->read_nodes_in_zone(idx, buffer, meta);
-        *zone = (int64_t) AtomicDict_ZoneOf(idx, meta);
-        *nodes_offset = (int) -(idx % meta->nodes_in_zone);
+    if (reader->zone != AtomicDict_ZoneOf(idx, meta)) {
+        meta->read_nodes_in_zone(idx, reader->buffer, meta);
+        reader->zone = (int64_t) AtomicDict_ZoneOf(idx, meta);
+        reader->nodes_offset = (int) -(idx % meta->nodes_in_zone);
     }
 
-    *idx_in_buffer = (int) (idx % meta->nodes_in_zone + *nodes_offset);
-    assert(*idx_in_buffer < meta->nodes_in_zone);
-    *node = buffer[*idx_in_buffer];
+    reader->idx_in_buffer = (int) (idx % meta->nodes_in_zone + reader->nodes_offset);
+    assert(reader->idx_in_buffer < meta->nodes_in_zone);
+    reader->node = reader->buffer[reader->idx_in_buffer];
 }
 
 inline void
-AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
-                                            AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader,
                                             AtomicDict_Meta *meta)
 {
     AtomicDict_ReadNodesFromZoneIntoBuffer(idx / meta->nodes_in_zone * meta->nodes_in_zone,
-                                           zone, buffer, node, idx_in_buffer, nodes_offset, meta);
-    *idx_in_buffer = (int) (idx % meta->nodes_in_zone + *nodes_offset);
+                                           reader, meta);
+    reader->idx_in_buffer = (int) (idx % meta->nodes_in_zone + reader->nodes_offset);
+    reader->node = reader->buffer[reader->idx_in_buffer];
 }
 
 

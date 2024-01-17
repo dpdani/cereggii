@@ -157,12 +157,18 @@ void AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *t
 void AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
                                      int *begin_write, int *end_write, int64_t *start_ix);
 
-void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
-                                            AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+typedef struct AtomicDict_BufferedNodeReader {
+    int64_t zone;
+    AtomicDict_Node buffer[16];
+    AtomicDict_Node node;
+    int idx_in_buffer;
+    int nodes_offset;
+} AtomicDict_BufferedNodeReader;
+
+void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader,
                                             AtomicDict_Meta *meta);
 
-void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, int64_t *zone, AtomicDict_Node *buffer,
-                                                 AtomicDict_Node *node, int *idx_in_buffer, int *nodes_offset,
+void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader,
                                                  AtomicDict_Meta *meta);
 
 int AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
@@ -175,6 +181,20 @@ int AtomicDict_MustWriteBytes(int n, AtomicDict_Meta *meta);
 
 int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected, AtomicDict_Node *desired,
                                   AtomicDict_Meta *meta);
+
+
+/// insert
+typedef enum AtomicDict_InsertedOrUpdated {
+    error,
+    inserted,
+    updated,
+    nop,
+    retry,
+} AtomicDict_InsertedOrUpdated;
+
+AtomicDict_InsertedOrUpdated
+AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicDict_Node *node,
+                                        AtomicDict_Meta *meta, Py_hash_t hash, PyObject *key, PyObject *value);
 
 
 /// migrations
