@@ -21,7 +21,7 @@ AtomicDict_NewBlock(AtomicDict_Meta *meta)
         return NULL;
 
     new->generation = meta->generation;
-    memset(new->entries, 0, sizeof(AtomicDict_Entry) * 64);
+    memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
 
     return new;
 }
@@ -62,11 +62,11 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_Reser
             CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        if (greatest_allocated_block + 1 >= meta->size >> 6) {
+        if (greatest_allocated_block + 1 >= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             AtomicDict_Grow(dk);
             goto beginning;
         }
-        assert(greatest_allocated_block + 1 <= meta->size >> 6);
+        assert(greatest_allocated_block + 1 <= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
 
         AtomicDict_Block *block = NULL;
         block = AtomicDict_NewBlock(meta);
@@ -76,7 +76,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_Reser
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
-            if (greatest_allocated_block + 2 < meta->size >> 6) {
+            if (greatest_allocated_block + 2 < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
                 meta->blocks[greatest_allocated_block + 2] = NULL;
             }
             assert(CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
@@ -86,7 +86,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_Reser
                                                        greatest_allocated_block,
                                                        greatest_allocated_block + 1));
             entry_loc->entry = &block->entries[0];
-            entry_loc->location = (greatest_allocated_block + 1) << 6;
+            entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
             AtomicDict_ReservationBufferPut(rb, entry_loc, dk->reservation_buffer_size);
         } else {
             PyMem_RawFree(block);
@@ -102,10 +102,25 @@ AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_Reser
     entry_loc->entry = NULL;
 }
 
+inline uint64_t
+AtomicDict_BlockOf(uint64_t entry_ix)
+{
+    return entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+}
+
+inline uint64_t
+AtomicDict_PositionInBlockOf(uint64_t entry_ix)
+{
+    return entry_ix & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1);
+}
+
 inline AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
-    return &(meta->blocks[ix >> 6]->entries[ix & 63]);
+    return &(
+        meta->blocks[AtomicDict_BlockOf(ix)]
+            ->entries[AtomicDict_PositionInBlockOf(ix)]
+    );
 }
 
 inline void

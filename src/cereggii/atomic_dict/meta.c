@@ -48,13 +48,14 @@ AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
     AtomicDict_Block **blocks = PyMem_RawRealloc(previous_blocks,
-                                                 sizeof(AtomicDict_Block *) * ((1 << log_size) >> 6));
+                                                 sizeof(AtomicDict_Block *) *
+                                                 ((1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
     if (blocks == NULL)
         goto fail;
 
     if (previous_blocks == NULL) {
         blocks[0] = NULL;
-    } else if (greatest_allocated_block == (1 << log_size) >> 6) {
+    } else if (greatest_allocated_block == (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
         blocks[greatest_allocated_block + 1] = NULL;
     }
 

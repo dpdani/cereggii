@@ -50,12 +50,14 @@ static PyTypeObject AtomicDictGen = {
     .tp_new = PyType_GenericNew,
 };
 
+#define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
+#define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
 
 typedef struct {
     PyObject *generation;
 //    PyObject *iteration;
 
-    AtomicDict_Entry entries[64];
+    AtomicDict_Entry entries[ATOMIC_DICT_ENTRIES_IN_BLOCK];
 } AtomicDict_Block;
 
 
@@ -115,6 +117,10 @@ static PyTypeObject AtomicDictMeta = {
 AtomicDict_Meta *AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta);
 
 AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
+
+uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
+
+uint64_t AtomicDict_PositionInBlockOf(uint64_t entry_ix);
 
 AtomicDict_Entry *AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta);
 

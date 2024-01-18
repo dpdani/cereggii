@@ -48,9 +48,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
 
         if (reader.node.tag == (hash & meta->tag_mask)) {
             check_entry:
-            result->entry_p = &(meta
-                ->blocks[reader.node.index >> 6]
-                ->entries[reader.node.index & 63]);
+            result->entry_p = AtomicDict_GetEntryAt(reader.node.index, meta);
             AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
             if (result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
@@ -134,9 +132,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 
         check_entry:
         if (result->node.index == entry_ix) {
-            result->entry_p = &(meta
-                ->blocks[result->node.index >> 6]
-                ->entries[result->node.index & 63]);
+            result->entry_p = AtomicDict_GetEntryAt(result->node.index, meta);
             goto found;
         }
     }  // probes exhausted

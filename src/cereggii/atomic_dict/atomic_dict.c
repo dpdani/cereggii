@@ -111,11 +111,11 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (init_dict != NULL) {
         init_dict_size = PyDict_Size(init_dict);
     }
-    if (init_dict_size % 64 == 0) { // allocate one more entry: cannot write to entry 0
+    if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK == 0) { // allocate one more entry: cannot write to entry 0
         init_dict_size++;
     }
-    if (min_size < 64) {
-        min_size = 64;
+    if (min_size < ATOMIC_DICT_ENTRIES_IN_BLOCK) {
+        min_size = ATOMIC_DICT_ENTRIES_IN_BLOCK;
     }
 
     self->reservation_buffer_size = buffer_size;
@@ -162,24 +162,24 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     AtomicDict_Block *block;
     int64_t i;
-    for (i = 0; i < init_dict_size / 64; i++) {
+    for (i = 0; i < init_dict_size / ATOMIC_DICT_ENTRIES_IN_BLOCK; i++) {
         // allocate blocks
         block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
-        if (i + 1 < (1 << log_size) >> 6) {
+        if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             meta->blocks[i + 1] = NULL;
         }
         meta->greatest_allocated_block++;
     }
-    if (init_dict_size % 64 > 0) {
+    if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK > 0) {
         // allocate additional block
         block = AtomicDict_NewBlock(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
-        if (i + 1 < (1 << log_size) >> 6) {
+        if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             meta->blocks[i + 1] = NULL;
         }
         meta->greatest_allocated_block++;
@@ -206,7 +206,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 goto create;
             }
         }
-        meta->inserting_block = pos >> 6;
+        meta->inserting_block = pos >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 
         if (pos > 0) {
             rb = AtomicDict_GetReservationBuffer(self);
@@ -215,7 +215,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
-            entry_loc.entry = &meta->blocks[(pos + 1) >> 6]->entries[(pos + 1) & 63];
+            entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
             entry_loc.location = pos + 1;
             uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
@@ -224,16 +224,16 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
     }
 
-    if (!(meta->blocks[0]->entries[0].flags & ENTRY_FLAGS_RESERVED)) {
+    if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
         rb = AtomicDict_GetReservationBuffer(self);
         if (rb == NULL)
             goto fail;
 
         // mark entry 0 as reserved and put the remaining entries
         // into this thread's reservation buffer
-        meta->blocks[0]->entries[0].flags |= ENTRY_FLAGS_RESERVED;
+        AtomicDict_GetEntryAt(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
         for (i = 1; i < self->reservation_buffer_size; ++i) {
-            entry_loc.entry = &meta->blocks[0]->entries[i & 63];
+            entry_loc.entry = AtomicDict_GetEntryAt(i, meta);
             entry_loc.location = i;
             if (entry_loc.entry->key == NULL) {
                 int found = 0;
@@ -302,11 +302,11 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     AtomicDict_Meta *meta = NULL;
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
-    AtomicDict_Block *block = meta->blocks[pos >> 6];
-    block->entries[pos & 63].flags = ENTRY_FLAGS_RESERVED;
-    block->entries[pos & 63].hash = hash;
-    block->entries[pos & 63].key = key;
-    block->entries[pos & 63].value = value;
+    AtomicDict_Entry *entry = AtomicDict_GetEntryAt(pos, meta);
+    entry->flags = ENTRY_FLAGS_RESERVED;
+    entry->hash = hash;
+    entry->key = key;
+    entry->value = value;
 
     AtomicDict_Node temp;
     AtomicDict_Node node = {
