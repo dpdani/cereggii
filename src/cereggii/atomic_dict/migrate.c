@@ -9,14 +9,28 @@
 #include "atomic_ref.h"
 
 
-int AtomicDict_Grow(AtomicDict *self)
+int
+AtomicDict_Grow(AtomicDict *self)
 {
     PyErr_SetString(PyExc_NotImplementedError, "AtomicDict_Grow. see https://github.com/dpdani/cereggii/issues/5");
     return -1;
 }
 
-int AtomicDict_Shrink(AtomicDict *self)
+int
+AtomicDict_Shrink(AtomicDict *self)
 {
     PyErr_SetString(PyExc_NotImplementedError, "AtomicDict_Shrink. see https://github.com/dpdani/cereggii/issues/5");
     return -1;
+}
+
+int
+AtomicDict_Compact(AtomicDict *self)
+{
+
+}
+
+int
+AtomicDict_Migrate(AtomicDict *self, uint8_t from_log_size, uint8_t to_log_size)
+{
+
 }

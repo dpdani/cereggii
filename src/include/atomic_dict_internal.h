@@ -204,6 +204,8 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
 
+int AtomicDict_Migrate(AtomicDict *self, uint8_t from_log_size, uint8_t to_log_size);
+
 
 /// reservation buffer (see ./reservation_buffer.c)
 #define RESERVATION_BUFFER_SIZE 64

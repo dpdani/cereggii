@@ -210,8 +210,9 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug", (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"get",   (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"debug",   (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"compact", (PyCFunction) AtomicDict_Compact,                 METH_NOARGS, NULL},
+    {"get",     (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
