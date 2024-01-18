@@ -19,7 +19,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         goto not_found;
 
     do {
-        result.entry = *result.entry_p;  // READ
+        AtomicDict_ReadEntry(result.entry_p, &result.entry);
 
         if (result.entry.flags & ENTRY_FLAGS_TOMBSTONE)
             goto not_found;

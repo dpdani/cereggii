@@ -51,7 +51,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
             result->entry_p = &(meta
                 ->blocks[reader.node.index >> 6]
                 ->entries[reader.node.index & 63]);
-            result->entry = *result->entry_p; // READ
+            AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
             if (result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
                 continue;
