@@ -132,7 +132,6 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 
         check_entry:
         if (result->node.index == entry_ix) {
-            result->entry_p = AtomicDict_GetEntryAt(result->node.index, meta);
             goto found;
         }
     }  // probes exhausted
@@ -142,7 +141,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
         goto beginning;
     }
     result->error = 0;
-    result->entry_p = NULL;
+    result->position = 0;
     return;
     found:
     result->error = 0;

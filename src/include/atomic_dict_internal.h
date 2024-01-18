@@ -18,8 +18,8 @@ typedef struct {
 
 #define ENTRY_FLAGS_RESERVED    128
 #define ENTRY_FLAGS_TOMBSTONE   64
-#define ENTRY_FLAGS_INSERTED    32
-#define ENTRY_FLAGS_SWAPPING    16
+#define ENTRY_FLAGS_SWAPPED    32
+// #define ENTRY_FLAGS_?    16
 // #define ENTRY_FLAGS_?    8
 // #define ENTRY_FLAGS_?    4
 // #define ENTRY_FLAGS_?    2

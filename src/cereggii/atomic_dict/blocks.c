@@ -127,7 +127,8 @@ inline void
 AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
 {
     entry->flags = entry_p->flags;
-    if (entry->flags & ENTRY_FLAGS_TOMBSTONE) {
+    entry->value = entry_p->value;
+    if (entry->value == NULL || entry->flags & ENTRY_FLAGS_TOMBSTONE) {
         entry->key = NULL;
         entry->value = NULL;
         entry->hash = 0;

@@ -406,8 +406,11 @@ AtomicDict_Debug(AtomicDict *self)
 
         for (int j = 0; j < 64; j++) {
             PyObject *key = block->entries[j].key;
+            PyObject *value = block->entries[j].value;
             if (key != NULL) {
-                PyObject *value = block->entries[j].value;
+                if (value == NULL) {
+                    value = PyExc_KeyError;
+                }
                 entry_tuple = Py_BuildValue("(BlOO)",
                                             block->entries[j].flags,
                                             block->entries[j].hash,
