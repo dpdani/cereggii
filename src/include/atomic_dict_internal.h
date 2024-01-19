@@ -53,7 +53,7 @@ static PyTypeObject AtomicDictGen = {
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
 
-typedef struct {
+typedef struct AtomicDict_Block {
     PyObject *generation;
 //    PyObject *iteration;
 
@@ -255,7 +255,7 @@ AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, Ato
 
 
 /// semi-internal
-typedef struct {
+typedef struct AtomicDict_SearchResult {
     int error;
     uint64_t position;
     AtomicDict_Node node;

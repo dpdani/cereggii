@@ -37,6 +37,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
             result.entry.flags |= ENTRY_FLAGS_TOMBSTONE;
         }
         else {
+            // what if swapped?
             AtomicDict_ReadEntry(result.entry_p, &result.entry);
         }
     } while (!(result.entry.flags & ENTRY_FLAGS_TOMBSTONE));
@@ -90,7 +91,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
 
         swap_found:
         result.entry_p->key = swap.key;
-        result.entry_p->value = swap.value; // todo: what if value was updated?
+        result.entry_p->value = swap.value; // todo: what if value was updated? => use AtomicRef
         result.entry_p->hash = swap.hash;
         if (!CereggiiAtomic_CompareExchangeUInt8(
             &swap_loc.entry->flags,
@@ -102,7 +103,20 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
                 goto recycle_entry;
         }
 
-        result.entry_p->flags = result.entry.flags & ~ENTRY_FLAGS_TOMBSTONE;
+        CereggiiAtomic_StoreUInt8(&result.entry_p->flags, result.entry.flags & ~ENTRY_FLAGS_TOMBSTONE);
+
+        AtomicDict_SearchResult swap_search;
+        do_swap:
+        AtomicDict_LookupEntry(meta, swap_loc.location, swap.hash, &swap_search);
+        AtomicDict_Node swapped = {
+            .tag = swap_search.node.tag,
+            .distance = swap_search.node.distance,
+            .index = entry_ix,
+        };
+
+        if (!AtomicDict_AtomicWriteNodesAt(swap_search.position, 1, &swap_search.node, &swapped, meta)) {
+            goto do_swap;
+        }
     }
 
     return 1;

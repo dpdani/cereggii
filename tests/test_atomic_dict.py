@@ -362,6 +362,17 @@ def test_delete():
     assert debug["index"][16] == 0
 
 
+def test_delete_with_swap():
+    d = AtomicDict({_: None for _ in range(64)} | {_: None for _ in range(64, 128)})
+    del d[64]
+    with raises(KeyError):
+        del d[64]
+    debug = d.debug()
+    assert debug["index"][64] == 0
+    assert debug["index"][0] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
+    assert debug["blocks"][1]["entries"][1] == (128, 0, 0, None)  # entry 65
+
+
 def test_delete_concurrent():
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
 

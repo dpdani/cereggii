@@ -51,7 +51,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
             result->entry_p = AtomicDict_GetEntryAt(reader.node.index, meta);
             AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
-            if (result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
+            if (result->entry.value == NULL || result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
                 continue;
             }
             if (result->entry.key == key) {
@@ -104,13 +104,13 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     for (probe = 0; probe < meta->size; probe++) {
         AtomicDict_ReadNodesFromZoneIntoBuffer(ix + probe + reservations, &reader, meta);
 
-        if (AtomicDict_NodeIsTombstone(&result->node, meta)) {
+        if (AtomicDict_NodeIsTombstone(&reader.node, meta)) {
             probe--;
             reservations++;
             continue;
         }
 
-        if (AtomicDict_NodeIsReservation(&result->node, meta)) {
+        if (AtomicDict_NodeIsReservation(&reader.node, meta)) {
             probe--;
             reservations++;
             result->is_reservation = 1;
@@ -118,20 +118,20 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
         }
         result->is_reservation = 0;
 
-        if (result->node.node == 0) {
+        if (reader.node.node == 0) {
             goto not_found;
         }
 
         if (
             is_compact && (
-                (ix + probe + reservations - result->node.distance > ix)
+                (ix + probe + reservations - reader.node.distance > ix)
                 || (probe >= meta->log_size)
             )) {
             goto not_found;
         }
 
         check_entry:
-        if (result->node.index == entry_ix) {
+        if (reader.node.index == entry_ix) {
             goto found;
         }
     }  // probes exhausted
@@ -146,6 +146,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     found:
     result->error = 0;
     result->position = ix + probe + reservations;
+    result->node = reader.node;
 }
 
 
