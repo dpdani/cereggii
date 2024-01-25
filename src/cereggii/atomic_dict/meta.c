@@ -13,7 +13,7 @@
  * previous_blocks may be NULL.
  */
 AtomicDict_Meta *
-AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
+AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
 {
     if (log_size > 25) {
         PyErr_SetString(PyExc_NotImplementedError, "log_size > 25. see https://github.com/dpdani/cereggii/issues/3");
@@ -29,35 +29,6 @@ AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
     uint64_t *index = PyMem_RawMalloc(node_sizes.node_size / 8 * (1 << log_size));
     if (index == NULL)
         goto fail;
-    memset(index, 0, node_sizes.node_size / 8 * (1 << log_size));
-
-    AtomicDict_Block **previous_blocks = NULL;
-    int64_t inserting_block = -1;
-    int64_t greatest_allocated_block = -1;
-    int64_t greatest_deleted_block = -1;
-    int64_t greatest_refilled_block = -1;
-
-    if (previous_meta != NULL) {
-        previous_blocks = previous_meta->blocks;
-        inserting_block = previous_meta->inserting_block;
-        greatest_allocated_block = previous_meta->greatest_allocated_block;
-        greatest_deleted_block = previous_meta->greatest_deleted_block;
-        greatest_refilled_block = previous_meta->greatest_refilled_block;
-    }
-
-    // here we're abusing virtual memory:
-    // the entire array will not necessarily be allocated to physical memory.
-    AtomicDict_Block **blocks = PyMem_RawRealloc(previous_blocks,
-                                                 sizeof(AtomicDict_Block *) *
-                                                 ((1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
-    if (blocks == NULL)
-        goto fail;
-
-    if (previous_blocks == NULL) {
-        blocks[0] = NULL;
-    } else if (greatest_allocated_block == (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-        blocks[greatest_allocated_block + 1] = NULL;
-    }
 
     AtomicDict_Meta *meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta);
     if (meta == NULL)
@@ -68,7 +39,6 @@ AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
     meta->size = 1UL << log_size;
     meta->generation = generation;
     meta->index = index;
-    meta->blocks = blocks;
     meta->is_compact = 1;
     meta->node_size = node_sizes.node_size;
     meta->distance_size = node_sizes.distance_size;
@@ -108,23 +78,130 @@ AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta)
             break;
     }
 
-    meta->inserting_block = inserting_block;
-    meta->greatest_allocated_block = greatest_allocated_block;
-    meta->greatest_deleted_block = greatest_deleted_block;
-    meta->greatest_refilled_block = greatest_refilled_block;
-
     meta->tombstone.distance = 0;
     meta->tombstone.index = 0;
     meta->tombstone.tag = 0;
     AtomicDict_ComputeRawNode(&meta->tombstone, meta);
+
+    meta->zero.distance = meta->max_distance;
+    meta->zero.index = 0;
+    meta->zero.tag = 0;
+    AtomicDict_ComputeRawNode(&meta->zero, meta);
+
+    meta->migration_leader = 0;
+    meta->copy_nodes_locks = NULL;
+
+    meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->new_metadata_ready == NULL)
+        goto fail;
+    meta->copy_nodes_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->copy_nodes_done == NULL)
+        goto fail;
+    meta->compaction_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->compaction_done == NULL)
+        goto fail;
+    meta->node_migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->node_migration_done == NULL)
+        goto fail;
+    meta->migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->migration_done == NULL)
+        goto fail;
 
     return meta;
     fail:
     Py_XDECREF(generation);
     Py_XDECREF(meta);
     PyMem_RawFree(index);
-    PyMem_RawFree(blocks);
     return NULL;
+}
+
+void
+AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
+{
+    memset(index, 0, meta->node_size / 8 * meta->size);
+}
+
+void
+AtomicDictMeta_CopyIndex(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+{
+    memcpy(to_meta->index, from_meta->index, from_meta->node_size / 8 * from_meta->size);
+}
+
+int
+AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
+{
+    AtomicDict_Block **blocks = NULL;
+    // here we're abusing virtual memory:
+    // the entire array will not necessarily be allocated to physical memory.
+    blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) * (meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+    if (blocks < 0)
+        goto fail;
+
+    blocks[0] = NULL;
+    meta->blocks = blocks;
+    meta->inserting_block = -1;
+    meta->greatest_allocated_block = -1;
+    meta->greatest_deleted_block = -1;
+    meta->greatest_refilled_block = -1;
+
+    fail:
+    return -1;
+}
+
+int
+AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+{
+    assert(from_meta != NULL);
+    assert(to_meta != NULL);
+    assert(from_meta->size <= to_meta->size);
+
+    AtomicDict_Block **previous_blocks = from_meta->blocks;
+    int64_t inserting_block = from_meta->inserting_block;
+    int64_t greatest_allocated_block = from_meta->greatest_allocated_block;
+    int64_t greatest_deleted_block = from_meta->greatest_deleted_block;
+    int64_t greatest_refilled_block = from_meta->greatest_refilled_block;
+
+
+    // here we're abusing virtual memory:
+    // the entire array will not necessarily be allocated to physical memory.
+    AtomicDict_Block **blocks = PyMem_RawRealloc(previous_blocks,
+                                                 sizeof(AtomicDict_Block *) *
+                                                 (to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+    if (blocks == NULL)
+        goto fail;
+
+    if (previous_blocks == NULL) {
+        blocks[0] = NULL;
+    } else if (greatest_allocated_block == to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+        blocks[greatest_allocated_block + 1] = NULL;
+    }
+
+    to_meta->blocks = blocks;
+
+    to_meta->inserting_block = inserting_block;
+    to_meta->greatest_allocated_block = greatest_allocated_block;
+    to_meta->greatest_deleted_block = greatest_deleted_block;
+    to_meta->greatest_refilled_block = greatest_refilled_block;
+
+    return 1;
+
+    fail:
+    return -1;
+}
+
+void
+AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+{
+    memcpy(
+        to_meta->blocks,
+        from_meta->blocks,
+        to_meta->greatest_refilled_block
+    );
+    memcpy(
+        &to_meta->blocks[to_meta->greatest_refilled_block],
+        from_meta->blocks[to_meta->greatest_deleted_block + 1],
+        to_meta->greatest_allocated_block - to_meta->greatest_deleted_block
+    );
 }
 
 void
@@ -133,5 +210,13 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
     // not gc tracked (?)
     PyMem_RawFree(self->index);
     Py_CLEAR(self->generation);
+    if (self->copy_nodes_locks != NULL) {
+        PyMem_RawFree(self->copy_nodes_locks);
+    }
+    Py_CLEAR(self->new_metadata_ready);
+    Py_CLEAR(self->copy_nodes_done);
+    Py_CLEAR(self->compaction_done);
+    Py_CLEAR(self->node_migration_done);
+    Py_CLEAR(self->migration_done);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }

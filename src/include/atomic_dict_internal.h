@@ -6,10 +6,11 @@
 #define CEREGGII_DEV_ATOMIC_DICT_INTERNAL_H
 
 #include "atomic_dict.h"
+#include "atomic_event.h"
 
 
 /// basic structs
-typedef struct {
+typedef struct AtomicDict_Entry {
     uint8_t flags;
     Py_hash_t hash;
     PyObject *key;
@@ -18,9 +19,9 @@ typedef struct {
 
 #define ENTRY_FLAGS_RESERVED    128
 #define ENTRY_FLAGS_TOMBSTONE   64
-#define ENTRY_FLAGS_SWAPPED    32
-// #define ENTRY_FLAGS_?    16
-// #define ENTRY_FLAGS_?    8
+#define ENTRY_FLAGS_SWAPPED     32
+#define ENTRY_FLAGS_COMPACTED   16
+#define ENTRY_FLAGS_LOCKED      8
 // #define ENTRY_FLAGS_?    4
 // #define ENTRY_FLAGS_?    2
 // #define ENTRY_FLAGS_?    1
@@ -97,10 +98,21 @@ struct AtomicDict_Meta {
     uint64_t shift_mask;
 
     AtomicDict_Node tombstone;
+    AtomicDict_Node zero;
 
     void (*read_nodes_in_region)(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
     void (*read_nodes_in_zone)(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
+
+    // migration
+    AtomicDict_Meta *new_gen_metadata;
+    uintptr_t migration_leader;
+    uint8_t *copy_nodes_locks;
+    AtomicEvent *new_metadata_ready;
+    AtomicEvent *copy_nodes_done;
+    AtomicEvent *compaction_done;
+    AtomicEvent *node_migration_done;
+    AtomicEvent *migration_done;
 };
 
 void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
@@ -114,7 +126,17 @@ static PyTypeObject AtomicDictMeta = {
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
-AtomicDict_Meta *AtomicDict_NewMeta(uint8_t log_size, AtomicDict_Meta *previous_meta);
+AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta);
+
+void AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta);
+
+void AtomicDictMeta_CopyIndex(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
+
+int AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta);
+
+int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
+
+void AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
 AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
 
@@ -181,6 +203,8 @@ void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_Buffer
 
 int AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
+int AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta);
+
 int AtomicDict_NodeIsReservation(AtomicDict_Node *node, AtomicDict_Meta *meta);
 
 int AtomicDict_NodeIsTombstone(AtomicDict_Node *node, AtomicDict_Meta *meta);
@@ -210,7 +234,18 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
 
-int AtomicDict_Migrate(AtomicDict *self, uint8_t from_log_size, uint8_t to_log_size);
+int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
+
+int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
+                             uint8_t from_log_size, uint8_t to_log_size);
+
+void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 
 /// reservation buffer (see ./reservation_buffer.c)
@@ -253,6 +288,44 @@ AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, Ato
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       int to_delete);
 
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta,
+                                                       uint64_t probe_head, uint64_t probe_length);
+
+void AtomicDict_RobinHoodCompact_LeftRightSort(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta,
+                                               uint64_t probe_head, uint64_t probe_length,
+                                               AtomicDict_BufferedNodeReader *reader_lx,
+                                               AtomicDict_BufferedNodeReader *reader_rx,
+                                               int (*should_go_left)(AtomicDict_Node *node, AtomicDict_Entry *entry,
+                                                                     AtomicDict_Meta *current_meta,
+                                                                     AtomicDict_Meta *new_meta));
+
+void AtomicDict_RobinHoodCompact_ReadLeftRight(AtomicDict_Meta *new_meta, uint64_t left, uint64_t right,
+                                               AtomicDict_Entry *left_entry, AtomicDict_Entry *right_entry,
+                                               AtomicDict_Entry **left_entry_p, AtomicDict_Entry **right_entry_p,
+                                               AtomicDict_Node *left_node, AtomicDict_Node *right_node,
+                                               AtomicDict_BufferedNodeReader *reader_lx,
+                                               AtomicDict_BufferedNodeReader *reader_rx);
+
+int AtomicDict_RobinHoodCompact_ShouldGoLeft(AtomicDict_Node *node, AtomicDict_Entry *entry,
+                                             AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict_Entry *_unused_entry,
+                                               AtomicDict_Meta *_unused_current_meta, AtomicDict_Meta *new_meta);
+
+void AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
+                                              AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length, uint64_t unmasked_hash,
+                                                   AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+uint64_t AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
+                                                            uint64_t unmasked_hash,
+                                                            AtomicDict_BufferedNodeReader *reader_lx,
+                                                            AtomicDict_BufferedNodeReader *reader_rx,
+                                                            AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+void AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_Node *a, AtomicDict_Node *b,
+                                                   AtomicDict_Meta *new_meta);
 
 /// semi-internal
 typedef struct AtomicDict_SearchResult {

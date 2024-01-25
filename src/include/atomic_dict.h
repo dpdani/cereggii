@@ -16,7 +16,6 @@ typedef struct {
     PyObject_HEAD
 
     AtomicRef *metadata;
-    AtomicRef *new_gen_metadata;
 
     uint8_t min_log_size;
 

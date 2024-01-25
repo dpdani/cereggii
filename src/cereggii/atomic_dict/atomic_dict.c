@@ -22,12 +22,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
             goto fail;
         AtomicRef_init(self->metadata, NULL, NULL);
 
-        self->new_gen_metadata = NULL;
-        self->new_gen_metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
-        if (self->new_gen_metadata == NULL)
-            goto fail;
-        AtomicRef_init(self->new_gen_metadata, NULL, NULL);
-
         self->reservation_buffer_size = 0;
         Py_tss_t *tss_key = NULL;
         tss_key = PyThread_tss_alloc();
@@ -47,7 +41,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 
     fail:
     Py_XDECREF(self->metadata);
-    Py_XDECREF(self->new_gen_metadata);
     Py_XDECREF(self->reservation_buffers);
     Py_XDECREF(self);
     return NULL;
@@ -57,7 +50,6 @@ int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
     assert(AtomicRef_Get(self->metadata) == Py_None);
-    assert(AtomicRef_Get(self->new_gen_metadata) == Py_None);
     int64_t init_dict_size = 0;
     int64_t min_size = 0;
     int64_t buffer_size = 4;
@@ -155,8 +147,11 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     create:
-    meta = AtomicDict_NewMeta(log_size, NULL);
+    meta = AtomicDictMeta_New(log_size, NULL);
     if (meta == NULL)
+        goto fail;
+    AtomicDictMeta_ClearIndex(meta);
+    if (AtomicDictMeta_InitBlocks(meta) < 0)
         goto fail;
     AtomicRef_Set(self->metadata, (PyObject *) meta);
 
@@ -217,7 +212,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             // => put them into this thread's reservation buffer
             entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
             entry_loc.location = pos + 1;
-            uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
+            uint8_t n = self->reservation_buffer_size - (uint8_t)(entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
                 AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
             }
@@ -269,7 +264,6 @@ AtomicDict_dealloc(AtomicDict *self)
     }
     Py_DECREF(meta); // decref for the above atomic_ref_get_ref
     Py_CLEAR(self->metadata);
-    Py_CLEAR(self->new_gen_metadata);
     Py_CLEAR(self->reservation_buffers);
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them anyway
@@ -283,7 +277,7 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    Py_VISIT(self->new_gen_metadata);
+    Py_VISIT(self->reservation_buffers);
     // traverse this dict's elements (iter XXX)
     return 0;
 }

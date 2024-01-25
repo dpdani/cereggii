@@ -293,15 +293,21 @@ AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_BufferedNod
 }
 
 
-int
+inline int
 AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     AtomicDict_ComputeRawNode(node, meta);
+    AtomicDict_WriteRawNodeAt(ix, node->node, meta);
+}
+
+inline int
+AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
+{
     uint64_t shift = ix & meta->shift_mask;
     uint64_t region = AtomicDict_RegionOf(ix, meta);
     uint64_t node_raw = meta->index[region];
     node_raw &= ~(meta->node_mask << (shift * meta->node_size));
-    node_raw |= node->node << (shift * meta->node_size);
+    node_raw |= raw_node << (shift * meta->node_size);
     meta->index[region] = node_raw;
 }
 
