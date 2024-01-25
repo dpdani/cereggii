@@ -4,6 +4,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "atomic_event.h"
 #include "atomic_int.h"
 #include "atomic_ref.h"
 #include "atomic_dict.h"
@@ -238,6 +239,27 @@ static PyTypeObject AtomicDict_Type = {
 };
 
 
+static PyMethodDef AtomicEvent_methods[] = {
+    {"wait", (PyCFunction) AtomicEvent_Wait_callable, METH_NOARGS, NULL},
+    {"set", (PyCFunction) AtomicEvent_Set_callable, METH_NOARGS, NULL},
+    {"is_set", (PyCFunction) AtomicEvent_IsSet_callable, METH_NOARGS, NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicEvent_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicEvent",
+    .tp_doc = PyDoc_STR("An atomic event based on pthread's condition locks."),
+    .tp_basicsize = sizeof(AtomicEvent),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = AtomicEvent_new,
+    .tp_dealloc = (destructor) AtomicEvent_dealloc,
+    .tp_init = (initproc) AtomicEvent_init,
+    .tp_methods = AtomicEvent_methods,
+};
+
+
 static PyModuleDef cereggii_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
@@ -251,6 +273,8 @@ PyInit__cereggii(void)
     PyObject *m;
 
     if (PyType_Ready(&AtomicDict_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
@@ -266,6 +290,12 @@ PyInit__cereggii(void)
     Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
         Py_DECREF(&AtomicDict_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicEvent_Type);
+    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
+        Py_DECREF(&AtomicEvent_Type);
         goto fail;
     }
 

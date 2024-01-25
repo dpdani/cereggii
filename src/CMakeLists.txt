@@ -30,6 +30,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/robin_hood.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
+        "cereggii/atomic_event.c"
         "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
