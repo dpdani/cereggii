@@ -30,10 +30,10 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
     if (index == NULL)
         goto fail;
 
-    AtomicDict_Meta *meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta);
+    AtomicDict_Meta *meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
-    PyObject_Init((PyObject *) meta, &AtomicDictMeta);
+    PyObject_Init((PyObject *) meta, &AtomicDictMeta_Type);
 
     meta->log_size = log_size;
     meta->size = 1UL << log_size;
@@ -88,6 +88,7 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
     meta->zero.tag = 0;
     AtomicDict_ComputeRawNode(&meta->zero, meta);
 
+    meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;
     meta->copy_nodes_locks = NULL;
 
@@ -118,7 +119,7 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
 void
 AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
 {
-    memset(index, 0, meta->node_size / 8 * meta->size);
+    memset(meta->index, 0, meta->node_size / 8 * meta->size);
 }
 
 void
@@ -143,6 +144,8 @@ AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
     meta->greatest_allocated_block = -1;
     meta->greatest_deleted_block = -1;
     meta->greatest_refilled_block = -1;
+
+    return 0;
 
     fail:
     return -1;
@@ -208,11 +211,17 @@ void
 AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 {
     // not gc tracked (?)
-    PyMem_RawFree(self->index);
-    Py_CLEAR(self->generation);
-    if (self->copy_nodes_locks != NULL) {
-        PyMem_RawFree(self->copy_nodes_locks);
+    uint64_t *index = self->index;
+    if (index != NULL) {
+        self->index = NULL;
+        PyMem_RawFree(index);
     }
+    uint8_t *copy_nodes_locks = self->copy_nodes_locks;
+    if (copy_nodes_locks != NULL) {
+        self->copy_nodes_locks = NULL;
+        PyMem_RawFree(copy_nodes_locks);
+    }
+    Py_CLEAR(self->generation);
     Py_CLEAR(self->new_metadata_ready);
     Py_CLEAR(self->copy_nodes_done);
     Py_CLEAR(self->compaction_done);

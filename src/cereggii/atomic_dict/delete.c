@@ -18,15 +18,18 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     if (result.entry_p == NULL)
         goto not_found;
 
-    do {
+    while (!CereggiiAtomic_CompareExchangePtr((void **) &result.entry_p->value,
+                                                result.entry.value,
+                                                NULL)) {
         AtomicDict_ReadEntry(result.entry_p, &result.entry);
 
         if (result.entry.value == NULL)
             goto not_found;
+    }
 
-    } while (!CereggiiAtomic_CompareExchangePtr((void **) &result.entry_p->value,
-                                                result.entry.value,
-                                                NULL));
+    Py_CLEAR(result.entry_p->key);
+    Py_DECREF(result.entry.value);
+    result.entry.value = NULL;
 
     do {
         if (CereggiiAtomic_CompareExchangeUInt8(

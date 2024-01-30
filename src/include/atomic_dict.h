@@ -12,7 +12,7 @@
 #include "atomic_ref.h"
 
 
-typedef struct {
+typedef struct AtomicDict {
     PyObject_HEAD
 
     AtomicRef *metadata;

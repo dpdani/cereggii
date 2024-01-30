@@ -20,10 +20,32 @@ AtomicDict_NewBlock(AtomicDict_Meta *meta)
     if (new == NULL)
         return NULL;
 
+    Py_INCREF(meta->generation);
     new->generation = meta->generation;
     memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
 
     return new;
+}
+
+void
+AtomicDict_FreeBlock(AtomicDict_Meta *meta, uint64_t block_i)
+{
+    AtomicDict_Block *block_ptr = meta->blocks[block_i];
+    meta->blocks[block_i] = NULL;
+
+    Py_DECREF(block_ptr->generation);
+
+    for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        AtomicDict_Entry entry = block_ptr->entries[i];
+
+        if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+            continue;
+
+        Py_XDECREF(entry.key);
+        Py_XDECREF(entry.value);
+    }
+
+    PyMem_RawFree(block_ptr);
 }
 
 
@@ -131,7 +153,7 @@ AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
     if (entry->value == NULL || entry->flags & ENTRY_FLAGS_TOMBSTONE || entry->flags & ENTRY_FLAGS_SWAPPED) {
         entry->key = NULL;
         entry->value = NULL;
-        entry->hash = 0;
+        entry->hash = -1;
         return;
     }
     entry->key = entry_p->key;

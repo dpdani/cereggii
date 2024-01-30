@@ -26,10 +26,12 @@ AtomicEvent_init(AtomicEvent *self, PyObject *Py_UNUSED(args), PyObject *Py_UNUS
 }
 
 void
-AtomicEvent_dealloc(AtomicEvent *lock)
+AtomicEvent_dealloc(AtomicEvent *self)
 {
-    pthread_mutex_destroy(&lock->mutex);
-    pthread_cond_destroy(&lock->cond);
+    pthread_mutex_destroy(&self->mutex);
+    pthread_cond_destroy(&self->cond);
+
+    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 void

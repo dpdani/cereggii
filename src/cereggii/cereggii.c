@@ -8,6 +8,7 @@
 #include "atomic_int.h"
 #include "atomic_ref.h"
 #include "atomic_dict.h"
+#include "atomic_dict_internal.h"
 
 
 static PyMethodDef AtomicInt_methods[] = {
@@ -238,6 +239,26 @@ static PyTypeObject AtomicDict_Type = {
     .tp_as_mapping = &AtomicDict_mapping_methods,
 };
 
+PyTypeObject AtomicDictMeta_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictMeta",
+    .tp_basicsize = sizeof(AtomicDict_Meta),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
+};
+
+PyTypeObject AtomicDictReservationBuffer_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictReservationBuffer",
+    .tp_basicsize = sizeof(AtomicDict_ReservationBuffer),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDict_ReservationBuffer_dealloc,
+};
+
 
 static PyMethodDef AtomicEvent_methods[] = {
     {"wait", (PyCFunction) AtomicEvent_Wait_callable, METH_NOARGS, NULL},
@@ -273,6 +294,10 @@ PyInit__cereggii(void)
     PyObject *m;
 
     if (PyType_Ready(&AtomicDict_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictReservationBuffer_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;

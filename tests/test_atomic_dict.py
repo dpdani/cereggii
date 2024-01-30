@@ -270,21 +270,14 @@ def test_delete():
         del d["flower"]
 
     d = AtomicDict({_: None for _ in range(15)})
+    assert d.debug()["blocks"][0]["entries"][14]  # exists
     del d[14]
     with raises(KeyError):
         d[14]
     debug = d.debug()
     assert debug["index"][14] == 0
-    entry = debug["blocks"][0]["entries"][14]
-    entry = {
-        "flags": entry[0],
-        "hash": entry[1],
-        "key": entry[2],
-        "value": entry[3],
-    }
-    assert entry["key"] == 14
-    assert entry["flags"] == 192  # == TOMBSTONE | RESERVED
-    assert entry["value"] == KeyError
+    with raises(IndexError):
+        debug["blocks"][0]["entries"][14]
 
     d = AtomicDict({_: None for _ in range(16)})
     del d[14]
@@ -411,3 +404,24 @@ def test_delete_concurrent():
         d["flower"]
 
     assert key_error_1 or key_error_2
+
+
+def test_memory_leak():
+    import tracemalloc
+
+    tracemalloc.start()
+
+    for _ in range(100):
+        AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
+
+    snap = tracemalloc.take_snapshot()
+    tracemalloc.stop()
+
+    snap = snap.statistics('traceback')
+    statistics = []
+    for stat in snap:
+        tb = stat.traceback[-1]
+        if tb.filename == __file__:
+            statistics.append(stat)
+
+    assert len(statistics) == 0

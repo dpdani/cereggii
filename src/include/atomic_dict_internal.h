@@ -117,14 +117,7 @@ struct AtomicDict_Meta {
 
 void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 
-static PyTypeObject AtomicDictMeta = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._atomic_dict_meta",
-    .tp_basicsize = sizeof(AtomicDict_Meta),
-    .tp_itemsize = 0,
-    .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
-};
+extern PyTypeObject AtomicDictMeta_Type;
 
 AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta);
 
@@ -139,6 +132,8 @@ int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_me
 void AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
 AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
+
+void AtomicDict_FreeBlock(AtomicDict_Meta *meta, uint64_t block_i);
 
 uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
 
@@ -251,21 +246,19 @@ int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 /// reservation buffer (see ./reservation_buffer.c)
 #define RESERVATION_BUFFER_SIZE 64
 
-typedef struct {
+typedef struct AtomicDict_ReservationBuffer {
     PyObject_HEAD
 
     int head, tail, count;
     AtomicDict_EntryLoc reservations[RESERVATION_BUFFER_SIZE];
 } AtomicDict_ReservationBuffer;
 
-static PyTypeObject AtomicDictReservationBuffer = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_basicsize = sizeof(AtomicDict_ReservationBuffer),
-    .tp_itemsize = 0,
-    .tp_new = PyType_GenericNew,
-};
+
+extern PyTypeObject AtomicDictReservationBuffer_Type;
 
 AtomicDict_ReservationBuffer *AtomicDict_GetReservationBuffer(AtomicDict *dk);
+
+void AtomicDict_ReservationBuffer_dealloc(AtomicDict_ReservationBuffer *self);
 
 void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n);
 

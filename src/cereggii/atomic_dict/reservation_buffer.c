@@ -12,7 +12,7 @@ AtomicDict_GetReservationBuffer(AtomicDict *dk)
     assert(dk->tss_key != NULL);
     AtomicDict_ReservationBuffer *rb = PyThread_tss_get(dk->tss_key);
     if (rb == NULL) {
-        rb = PyObject_New(AtomicDict_ReservationBuffer, &AtomicDictReservationBuffer);
+        rb = PyObject_New(AtomicDict_ReservationBuffer, &AtomicDictReservationBuffer_Type);
         if (rb == NULL)
             return NULL;
 
@@ -26,6 +26,7 @@ AtomicDict_GetReservationBuffer(AtomicDict *dk)
         int appended = PyList_Append(dk->reservation_buffers, (PyObject *) rb);
         if (appended == -1)
             goto fail;
+        Py_DECREF(rb);
 
         memset(rb->reservations, 0, sizeof(AtomicDict_EntryLoc) * RESERVATION_BUFFER_SIZE);
     }
@@ -33,8 +34,14 @@ AtomicDict_GetReservationBuffer(AtomicDict *dk)
     return rb;
     fail:
     assert(rb != NULL);
-    PyMem_Free(rb);
+    Py_DECREF(rb);
     return NULL;
+}
+
+void
+AtomicDict_ReservationBuffer_dealloc(AtomicDict_ReservationBuffer *self)
+{
+    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 /**

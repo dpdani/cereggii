@@ -87,7 +87,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
                 buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
                 buffer_size != 64) {
-                PyErr_SetString(PyExc_ValueError, "buffer_size not in [1, 2, 4, 8, 16, 32, 64]");
+                PyErr_SetString(PyExc_ValueError, "buffer_size not in (1, 2, 4, 8, 16, 32, 64)");
                 return -1;
             }
         }
@@ -147,6 +147,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     create:
+    meta = NULL;
     meta = AtomicDictMeta_New(log_size, NULL);
     if (meta == NULL)
         goto fail;
@@ -212,7 +213,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             // => put them into this thread's reservation buffer
             entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
             entry_loc.location = pos + 1;
-            uint8_t n = self->reservation_buffer_size - (uint8_t)(entry_loc.location % self->reservation_buffer_size);
+            uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
             if (n > 0) {
                 AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
             }
@@ -246,6 +247,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     Py_XDECREF(init_dict);
+    Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
     return 0;
     fail:
     Py_XDECREF(meta);
@@ -257,19 +259,30 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
+
     AtomicDict_Meta *meta = NULL;
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+
     if ((PyObject *) meta != Py_None) {
-        PyMem_RawFree(meta->blocks);
+        for (uint64_t block_i = 0; block_i <= meta->greatest_allocated_block; block_i++) {
+            if (meta->greatest_refilled_block < block_i && block_i <= meta->greatest_deleted_block)
+                continue;
+
+            AtomicDict_FreeBlock(meta, block_i);
+        }
+        AtomicDict_Block **blocks_ptr = meta->blocks;
+        meta->blocks = NULL;
+        PyMem_RawFree(blocks_ptr);
     }
-    Py_DECREF(meta); // decref for the above atomic_ref_get_ref
+
+    Py_DECREF(meta); // decref for the above AtomicRef_Get
     Py_CLEAR(self->metadata);
     Py_CLEAR(self->reservation_buffers);
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them anyway
     PyThread_tss_delete(self->tss_key);
     PyThread_tss_free(self->tss_key);
-    // clear this dict's elements (iter XXX)
+
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
