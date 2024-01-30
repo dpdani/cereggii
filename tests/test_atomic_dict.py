@@ -417,7 +417,7 @@ def test_memory_leak():
     snap = tracemalloc.take_snapshot()
     tracemalloc.stop()
 
-    snap = snap.statistics('traceback')
+    snap = snap.statistics("traceback")
     statistics = []
     for stat in snap:
         tb = stat.traceback[-1]
