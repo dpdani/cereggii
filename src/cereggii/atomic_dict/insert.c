@@ -78,8 +78,7 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *met
             AtomicDict_RobinHoodResult rh = AtomicDict_RobinHoodInsert(meta, temp, &node, reader->idx_in_buffer);
 
             if (rh == grow) {
-                AtomicDict_Grow(self);
-                return inserted;
+                return must_grow;
             }
 
             assert(rh == ok);
@@ -135,7 +134,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     if (close_to_0 == error) {
         goto error;
     }
-    if (close_to_0 == inserted || close_to_0 == updated) {
+    if (close_to_0 == inserted || close_to_0 == updated || close_to_0 == must_grow) {
         return close_to_0;
     }
 
@@ -166,8 +165,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
 
     // looped over the entire index without finding an emtpy slot
     AtomicDict_Grow(self);
-    // return inserted; // linearization point is inside grow()
-    goto error;
+    return inserted; // linearization point is inside grow()
 
     tail_found:
     reservation.index = entry_loc->location;
@@ -198,17 +196,22 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     assert(key != NULL);
     assert(value != NULL);
 
+    Py_INCREF(key);
+    Py_INCREF(value);
+
+    AtomicDict_Meta *meta = NULL;
+
     Py_hash_t hash = PyObject_Hash(key);
-    if (hash == -1) {
-        return -1;
-    }
+    if (hash == -1)
+        goto fail;
 
     AtomicDict_ReservationBuffer *rb = NULL;
     rb = AtomicDict_GetReservationBuffer(self);
     if (rb == NULL)
         goto fail;
 
-    AtomicDict_Meta *meta = NULL;
+
+    beginning:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     AtomicDict_EntryLoc entry_loc;
@@ -216,8 +219,6 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (entry_loc.entry == NULL)
         goto fail;
 
-    Py_INCREF(key);
-    Py_INCREF(value);
     entry_loc.entry->key = key;
     entry_loc.entry->hash = hash;
     entry_loc.entry->value = value;
@@ -233,6 +234,12 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     }
     if (result == error) {
         goto fail;
+    }
+
+    if (result == must_grow) {
+        AtomicDict_Grow(self);
+        Py_DECREF(meta);
+        goto beginning;
     }
 
     Py_DECREF(meta);

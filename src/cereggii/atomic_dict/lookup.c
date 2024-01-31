@@ -141,10 +141,11 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
         goto beginning;
     }
     result->error = 0;
-    result->position = 0;
+    result->found = 0;
     return;
     found:
     result->error = 0;
+    result->found = 1;
     result->position = ix + probe + reservations;
     result->node = reader.node;
 }

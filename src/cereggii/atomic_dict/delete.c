@@ -54,7 +54,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     do {
         AtomicDict_LookupEntry(meta, entry_ix, hash, &result);
         assert(!result.error);
-        assert(result.position != 0);
+        assert(result.found);
         _ = 0;
         reader.zone = -1;
         AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, (AtomicDict_BufferedNodeReader *) &reader, meta);

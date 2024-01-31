@@ -322,7 +322,7 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     };
     uint64_t ix = AtomicDict_Distance0Of(hash, meta);
 
-    for (int probe = 0; probe < (1 << meta->distance_size); probe++) {
+    for (int probe = 0; probe < meta->max_distance; probe++) {
         AtomicDict_ReadNodeAt(ix + probe, &temp, meta);
 
         if (temp.node == 0) {
@@ -334,20 +334,10 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
         if (temp.distance < probe) {
             // non-atomic robin hood
             node.distance = probe;
-            uint64_t i = ix + probe;
-            AtomicDict_WriteNodeAt(i, &node, meta);
+            AtomicDict_WriteNodeAt(ix + probe, &node, meta);
+            ix -= temp.distance;
+            probe = temp.distance;
             node = temp;
-            i++;
-            while (temp.node != 0) { // until first empty slot
-                AtomicDict_ReadNodeAt(i, &temp, meta);
-                if (node.distance > temp.distance) {
-                    AtomicDict_WriteNodeAt(i, &node, meta);
-                    node = temp;
-                }
-                i++;
-            }
-            AtomicDict_WriteNodeAt(i, &temp, meta);
-            goto done;
         }
     }
     // probes exhausted
@@ -376,6 +366,7 @@ AtomicDict_Debug(AtomicDict *self)
                                        "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
                                        "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
                                        "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
+                                       "is_compact\0", Py_BuildValue("B", meta->is_compact),
                                        "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
                                        "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
                                        "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
@@ -418,7 +409,9 @@ AtomicDict_Debug(AtomicDict *self)
                 if (value == NULL) {
                     value = PyExc_KeyError;
                 }
-                entry_tuple = Py_BuildValue("(BlOO)",
+                uint64_t entry_ix = (i << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + j;
+                entry_tuple = Py_BuildValue("(kBlOO)",
+                                            entry_ix,
                                             block->entries[j].flags,
                                             block->entries[j].hash,
                                             key,

@@ -363,7 +363,7 @@ def test_delete_with_swap():
     debug = d.debug()
     assert debug["index"][64] == 0
     assert debug["index"][0] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
-    assert debug["blocks"][1]["entries"][1] == (128, 0, 0, None)  # entry 65
+    assert debug["blocks"][1]["entries"][1] == (65, 128, 0, 0, None)
 
 
 def test_delete_concurrent():
@@ -425,3 +425,15 @@ def test_memory_leak():
             statistics.append(stat)
 
     assert len(statistics) == 0
+
+
+def test_grow():
+    d = AtomicDict({0: None, 1: None, 64: None, 65: None})
+    assert d.debug()["meta"]["log_size"] == 6
+    d[128] = None
+    assert d.debug()["meta"]["log_size"] == 7
+    assert d[0] is None
+    assert d[1] is None
+    assert d[64] is None
+    assert d[65] is None
+    assert d[128] is None

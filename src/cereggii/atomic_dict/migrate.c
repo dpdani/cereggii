@@ -97,10 +97,12 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         AtomicDictMeta_ClearIndex(new_meta);
 
         assert(current_meta->copy_nodes_locks == NULL);
-        current_meta->copy_nodes_locks = PyMem_RawMalloc(new_meta->size >> 6);  // freed in AtomicDictMeta_dealloc
+        current_meta->copy_nodes_locks = PyMem_RawMalloc(current_meta->size >> 6);  // freed in AtomicDictMeta_dealloc
 
         if (current_meta->copy_nodes_locks == NULL)
             goto fail;
+
+        memset(current_meta->copy_nodes_locks, 0, current_meta->size >> 6);
     }
 
     // blocks
@@ -187,9 +189,6 @@ AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     for (copy_lock = 0; copy_lock < current_meta->size >> 6; ++copy_lock) {
         uint64_t lock = (copy_lock + tid) % (current_meta->size >> 6);
 
-        if (lock != 0)
-            continue;
-
         int locked = CereggiiAtomic_CompareExchangeUInt8(&current_meta->copy_nodes_locks[lock], 0, 1);
         if (!locked)
             continue;
@@ -234,19 +233,15 @@ AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_me
             continue;
 
         uint64_t length = 0;
-        int to_compact = 0;
         while (reader.node.node != 0) {
             length++;
-
-            if (AtomicDict_NodeIsReservation(&reader.node, new_meta))
-                to_compact = 1;
 
             AtomicDict_ReadNodesFromZoneIntoBuffer(head + length, &reader, new_meta);
         }
 
         i += length;
 
-        if (length == 1 || !to_compact)
+        if (length == 1)
             continue;
 
         AtomicDict_Entry *entry_p, entry;
@@ -276,17 +271,12 @@ int
 AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     uint64_t tid = _Py_ThreadId();
-    uint64_t unmasked_hash = UINT64_MAX;
-    if (current_meta->size < new_meta->size) {
-        assert(current_meta->log_size + 1 == new_meta->log_size);
-        unmasked_hash = current_meta->size;
-    }
 
     uint64_t block_i;
     AtomicDict_Block *block;
 
-    for (uint64_t i = 0; i < new_meta->greatest_allocated_block; ++i) {
-        block_i = (i + tid) % new_meta->greatest_allocated_block;
+    for (uint64_t i = 0; i <= new_meta->greatest_allocated_block; ++i) {
+        block_i = (i + tid) % (new_meta->greatest_allocated_block + 1);
 
         if (new_meta->greatest_refilled_block < block_i && block_i <= new_meta->greatest_deleted_block)
             continue;
@@ -319,27 +309,29 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
                 ) {
                 AtomicDict_LookupEntry(new_meta, (block_i << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + entry_i,
                                        entry.hash, &sr);
-                nodes[entry_i].distance = sr.node.distance;
-                nodes[entry_i].index = sr.node.index;
-                nodes[entry_i].tag = entry.hash;
-                positions[entry_i] = sr.position;
-                if (entry.flags & ENTRY_FLAGS_COMPACTED) {
-                    CereggiiAtomic_CompareExchangeUInt8(&block->entries[entry_i].flags,
-                                                        entry.flags,
-                                                        entry.flags & ~ENTRY_FLAGS_COMPACTED & ~ENTRY_FLAGS_LOCKED);
+                if (sr.found) {
+                    nodes[entry_i].distance = sr.node.distance;
+                    nodes[entry_i].index = sr.node.index;
+                    nodes[entry_i].tag = entry.hash;
+                    positions[entry_i] = sr.position;
+                    if (entry.flags & ENTRY_FLAGS_COMPACTED) {
+                        block->entries[entry_i].flags &= ~ENTRY_FLAGS_COMPACTED;
+                        block->entries[entry_i].flags &= ~ENTRY_FLAGS_LOCKED;
+                    }
+                } else {
+                    nodes[entry_i].index = 0;
                 }
             } else {
-                positions[entry_i] = 0;
+                nodes[entry_i].index = 0;
             }
         }
 
         for (entry_i = 0; entry_i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++entry_i) {
-            if (positions[entry_i] != 0 && unmasked_hash & nodes[entry_i].tag) {
+            if (nodes[entry_i].index != 0) {
                 uint64_t ix = AtomicDict_Distance0Of((Py_hash_t) nodes[entry_i].tag, new_meta)
                               + nodes[entry_i].distance;
 
-                AtomicDict_WriteNodeAt(ix + current_meta->size, &nodes[entry_i], new_meta);
-                AtomicDict_WriteRawNodeAt(positions[entry_i], new_meta->zero.node, new_meta);
+                AtomicDict_WriteNodeAt(ix, &nodes[entry_i], new_meta);
             }
         }
 

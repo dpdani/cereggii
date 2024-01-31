@@ -54,7 +54,7 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
     meta->node_mask = (1UL << node_sizes.node_size) - 1;
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
-    meta->tag_mask = (1UL << node_sizes.tag_size) - 1;
+    meta->tag_mask = (Py_hash_t) (1UL << node_sizes.tag_size) - 1;
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
@@ -175,7 +175,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 
     if (previous_blocks == NULL) {
         blocks[0] = NULL;
-    } else if (greatest_allocated_block == to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+    } else if (greatest_allocated_block == from_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
         blocks[greatest_allocated_block + 1] = NULL;
     }
 

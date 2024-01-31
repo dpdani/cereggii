@@ -94,7 +94,7 @@ struct AtomicDict_Meta {
     uint64_t node_mask;
     uint64_t index_mask;
     uint64_t distance_mask;
-    uint64_t tag_mask;
+    Py_hash_t tag_mask;
     uint64_t shift_mask;
 
     AtomicDict_Node tombstone;
@@ -217,6 +217,7 @@ typedef enum AtomicDict_InsertedOrUpdated {
     updated,
     nop,
     retry,
+    must_grow,
 } AtomicDict_InsertedOrUpdated;
 
 AtomicDict_InsertedOrUpdated
@@ -295,7 +296,6 @@ void AtomicDict_RobinHoodCompact_LeftRightSort(AtomicDict_Meta *current_meta, At
 void AtomicDict_RobinHoodCompact_ReadLeftRight(AtomicDict_Meta *new_meta, uint64_t left, uint64_t right,
                                                AtomicDict_Entry *left_entry, AtomicDict_Entry *right_entry,
                                                AtomicDict_Entry **left_entry_p, AtomicDict_Entry **right_entry_p,
-                                               AtomicDict_Node *left_node, AtomicDict_Node *right_node,
                                                AtomicDict_BufferedNodeReader *reader_lx,
                                                AtomicDict_BufferedNodeReader *reader_rx);
 
@@ -308,11 +308,11 @@ int AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict
 void AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
                                               AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length, uint64_t unmasked_hash,
+void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length, uint64_t hash_mask,
                                                    AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 uint64_t AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
-                                                            uint64_t unmasked_hash,
+                                                            uint64_t hash_mask,
                                                             AtomicDict_BufferedNodeReader *reader_lx,
                                                             AtomicDict_BufferedNodeReader *reader_rx,
                                                             AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
@@ -323,6 +323,7 @@ void AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b,
 /// semi-internal
 typedef struct AtomicDict_SearchResult {
     int error;
+    int found;
     uint64_t position;
     AtomicDict_Node node;
     AtomicDict_Entry *entry_p;
