@@ -432,8 +432,13 @@ def test_grow():
     assert d.debug()["meta"]["log_size"] == 6
     d[128] = None
     assert d.debug()["meta"]["log_size"] == 7
-    assert d[0] is None
-    assert d[1] is None
-    assert d[64] is None
-    assert d[65] is None
-    assert d[128] is None
+    for _ in [0, 1, 64, 65, 128]:
+        assert d[_] is None
+
+    d = AtomicDict({_: None for _ in range(63)})
+    assert d.debug()["meta"]["log_size"] == 6
+    breakpoint()
+    d[128] = None
+    assert d.debug()["meta"]["log_size"] == 7
+    for _ in [*range(63), 128]:
+        assert d[_] is None

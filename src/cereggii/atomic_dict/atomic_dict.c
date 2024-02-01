@@ -211,11 +211,23 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
-            entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
-            entry_loc.location = pos + 1;
-            uint8_t n = self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
-            if (n > 0) {
-                AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
+            if (AtomicDict_BlockOf(pos + 1) <= meta->greatest_allocated_block) {
+                entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
+                entry_loc.location = pos + 1;
+
+                uint8_t n =
+                    self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
+                assert(n <= ATOMIC_DICT_ENTRIES_IN_BLOCK);
+                while (AtomicDict_BlockOf(pos + n) > meta->greatest_allocated_block) {
+                    n--;
+
+                    if (n == 0)
+                        break;
+                }
+
+                if (n > 0) {
+                    AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
+                }
             }
         }
     }
@@ -268,7 +280,7 @@ AtomicDict_dealloc(AtomicDict *self)
             if (meta->greatest_refilled_block < block_i && block_i <= meta->greatest_deleted_block)
                 continue;
 
-            AtomicDict_FreeBlock(meta, block_i);
+            AtomicDict_FreeBlockInMeta(meta, block_i);
         }
         AtomicDict_Block **blocks_ptr = meta->blocks;
         meta->blocks = NULL;

@@ -164,8 +164,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     }
 
     // looped over the entire index without finding an emtpy slot
-    AtomicDict_Grow(self);
-    return inserted; // linearization point is inside grow()
+    return must_grow;
 
     tail_found:
     reservation.index = entry_loc->location;
@@ -215,9 +214,14 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     AtomicDict_EntryLoc entry_loc;
-    AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
-    if (entry_loc.entry == NULL)
+    int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
+    if (entry_loc.entry == NULL || got_entry == -1)
         goto fail;
+    if (got_entry == 0) {  // => must grow
+        AtomicDict_Grow(self);
+        Py_DECREF(meta);
+        goto beginning;
+    }
 
     entry_loc.entry->key = key;
     entry_loc.entry->hash = hash;

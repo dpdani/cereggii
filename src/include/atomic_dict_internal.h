@@ -26,7 +26,7 @@ typedef struct AtomicDict_Entry {
 // #define ENTRY_FLAGS_?    2
 // #define ENTRY_FLAGS_?    1
 
-typedef struct {
+typedef struct AtomicDict_EntryLoc {
     AtomicDict_Entry *entry;
     uint64_t location;
 } AtomicDict_EntryLoc;
@@ -133,7 +133,9 @@ void AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to
 
 AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
 
-void AtomicDict_FreeBlock(AtomicDict_Meta *meta, uint64_t block_i);
+void AtomicDict_FreeBlock(AtomicDict_Block *block_ptr);
+
+void AtomicDict_FreeBlockInMeta(AtomicDict_Meta *meta, uint64_t block_i);
 
 uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
 
@@ -265,7 +267,7 @@ void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDic
 
 void AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc);
 
-void AtomicDict_GetEmptyEntry(AtomicDict *dk, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+int AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
                               AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
 
 
