@@ -62,7 +62,6 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 {
     AtomicDict_ReservationBufferPop(rb, entry_loc);
 
-    beginning:
     if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1) & ~(self->reservation_buffer_size - 1);
         int64_t inserting_block;
@@ -75,7 +74,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                 ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
             if (entry_loc->entry->flags == 0) {
                 if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
-                    entry_loc->location = insert_position + offset;
+                    entry_loc->location = (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + insert_position + offset;
                     AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;

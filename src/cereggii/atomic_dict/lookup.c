@@ -102,7 +102,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     reader.zone = -1;
 
     for (probe = 0; probe < meta->size; probe++) {
-        AtomicDict_ReadNodesFromZoneIntoBuffer(ix + probe + reservations, &reader, meta);
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix + probe + reservations, &reader, meta);
 
         if (AtomicDict_NodeIsTombstone(&reader.node, meta)) {
             probe--;

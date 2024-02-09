@@ -20,17 +20,23 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
         return NULL;
     }
 
+    PyObject *generation = NULL;
+    uint64_t *index = NULL;
+    AtomicDict_Meta *meta = NULL;
+
     AtomicDict_NodeSizeInfo node_sizes = AtomicDict_NodeSizesTable[log_size];
 
-    PyObject *generation = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    generation = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
     if (generation == NULL)
         goto fail;
 
-    uint64_t *index = PyMem_RawMalloc(node_sizes.node_size / 8 * (1 << log_size));
+    uint64_t index_size = node_sizes.node_size / 8;
+    index_size *= (uint64_t) 1 << log_size;
+    index = PyMem_RawMalloc(index_size);
     if (index == NULL)
         goto fail;
 
-    AtomicDict_Meta *meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
+    meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
     PyObject_Init((PyObject *) meta, &AtomicDictMeta_Type);
@@ -125,7 +131,7 @@ AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
 void
 AtomicDictMeta_CopyIndex(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 {
-    memcpy(to_meta->index, from_meta->index, from_meta->node_size / 8 * from_meta->size);
+    memcpy(&to_meta->index[0], &from_meta->index[0], (from_meta->node_size / 8) * from_meta->size);
 }
 
 int
@@ -193,18 +199,42 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 }
 
 void
-AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 {
-    memcpy(
-        to_meta->blocks,
-        from_meta->blocks,
-        to_meta->greatest_refilled_block
-    );
-    memcpy(
-        &to_meta->blocks[to_meta->greatest_refilled_block],
-        from_meta->blocks[to_meta->greatest_deleted_block + 1],
-        to_meta->greatest_allocated_block - to_meta->greatest_deleted_block
-    );
+    to_meta->blocks[0] = from_meta->blocks[0];  // entry 0 must be kept
+
+    int64_t block_j = 1;
+    for (int64_t block_i = 1; block_i <= from_meta->greatest_allocated_block; ++block_i) {
+        if (from_meta->greatest_refilled_block < block_i && block_i <= from_meta->greatest_deleted_block)
+            continue;
+
+        to_meta->blocks[block_j] = from_meta->blocks[block_i];
+
+        for (Py_ssize_t i = 0; i < PyList_Size(self->reservation_buffers); ++i) {
+            AtomicDict_ReservationBuffer *rb = (AtomicDict_ReservationBuffer *)
+                PyList_GetItem(self->reservation_buffers, i);  // will be FetchItem, with proper critical section
+
+            AtomicDict_UpdateBlocksInReservationBuffer(rb, block_i, block_j);
+        }
+
+        block_j++;
+    }
+    block_j--;
+
+    to_meta->inserting_block = block_j;
+    to_meta->greatest_allocated_block = block_j;
+
+    if (from_meta->greatest_refilled_block > 0) {
+        to_meta->greatest_refilled_block = 0;
+    } else {
+        to_meta->greatest_refilled_block = -1;
+    }
+
+    if (from_meta->greatest_deleted_block > 0) {
+        to_meta->greatest_deleted_block = 0;
+    } else {
+        to_meta->greatest_deleted_block = -1;
+    }
 }
 
 void

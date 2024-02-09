@@ -270,10 +270,11 @@ inline void
 AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader, AtomicDict_Meta *meta)
 {
     idx &= (int64_t) (meta->size - 1);
+    uint64_t zone = AtomicDict_ZoneOf(idx, meta);
 
-    if (reader->zone != AtomicDict_ZoneOf(idx, meta)) {
+    if (reader->zone != zone) {
         meta->read_nodes_in_zone(idx, reader->buffer, meta);
-        reader->zone = (int64_t) AtomicDict_ZoneOf(idx, meta);
+        reader->zone = (int64_t) zone;
         reader->nodes_offset = (int) -(idx % meta->nodes_in_zone);
     }
 
@@ -362,7 +363,8 @@ AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected, Ato
     int must_write_nodes = must_write / (meta->node_size / 8);
     for (; i < must_write_nodes; ++i) {
         node = expected[i].node;
-        node <<= meta->node_size * (meta->node_size - i - 1);
+        node <<= meta->node_size * i;
+        expected_raw |= node;
         desired_raw |= node;
     }
 

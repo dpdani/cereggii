@@ -93,3 +93,20 @@ AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_Ent
 
     assert(rb->count >= 0);
 }
+
+void
+AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_block, uint64_t to_block)
+{
+    for (int i = 0; i < rb->count; ++i) {
+        AtomicDict_EntryLoc *entry = &rb->reservations[(rb->tail + i) % RESERVATION_BUFFER_SIZE];
+
+        if (entry == NULL)
+            continue;
+
+        if (AtomicDict_BlockOf(entry->location) == from_block) {
+            entry->location =
+                AtomicDict_PositionInBlockOf(entry->location) +
+                (to_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+        }
+    }
+}

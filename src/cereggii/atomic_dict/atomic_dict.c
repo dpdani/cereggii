@@ -276,7 +276,7 @@ AtomicDict_dealloc(AtomicDict *self)
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     if ((PyObject *) meta != Py_None) {
-        for (uint64_t block_i = 0; block_i <= meta->greatest_allocated_block; block_i++) {
+        for (int64_t block_i = 0; block_i <= meta->greatest_allocated_block; block_i++) {
             if (meta->greatest_refilled_block < block_i && block_i <= meta->greatest_deleted_block)
                 continue;
 

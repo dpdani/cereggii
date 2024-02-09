@@ -213,7 +213,7 @@ PyTypeObject AtomicRef_Type = {
 
 static PyMethodDef AtomicDict_methods[] = {
     {"debug",   (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"compact", (PyCFunction) AtomicDict_Compact,                 METH_NOARGS, NULL},
+    {"compact", (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",     (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
@@ -261,8 +261,8 @@ PyTypeObject AtomicDictReservationBuffer_Type = {
 
 
 static PyMethodDef AtomicEvent_methods[] = {
-    {"wait", (PyCFunction) AtomicEvent_Wait_callable, METH_NOARGS, NULL},
-    {"set", (PyCFunction) AtomicEvent_Set_callable, METH_NOARGS, NULL},
+    {"wait",   (PyCFunction) AtomicEvent_Wait_callable,  METH_NOARGS, NULL},
+    {"set",    (PyCFunction) AtomicEvent_Set_callable,   METH_NOARGS, NULL},
     {"is_set", (PyCFunction) AtomicEvent_IsSet_callable, METH_NOARGS, NULL},
     {NULL}
 };

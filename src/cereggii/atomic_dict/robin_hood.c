@@ -95,9 +95,11 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
                             uint64_t probe_length)
 {
     assert(probe_length >= 2);
-    assert(current_meta->log_size + 1 == new_meta->log_size);
 
-    uint64_t unmasked_hash = current_meta->size;
+    uint64_t unmasked_hash = 0;
+    if (current_meta->log_size < new_meta->log_size) {
+        unmasked_hash = current_meta->size;
+    }
 
     uint64_t nodes_left = 0, nodes_right = 0;
 
@@ -109,7 +111,7 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     reader.zone = reader_rx.zone = -1;
 
-    for (uint64_t i = probe_head; i < probe_length; ++i) {
+    for (uint64_t i = probe_head; i < probe_head + probe_length; ++i) {
         AtomicDict_ReadNodesFromZoneStartIntoBuffer(i, &reader, new_meta);
 
         if (!AtomicDict_NodeIsTombstone(&reader.node, new_meta))
@@ -120,7 +122,7 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     reader.zone = reader_rx.zone = -1;
 
-    for (uint64_t i = probe_head; i < probe_length; ++i) {
+    for (uint64_t i = probe_head; i < probe_head + probe_length; ++i) {
         AtomicDict_ReadNodesFromZoneStartIntoBuffer(i, &reader, new_meta);
 
         if (reader.node.node == 0)
@@ -137,22 +139,27 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
         }
     }
 
-    AtomicDict_RobinHoodCompact_LeftRightSort(current_meta, new_meta, probe_head, nodes_left + nodes_right, &reader,
-                                              &reader_rx,
-                                              AtomicDict_RobinHoodCompact_ShouldGoLeft);
+    if (nodes_left + nodes_right == 0)
+        return ok;
 
-    reader.zone = -1;
+    if (current_meta->log_size < new_meta->log_size) {
+        AtomicDict_RobinHoodCompact_LeftRightSort(current_meta, new_meta, probe_head, nodes_left + nodes_right, &reader,
+                                                  &reader_rx, AtomicDict_RobinHoodCompact_ShouldGoLeft);
+        reader.zone = -1;
 
-    for (uint64_t i = 0; i < nodes_right; ++i) {
-        uint64_t idx = i + probe_head + nodes_left;
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(idx, &reader, new_meta);
+        for (uint64_t i = 0; i < nodes_right; ++i) {
+            uint64_t idx = i + probe_head + nodes_left;
+            AtomicDict_ReadNodesFromZoneStartIntoBuffer(idx, &reader, new_meta);
 
-        AtomicDict_WriteRawNodeAt(idx, new_meta->zero.node, new_meta);
-        AtomicDict_WriteNodeAt(current_meta->size + probe_head + i, &reader.node, new_meta);
+            AtomicDict_WriteRawNodeAt(idx, new_meta->zero.node, new_meta);
+            AtomicDict_WriteNodeAt(current_meta->size + probe_head + i, &reader.node, new_meta);
+        }
+
+        AtomicDict_RobinHoodCompact_CompactNodes(current_meta->size + probe_head, probe_length, 1,
+                                                 current_meta, new_meta);
     }
 
     AtomicDict_RobinHoodCompact_CompactNodes(probe_head, probe_length, 0, current_meta, new_meta);
-    AtomicDict_RobinHoodCompact_CompactNodes(current_meta->size + probe_head, probe_length, 1, current_meta, new_meta);
 
     return ok;
 }
@@ -194,15 +201,20 @@ AtomicDict_RobinHoodCompact_LeftRightSort(AtomicDict_Meta *current_meta, AtomicD
 
         // swap elements
         if (left < right) {
-            AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, right, &reader_lx->node, &reader_rx->node, new_meta);
+            AtomicDict_RobinHoodCompact_ReadLeftRight(new_meta, left, right, &left_entry, &right_entry, &left_entry_p,
+                                                      &right_entry_p, reader_lx, reader_rx);
+            AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, right, reader_lx, reader_rx, new_meta,
+                                                          NULL, probe_head);
 
             left++;
             right--;
+            AtomicDict_RobinHoodCompact_ReadLeftRight(new_meta, left, right, &left_entry, &right_entry, &left_entry_p,
+                                                      &right_entry_p, reader_lx, reader_rx);
         }
     }
 }
 
-void
+inline void
 AtomicDict_RobinHoodCompact_ReadLeftRight(AtomicDict_Meta *new_meta, uint64_t left, uint64_t right,
                                           AtomicDict_Entry *left_entry, AtomicDict_Entry *right_entry,
                                           AtomicDict_Entry **left_entry_p, AtomicDict_Entry **right_entry_p,
@@ -238,14 +250,14 @@ void
 AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
                                          AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
-    uint64_t hash_mask = new_meta->size - 1;
+    Py_hash_t hash_mask = (Py_hash_t) new_meta->size - 1;
     if (right) {
-        hash_mask = current_meta->size - 1;
+        hash_mask = (Py_hash_t) current_meta->size - 1;
     }
 
     uint64_t actual_probe_length;
-    AtomicDict_BufferedNodeReader reader;
-    reader.zone = -1;
+    AtomicDict_BufferedNodeReader reader, reader_rx;
+    reader.zone = reader_rx.zone = -1;
 
     for (actual_probe_length = 0; actual_probe_length < probe_length; ++actual_probe_length) {
         AtomicDict_ReadNodesFromZoneStartIntoBuffer(probe_head + actual_probe_length, &reader, new_meta);
@@ -257,7 +269,19 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
     if (actual_probe_length == 0)
         return;
 
-    AtomicDict_RobinHoodCompact_CompactNodes_Sort(probe_head, actual_probe_length, hash_mask, current_meta, new_meta);
+    uint64_t distance_0_cache[actual_probe_length];
+    AtomicDict_Entry *entry_p, entry;
+
+    for (uint64_t i = 0; i < actual_probe_length; ++i) {
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(probe_head + i, &reader, new_meta);
+        entry_p = AtomicDict_GetEntryAt(reader.node.index, new_meta);
+        AtomicDict_ReadEntry(entry_p, &entry);
+        distance_0_cache[i] = AtomicDict_Distance0Of(entry.hash, new_meta);
+    }
+
+    AtomicDict_RobinHoodCompact_CompactNodes_Sort(probe_head, actual_probe_length, &reader, &reader_rx,
+                                                  distance_0_cache, new_meta, hash_mask);
+    reader.zone = reader_rx.zone = -1;
 
     // compute updated distances
     for (uint64_t i = probe_head + probe_length - 1; i >= probe_head; --i) {
@@ -268,11 +292,14 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
 
         AtomicDict_Node node = reader.node;
 
-        AtomicDict_Entry *entry_p, entry;
         entry_p = AtomicDict_GetEntryAt(node.index, new_meta);
         AtomicDict_ReadEntry(entry_p, &entry);
 
-        uint64_t distance_0 = AtomicDict_Distance0Of(entry.hash, new_meta);
+        if (entry.key == NULL || entry.value == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE ||
+            entry.flags & ENTRY_FLAGS_SWAPPED)
+            continue;
+
+        uint64_t distance_0 = distance_0_cache[i - probe_head];
         assert(distance_0 >= probe_head);
         assert(distance_0 <= probe_head + probe_length);
         if (i < distance_0) {
@@ -281,6 +308,7 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
             node.distance = 0;
             AtomicDict_WriteNodeAt(distance_0, &node, new_meta);
             AtomicDict_WriteRawNodeAt(i, new_meta->zero.node, new_meta);
+            reader.zone = -1;
         } else {
             uint64_t distance = i - distance_0;
 
@@ -291,6 +319,7 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
             if (node.distance != distance) {
                 node.distance = distance;
                 AtomicDict_WriteNodeAt(i, &node, new_meta);
+                reader.zone = -1;
             }
         }
 
@@ -300,75 +329,112 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
 }
 
 void
-AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length, uint64_t hash_mask,
-                                              AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
+                                              AtomicDict_BufferedNodeReader *reader_lx,
+                                              AtomicDict_BufferedNodeReader *reader_rx, uint64_t *distance_0_cache,
+                                              AtomicDict_Meta *new_meta, Py_hash_t hash_mask)
 {
     // quicksort adapted for robin hood hashing
 
-    AtomicDict_BufferedNodeReader reader_lx, reader_rx;
-    reader_lx.zone = reader_rx.zone = -1;
+    if (probe_length == 1)
+        return;
 
-    if (probe_head < probe_head + probe_length) {
-        uint64_t pi = AtomicDict_RobinHoodCompact_CompactNodes_Partition(probe_head, probe_length, hash_mask,
-                                                                         &reader_lx, &reader_rx, current_meta,
-                                                                         new_meta);
+    // avoid overusing the C stack
+    assert(probe_length <= new_meta->size);
+    uint64_t stack[probe_length + 2];
+    int64_t top = -1;
 
-        uint64_t left_head = probe_head;
-        uint64_t left_length = 0;
-        if (probe_head != pi) {
-            left_length = (probe_head + pi - 1) % new_meta->size;
+    stack[++top] = probe_head;
+    stack[++top] = probe_length;
+
+    while (top >= 0) {
+        assert(top - 2 >= -1);
+        uint64_t length = stack[top--];
+        uint64_t head = stack[top--];
+
+        if (length > 1) {
+            uint64_t pi = AtomicDict_RobinHoodCompact_CompactNodes_Partition(head, length,
+                                                                             reader_lx, reader_rx, distance_0_cache,
+                                                                             hash_mask, new_meta);
+
+            uint64_t left_head;
+            uint64_t left_length;
+            if (pi > head) {
+                left_head = head;
+                left_length = pi - head;
+                assert(left_length < probe_length);
+
+                assert(top + 2 < probe_length + 2);
+                stack[++top] = left_head;
+                stack[++top] = left_length;
+            }
+            uint64_t right_head;
+            uint64_t right_length;
+            if (pi + 1 <= new_meta->size) {
+                right_head = pi + 1;
+                assert(right_head > head);
+                right_length = length - (right_head - head);
+                assert(right_length < probe_length);
+
+                assert(top + 2 < probe_length + 2);
+                stack[++top] = right_head;
+                stack[++top] = right_length;
+            }
         }
-        uint64_t right_head = (pi + 1) % new_meta->size;
-        uint64_t right_length = 0;
-        if (pi != probe_head + probe_length - 1) {
-            right_length = (probe_head + probe_length - pi - 1) % new_meta->size;
-        }
-        AtomicDict_RobinHoodCompact_CompactNodes_Sort(left_head, left_length, hash_mask, current_meta, new_meta);
-        AtomicDict_RobinHoodCompact_CompactNodes_Sort(right_head, right_length, hash_mask, current_meta, new_meta);
     }
 }
 
 uint64_t
-AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length, uint64_t hash_mask,
+AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
                                                    AtomicDict_BufferedNodeReader *reader_lx,
                                                    AtomicDict_BufferedNodeReader *reader_rx,
-                                                   AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+                                                   uint64_t *distance_0_cache, Py_hash_t hash_mask,
+                                                   AtomicDict_Meta *new_meta)
 {
     uint64_t left = probe_head - 1;
     uint64_t right = probe_head + probe_length - 1;
-    AtomicDict_Entry left_entry, right_entry;
-    AtomicDict_Entry *left_entry_p, *right_entry_p;
 
-    AtomicDict_RobinHoodCompact_ReadLeftRight(new_meta, left, right, &left_entry, &right_entry, &left_entry_p,
-                                              &right_entry_p, reader_lx, reader_rx);
-
-    uint64_t pivot = AtomicDict_Distance0Of(right_entry.hash & (Py_hash_t) hash_mask, new_meta);
+    uint64_t pivot = distance_0_cache[right - probe_head] & hash_mask;
 
     for (right = probe_head; right < probe_head + probe_length; right++) {
-        AtomicDict_RobinHoodCompact_ReadLeftRight(new_meta, left + 1, right, &left_entry,
-                                                  &right_entry, &left_entry_p, &right_entry_p, reader_lx, reader_rx);
-        uint64_t current = AtomicDict_Distance0Of(right_entry.hash & (Py_hash_t) hash_mask, new_meta);
+        uint64_t current = distance_0_cache[right - probe_head] & hash_mask;
 
         if (current < pivot) {
             left++;
-            AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, right, &reader_lx->node, &reader_rx->node, new_meta);
+
+            AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, right, reader_lx, reader_rx, new_meta,
+                                                          distance_0_cache, probe_head);
         }
     }
 
     left++;
-    AtomicDict_RobinHoodCompact_ReadLeftRight(new_meta, left, probe_head + probe_length - 1, &left_entry,
-                                              &right_entry, &left_entry_p, &right_entry_p,
-                                              reader_lx, reader_rx);
-    AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, probe_head + probe_length - 1, &reader_lx->node,
-                                                  &reader_rx->node,
-                                                  new_meta);
+    AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, probe_head + probe_length - 1, reader_lx,
+                                                  reader_rx, new_meta, distance_0_cache, probe_head);
     return left;
 }
 
 void
-AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_Node *a, AtomicDict_Node *b,
-                                              AtomicDict_Meta *new_meta)
+AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_BufferedNodeReader *reader_a,
+                                              AtomicDict_BufferedNodeReader *reader_b, AtomicDict_Meta *new_meta,
+                                              uint64_t *distance_0_cache, uint64_t probe_head)
 {
-    AtomicDict_WriteNodeAt(ix_a, b, new_meta);
-    AtomicDict_WriteNodeAt(ix_b, a, new_meta);
+    AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix_a, reader_a, new_meta);
+    AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix_b, reader_b, new_meta);
+
+    AtomicDict_WriteRawNodeAt(ix_a, reader_b->node.node, new_meta);
+    AtomicDict_WriteRawNodeAt(ix_b, reader_a->node.node, new_meta);
+
+    reader_a->zone = reader_b->zone = -1;
+//    uint64_t raw_a = reader_a->node.node;
+//    uint64_t raw_b = reader_b->node.node;
+//    AtomicDict_ParseNodeFromRaw(raw_a, &reader_a->buffer[reader_a->idx_in_buffer], new_meta);
+//    AtomicDict_ParseNodeFromRaw(raw_b, &reader_b->buffer[reader_b->idx_in_buffer], new_meta);
+//    AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix_a, reader_a, new_meta);
+//    AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix_b, reader_b, new_meta);
+
+    if (distance_0_cache != NULL) {
+        uint64_t tmp_dist = distance_0_cache[ix_b - probe_head];
+        distance_0_cache[ix_b - probe_head] = distance_0_cache[ix_a - probe_head];
+        distance_0_cache[ix_a - probe_head] = tmp_dist;
+    }
 }

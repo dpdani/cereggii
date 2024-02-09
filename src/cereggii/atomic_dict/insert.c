@@ -58,8 +58,8 @@ AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicD
 }
 
 AtomicDict_InsertedOrUpdated
-AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc,
-                                          Py_hash_t hash, PyObject *key, PyObject *value, uint64_t distance_0,
+AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc, Py_hash_t hash,
+                                          PyObject *key, PyObject *value, uint64_t distance_0,
                                           AtomicDict_BufferedNodeReader *reader, AtomicDict_Node *temp)
 {
     AtomicDict_Node node = {
@@ -113,8 +113,8 @@ AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict *self, AtomicDict_Meta *met
     return error;
 }
 
-int
-AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc)
+AtomicDict_InsertedOrUpdated
+AtomicDict_InsertOrUpdate(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc)
 {
     Py_hash_t hash = entry_loc->entry->hash;
     PyObject *key = entry_loc->entry->key;
@@ -129,7 +129,7 @@ AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_En
     uint64_t idx;
 
     AtomicDict_InsertedOrUpdated close_to_0;
-    close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(self, meta, entry_loc, hash, key, value, distance_0,
+    close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(meta, entry_loc, hash, key, value, distance_0,
                                                            &reader, temp);
     if (close_to_0 == error) {
         goto error;
@@ -213,6 +213,12 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     beginning:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
+    int migrated = AtomicDict_MaybeHelpMigrate(self, meta);
+    if (migrated) {
+        Py_DECREF(meta);
+        goto beginning;
+    }
+
     AtomicDict_EntryLoc entry_loc;
     int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
     if (entry_loc.entry == NULL || got_entry == -1)
@@ -227,7 +233,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     entry_loc.entry->hash = hash;
     entry_loc.entry->value = value;
 
-    AtomicDict_InsertedOrUpdated result = AtomicDict_InsertOrUpdate(self, meta, &entry_loc);
+    AtomicDict_InsertedOrUpdated result = AtomicDict_InsertOrUpdate(meta, &entry_loc);
 
     if (result != inserted) {
         entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0

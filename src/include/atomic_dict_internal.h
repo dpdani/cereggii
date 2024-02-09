@@ -129,7 +129,7 @@ int AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta);
 
 int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
-void AtomicDictMeta_ShrinkBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
+void AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
 AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
 
@@ -212,6 +212,10 @@ int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected,
                                   AtomicDict_Meta *meta);
 
 
+/// delete
+int AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t gab, int64_t gdb);
+
+
 /// insert
 typedef enum AtomicDict_InsertedOrUpdated {
     error,
@@ -232,6 +236,8 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
 
+int AtomicDict_MaybeHelpMigrate(AtomicDict *self, AtomicDict_Meta *meta);
+
 int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
 
 int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
@@ -240,6 +246,8 @@ int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
 void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 int AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 int AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
@@ -267,8 +275,11 @@ void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDic
 
 void AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc);
 
+void
+AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_block, uint64_t to_block);
+
 int AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
-                              AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
+                             AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
 
 
 /// robin hood hashing
@@ -310,17 +321,22 @@ int AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict
 void AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
                                               AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length, uint64_t hash_mask,
-                                                   AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
+                                                   AtomicDict_BufferedNodeReader *reader_lx,
+                                                   AtomicDict_BufferedNodeReader *reader_rx, uint64_t *distance_0_cache,
+                                                   AtomicDict_Meta *new_meta, Py_hash_t hash_mask);
 
-uint64_t AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
-                                                            uint64_t hash_mask,
-                                                            AtomicDict_BufferedNodeReader *reader_lx,
-                                                            AtomicDict_BufferedNodeReader *reader_rx,
-                                                            AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
-
-void AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_Node *a, AtomicDict_Node *b,
+uint64_t
+AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
+                                                   AtomicDict_BufferedNodeReader *reader_lx,
+                                                   AtomicDict_BufferedNodeReader *reader_rx,
+                                                   uint64_t *distance_0_cache, Py_hash_t hash_mask,
                                                    AtomicDict_Meta *new_meta);
+
+void
+AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_BufferedNodeReader *reader_a,
+                                              AtomicDict_BufferedNodeReader *reader_b, AtomicDict_Meta *new_meta,
+                                              uint64_t *distance_0_cache, uint64_t probe_head);
 
 /// semi-internal
 typedef struct AtomicDict_SearchResult {
@@ -339,10 +355,11 @@ void AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
 void AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
                             AtomicDict_SearchResult *result);
 
+int AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash);
+
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
-int AtomicDict_InsertOrUpdate(AtomicDict *self, AtomicDict_Meta *meta,
-                              AtomicDict_EntryLoc *entry_loc);
+AtomicDict_InsertedOrUpdated AtomicDict_InsertOrUpdate(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc);
 
 /// node sizes table
 /*

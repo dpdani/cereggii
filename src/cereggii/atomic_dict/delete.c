@@ -6,11 +6,24 @@
 #include "atomic_ops.h"
 
 
+inline int
+AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t gab, int64_t gdb)
+{
+    CereggiiAtomic_CompareExchangeInt64(&meta->greatest_deleted_block, gdb, gdb + 1);
+
+    if ((gab - gdb + meta->greatest_refilled_block) * ATOMIC_DICT_ENTRIES_IN_BLOCK <= meta->size * 1 / 3) {
+        return 1;
+    }
+
+    return 0;
+}
+
 int
 AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
 {
     AtomicDict_SearchResult result;
     AtomicDict_Lookup(meta, key, hash, &result);
+    int need_to_shrink = 0;
 
     if (result.error)
         goto fail;
@@ -19,8 +32,8 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         goto not_found;
 
     while (!CereggiiAtomic_CompareExchangePtr((void **) &result.entry_p->value,
-                                                result.entry.value,
-                                                NULL)) {
+                                              result.entry.value,
+                                              NULL)) {
         AtomicDict_ReadEntry(result.entry_p, &result.entry);
 
         if (result.entry.value == NULL)
@@ -38,8 +51,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
             result.entry.flags | ENTRY_FLAGS_TOMBSTONE
         )) {
             result.entry.flags |= ENTRY_FLAGS_TOMBSTONE;
-        }
-        else {
+        } else {
             // what if swapped?
             AtomicDict_ReadEntry(result.entry_p, &result.entry);
         }
@@ -78,7 +90,29 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     if (gdb > gab)
         goto recycle_entry;
 
-    if (block_num < gab) {
+    if (block_num == gdb + 1) {
+        int all_deleted = 1;
+
+        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+            swap_loc.location = ((gdb + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + i;
+            swap_loc.entry = AtomicDict_GetEntryAt(swap_loc.location, meta);
+            AtomicDict_ReadEntry(swap_loc.entry, &swap);
+
+            if (block_num == 0 && i == 0)
+                continue;
+
+            if (!(swap.flags & ENTRY_FLAGS_TOMBSTONE || swap.flags & ENTRY_FLAGS_SWAPPED)) {
+                all_deleted = 0;
+                break;
+            }
+        }
+
+        if (all_deleted) {
+            need_to_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+        }
+    }
+
+    if (block_num > gdb + 1) {
         for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
             swap_loc.location = ((gdb + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                                 ((i + hash) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
@@ -89,7 +123,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
                 goto swap_found;
         }
 
-        CereggiiAtomic_CompareExchangeInt64(&meta->greatest_deleted_block, gdb, gdb + 1);
+        need_to_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
         goto recycle_entry; // don't handle failure
 
         swap_found:
@@ -120,7 +154,12 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         if (!AtomicDict_AtomicWriteNodesAt(swap_search.position, 1, &swap_search.node, &swapped, meta)) {
             goto do_swap;
         }
+        swap_loc.entry->key = NULL;
+        swap_loc.entry->value = NULL;
     }
+
+    if (need_to_shrink)
+        return 2;
 
     return 1;
 
@@ -151,6 +190,12 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (deleted == 0) {
         PyErr_SetObject(PyExc_KeyError, key);
         goto fail;
+    }
+
+    if (deleted == 2) {  // need to shrink
+        int success = AtomicDict_Shrink(self);
+        if (success < 0)
+            goto fail;
     }
 
     Py_DECREF(meta);
