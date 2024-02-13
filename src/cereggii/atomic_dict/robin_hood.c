@@ -155,13 +155,20 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
             AtomicDict_WriteNodeAt(current_meta->size + probe_head + i, &reader.node, new_meta);
         }
 
-        AtomicDict_RobinHoodCompact_CompactNodes(current_meta->size + probe_head, probe_length, 1,
-                                                 current_meta, new_meta);
+        int compacted = AtomicDict_RobinHoodCompact_CompactNodes(current_meta->size + probe_head, probe_length, 1,
+                                                                 current_meta, new_meta);
+        if (compacted < 0)
+            goto fail;
     }
 
-    AtomicDict_RobinHoodCompact_CompactNodes(probe_head, probe_length, 0, current_meta, new_meta);
+    int compacted = AtomicDict_RobinHoodCompact_CompactNodes(probe_head, probe_length, 0, current_meta, new_meta);
+
+    if (compacted < 0)
+        goto fail;
 
     return ok;
+    fail:
+    return failed;
 }
 
 void
@@ -246,7 +253,7 @@ AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict_Ent
 }
 
 // here comes dat boi
-void
+int
 AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
                                          AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
@@ -267,20 +274,13 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
     }
 
     if (actual_probe_length == 0)
-        return;
+        return 0;
 
-    uint64_t distance_0_cache[actual_probe_length];
-    AtomicDict_Entry *entry_p, entry;
+    int sorted = AtomicDict_RobinHoodCompact_CompactNodes_Sort(probe_head, actual_probe_length,
+                                                               &reader, new_meta, hash_mask);
+    if (sorted < 0)
+        goto fail;
 
-    for (uint64_t i = 0; i < actual_probe_length; ++i) {
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(probe_head + i, &reader, new_meta);
-        entry_p = AtomicDict_GetEntryAt(reader.node.index, new_meta);
-        AtomicDict_ReadEntry(entry_p, &entry);
-        distance_0_cache[i] = AtomicDict_Distance0Of(entry.hash, new_meta);
-    }
-
-    AtomicDict_RobinHoodCompact_CompactNodes_Sort(probe_head, actual_probe_length, &reader, &reader_rx,
-                                                  distance_0_cache, new_meta, hash_mask);
     reader.zone = reader_rx.zone = -1;
 
     // compute updated distances
@@ -292,6 +292,7 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
 
         AtomicDict_Node node = reader.node;
 
+        AtomicDict_Entry *entry_p, entry;
         entry_p = AtomicDict_GetEntryAt(node.index, new_meta);
         AtomicDict_ReadEntry(entry_p, &entry);
 
@@ -299,7 +300,7 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
             entry.flags & ENTRY_FLAGS_SWAPPED)
             continue;
 
-        uint64_t distance_0 = distance_0_cache[i - probe_head];
+        uint64_t distance_0 = AtomicDict_Distance0Of(entry.hash, new_meta);
         assert(distance_0 >= probe_head);
         assert(distance_0 <= probe_head + probe_length);
         if (i < distance_0) {
@@ -326,92 +327,12 @@ AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_len
         if (i == 0)
             break;
     }
+
+    return 1;
+    fail:
+    return -1;
 }
 
-void
-AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
-                                              AtomicDict_BufferedNodeReader *reader_lx,
-                                              AtomicDict_BufferedNodeReader *reader_rx, uint64_t *distance_0_cache,
-                                              AtomicDict_Meta *new_meta, Py_hash_t hash_mask)
-{
-    // quicksort adapted for robin hood hashing
-
-    if (probe_length == 1)
-        return;
-
-    // avoid overusing the C stack
-    assert(probe_length <= new_meta->size);
-    uint64_t stack[probe_length + 2];
-    int64_t top = -1;
-
-    stack[++top] = probe_head;
-    stack[++top] = probe_length;
-
-    while (top >= 0) {
-        assert(top - 2 >= -1);
-        uint64_t length = stack[top--];
-        uint64_t head = stack[top--];
-
-        if (length > 1) {
-            uint64_t pi = AtomicDict_RobinHoodCompact_CompactNodes_Partition(head, length,
-                                                                             reader_lx, reader_rx, distance_0_cache,
-                                                                             hash_mask, new_meta);
-
-            uint64_t left_head;
-            uint64_t left_length;
-            if (pi > head) {
-                left_head = head;
-                left_length = pi - head;
-                assert(left_length < probe_length);
-
-                assert(top + 2 < probe_length + 2);
-                stack[++top] = left_head;
-                stack[++top] = left_length;
-            }
-            uint64_t right_head;
-            uint64_t right_length;
-            if (pi + 1 <= new_meta->size) {
-                right_head = pi + 1;
-                assert(right_head > head);
-                right_length = length - (right_head - head);
-                assert(right_length < probe_length);
-
-                assert(top + 2 < probe_length + 2);
-                stack[++top] = right_head;
-                stack[++top] = right_length;
-            }
-        }
-    }
-}
-
-uint64_t
-AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
-                                                   AtomicDict_BufferedNodeReader *reader_lx,
-                                                   AtomicDict_BufferedNodeReader *reader_rx,
-                                                   uint64_t *distance_0_cache, Py_hash_t hash_mask,
-                                                   AtomicDict_Meta *new_meta)
-{
-    uint64_t left = probe_head - 1;
-    uint64_t right = probe_head + probe_length - 1;
-
-    uint64_t pivot = distance_0_cache[right - probe_head] & hash_mask;
-
-    for (right = probe_head; right < probe_head + probe_length; right++) {
-        uint64_t current = distance_0_cache[right - probe_head] & hash_mask;
-
-        if (current < pivot) {
-            left++;
-
-            AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, right, reader_lx, reader_rx, new_meta,
-                                                          distance_0_cache, probe_head);
-        }
-    }
-
-    left++;
-    AtomicDict_RobinHoodCompact_CompactNodes_Swap(left, probe_head + probe_length - 1, reader_lx,
-                                                  reader_rx, new_meta, distance_0_cache, probe_head);
-    return left;
-}
 
 void
 AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_BufferedNodeReader *reader_a,
@@ -437,4 +358,72 @@ AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, Atom
         distance_0_cache[ix_b - probe_head] = distance_0_cache[ix_a - probe_head];
         distance_0_cache[ix_a - probe_head] = tmp_dist;
     }
+}
+
+int
+AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
+                                              AtomicDict_BufferedNodeReader *reader, AtomicDict_Meta *new_meta,
+                                              Py_hash_t hash_mask)
+{
+    // timsort
+
+    if (probe_length == 1)
+        return 0;
+    assert(probe_length < PY_SSIZE_T_MAX);
+
+    PyObject *list = NULL;
+    list = PyList_New((Py_ssize_t) probe_length);
+    if (list == NULL)
+        goto fail;
+
+    PyObject *tuple = NULL, *borrowed_tuple = NULL, *py_raw_node = NULL;
+    AtomicDict_Entry *entry_p, entry;
+
+    for (uint64_t i = 0; i < probe_length; ++i) {
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(probe_head + i, reader, new_meta);
+        entry_p = AtomicDict_GetEntryAt(reader->node.index, new_meta);
+        AtomicDict_ReadEntry(entry_p, &entry);
+
+        uint64_t distance_0 = AtomicDict_Distance0Of(entry.hash & hash_mask, new_meta);
+
+        tuple = Py_BuildValue("(kbk)", distance_0, reader->node.distance, reader->node.node);
+        if (tuple == NULL)
+            goto fail;
+
+        assert(i < PY_SSIZE_T_MAX);
+        PyList_SetItem(list, (Py_ssize_t) i, tuple);
+
+        tuple = NULL;
+    }
+
+    int sorted = PyList_Sort(list);
+    if (sorted < 0)
+        goto fail;
+
+    for (uint64_t i = 0; i < probe_length; ++i) {
+        borrowed_tuple = PyList_GetItem(list, (Py_ssize_t) i);
+        if (borrowed_tuple == NULL)
+            goto fail;
+
+        py_raw_node = PyTuple_GetItem(borrowed_tuple, 2);
+        if (py_raw_node == NULL)
+            goto fail;
+
+        int overflow;
+        uint64_t raw_node = PyLong_AsLongAndOverflow(py_raw_node, &overflow);
+
+        if (overflow != 0 || PyErr_Occurred() != NULL)
+            goto fail;
+
+        AtomicDict_WriteRawNodeAt(probe_head + i, raw_node, new_meta);
+
+        tuple = NULL;
+        py_raw_node = NULL;
+    }
+
+    return 1;
+    fail:
+    Py_XDECREF(list);
+    Py_XDECREF(tuple);
+    return -1;
 }

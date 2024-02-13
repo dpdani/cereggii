@@ -36,7 +36,7 @@ AtomicDict_NodeIsTombstone(AtomicDict_Node *node, AtomicDict_Meta *meta)
 inline uint64_t
 AtomicDict_RegionOf(uint64_t ix, AtomicDict_Meta *meta)
 {
-    ix = ix % meta->size;
+    ix = ix & (meta->size - 1);
     return (ix & ~meta->shift_mask) / meta->nodes_in_region;
 }
 

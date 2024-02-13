@@ -536,6 +536,34 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 7
 
 
+@pytest.mark.skip()
+def test_large_grow_then_shrink():
+    d = AtomicDict()
+    assert d.debug()["meta"]["log_size"] == 6
+
+    for _ in range(2**24):
+        d[_] = None
+    assert d.debug()["meta"]["log_size"] == 25
+
+    for _ in range(2**24):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 7
+
+
+@pytest.mark.skip()
+def test_large_pre_allocated_grow_then_shrink():
+    d = AtomicDict(min_size=2**21)
+    assert d.debug()["meta"]["log_size"] == 21
+
+    for _ in range(2**20):
+        d[_] = None
+    assert d.debug()["meta"]["log_size"] == 21
+
+    for _ in range(2**20):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 21
+
+
 def test_dont_implode():
     d = AtomicDict({1: None, 10: None})
     del d[1]

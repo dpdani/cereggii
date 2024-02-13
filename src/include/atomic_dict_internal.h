@@ -243,7 +243,7 @@ int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t 
 int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
                              uint8_t from_log_size, uint8_t to_log_size);
 
-void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+int AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 int AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
@@ -318,13 +318,12 @@ int AtomicDict_RobinHoodCompact_ShouldGoLeft(AtomicDict_Node *node, AtomicDict_E
 int AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict_Entry *_unused_entry,
                                                AtomicDict_Meta *_unused_current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
-                                              AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+int AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
+                                             AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
-                                                   AtomicDict_BufferedNodeReader *reader_lx,
-                                                   AtomicDict_BufferedNodeReader *reader_rx, uint64_t *distance_0_cache,
-                                                   AtomicDict_Meta *new_meta, Py_hash_t hash_mask);
+int AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
+                                                  AtomicDict_BufferedNodeReader *reader, AtomicDict_Meta *new_meta,
+                                                  Py_hash_t hash_mask);
 
 uint64_t
 AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,

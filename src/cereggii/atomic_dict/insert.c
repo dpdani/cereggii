@@ -224,7 +224,11 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (entry_loc.entry == NULL || got_entry == -1)
         goto fail;
     if (got_entry == 0) {  // => must grow
-        AtomicDict_Grow(self);
+        migrated = AtomicDict_Grow(self);
+
+        if (migrated < 0)
+            goto fail;
+
         Py_DECREF(meta);
         goto beginning;
     }
@@ -247,7 +251,11 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     }
 
     if (result == must_grow) {
-        AtomicDict_Grow(self);
+        migrated = AtomicDict_Grow(self);
+
+        if (migrated < 0)
+            goto fail;
+
         Py_DECREF(meta);
         goto beginning;
     }

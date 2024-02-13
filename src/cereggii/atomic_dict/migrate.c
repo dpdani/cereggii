@@ -19,6 +19,9 @@ AtomicDict_Grow(AtomicDict *self)
         goto fail;
 
     int migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size + 1);
+    if (migrate < 0)
+        goto fail;
+
     Py_DECREF(meta);
     return migrate;
 
@@ -127,10 +130,16 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
 
     AtomicEvent_Wait(current_meta->new_metadata_ready);
     AtomicDict_Meta *new_meta = current_meta->new_gen_metadata;
-    AtomicDict_CommonMigrate(current_meta, new_meta);
+
+    int migrated = AtomicDict_CommonMigrate(current_meta, new_meta);
+    if (migrated < 0)
+        goto fail;
+
     AtomicEvent_Wait(current_meta->migration_done);
 
     return 1;
+    fail:
+    return -1;
 }
 
 int
@@ -190,7 +199,9 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     AtomicEvent_Set(current_meta->new_metadata_ready);
 
     // birds flying
-    AtomicDict_CommonMigrate(current_meta, new_meta);
+    int migrated = AtomicDict_CommonMigrate(current_meta, new_meta);
+    if (migrated < 0)
+        goto fail;
 
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
@@ -209,7 +220,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     return -1;
 }
 
-void
+int
 AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     if (current_meta->size != new_meta->size) {
@@ -238,6 +249,10 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
 
     if (!AtomicEvent_IsSet(current_meta->compaction_done)) {
         int compaction_done = AtomicDict_MigrateCompact(current_meta, new_meta);
+
+        if (compaction_done < 0)
+            goto fail;
+
         if (compaction_done) {
             AtomicEvent_Set(current_meta->compaction_done);
         }
@@ -252,6 +267,10 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
         }
         AtomicEvent_Wait(current_meta->node_migration_done);
     }
+
+    return 1;
+    fail:
+    return -1;
 }
 
 
@@ -275,11 +294,16 @@ AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
         if (!locked)
             continue;
 
-        for (uint64_t i = 0; i < current_meta->size; ++i) {
-            AtomicDict_ReadNodesFromZoneIntoBuffer(i, &current, current_meta);
+        for (uint64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+            uint64_t idx = i + (lock << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+
+            assert(idx >= 0);
+            assert(idx < current_meta->size);
+
+            AtomicDict_ReadNodesFromZoneIntoBuffer(idx, &current, current_meta);
 
             if (current.node.node != 0) {
-                AtomicDict_WriteNodeAt(i, &current.node, new_meta);
+                AtomicDict_WriteNodeAt(idx, &current.node, new_meta);
             }
         }
 
@@ -397,7 +421,9 @@ AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_me
         if (!locked)
             continue;
 
-        AtomicDict_RobinHoodCompact(current_meta, new_meta, head, length);
+        AtomicDict_RobinHoodResult status = AtomicDict_RobinHoodCompact(current_meta, new_meta, head, length);
+        if (status == failed)
+            goto fail;
 
         while (!CereggiiAtomic_CompareExchangeUInt8(&entry_p->flags,
                                                     entry.flags | ENTRY_FLAGS_LOCKED,
@@ -435,6 +461,8 @@ AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_me
     }
 
     return 1;
+    fail:
+    return -1;
 }
 
 int
