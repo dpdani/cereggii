@@ -78,7 +78,8 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
-    Py_DECREF(current_reference);
+    Py_DECREF(current_reference);  // decrement for the AtomicRef_Get
+    Py_DECREF(current_reference);  // decrement because not holding it anymore
     Py_RETURN_NONE;
 }
 

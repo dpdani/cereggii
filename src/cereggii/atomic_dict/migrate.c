@@ -38,7 +38,13 @@ AtomicDict_Shrink(AtomicDict *self)
     if (meta == NULL)
         goto fail;
 
+    if (meta->log_size == self->min_log_size)
+        return 0;
+
     int migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size - 1);
+    if (migrate < 0)
+        goto fail;
+
     Py_DECREF(meta);
     return migrate;
 
@@ -55,7 +61,7 @@ AtomicDict_Compact(AtomicDict *self)
 
     do {
         /**
-         * always do one migration with equal log_sizes first to reduce the blocks.
+         * do one migration with equal log_sizes first to reduce the blocks.
          * then, if the resulting meta is not compact, increase the log_size
          * and migrate, until meta is compact.
          */
@@ -66,10 +72,10 @@ AtomicDict_Compact(AtomicDict *self)
             goto fail;
 
         migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size + !is_compact);
-        Py_DECREF(meta);
         if (migrate < 0)
             goto fail;
 
+        Py_DECREF(meta);
         meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
         is_compact = meta->is_compact;
         Py_DECREF(meta);
@@ -119,6 +125,7 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
                    uint8_t to_log_size)
 {
     assert(to_log_size <= from_log_size + 1);
+    assert(to_log_size >= from_log_size - 1);
     if (current_meta->migration_leader == 0) {
         int i_am_leader = CereggiiAtomic_CompareExchangeUIntPtr(
             &current_meta->migration_leader,
@@ -149,7 +156,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     AtomicDict_Meta *new_meta;
     beginning:
     new_meta = NULL;
-    new_meta = AtomicDictMeta_New(to_log_size, current_meta);
+    new_meta = AtomicDictMeta_New(to_log_size);
     if (new_meta == NULL)
         goto fail;
 
@@ -157,8 +164,12 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         PyErr_SetString(PyExc_ValueError, "can hold at most 2^56 items.");
         goto fail;
     }
+
     if (to_log_size < self->min_log_size) {
         to_log_size = self->min_log_size;
+        Py_DECREF(new_meta);
+        new_meta = NULL;
+        goto beginning;
     }
 
     // blocks
@@ -167,6 +178,10 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     } else {
         AtomicDictMeta_InitBlocks(new_meta);
         AtomicDictMeta_ShrinkBlocks(self, current_meta, new_meta);
+    }
+
+    for (uint64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
+        Py_INCREF(new_meta->blocks[block_i]);
     }
 
     if (from_log_size == to_log_size) {
@@ -207,6 +222,11 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
     assert(set);
     AtomicEvent_Set(current_meta->migration_done);
+    Py_DECREF(new_meta);  // this may seem strange: why decref'ing the new meta?
+    // the reason is that AtomicRef_CompareAndSet also increases new_meta's refcount,
+    // which is exactly what we want. but the reference count was already 1, as it
+    // was set during the initialization of new_meta. that's what we're decref'ing
+    // for in here.
 
     return 1;
 

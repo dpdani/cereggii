@@ -249,6 +249,16 @@ PyTypeObject AtomicDictMeta_Type = {
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
+PyTypeObject AtomicDictBlock_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictBlock",
+    .tp_basicsize = sizeof(AtomicDict_Block),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
+};
+
 PyTypeObject AtomicDictReservationBuffer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictReservationBuffer",
@@ -296,6 +306,8 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictReservationBuffer_Type) < 0)
         return NULL;

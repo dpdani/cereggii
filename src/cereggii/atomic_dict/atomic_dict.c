@@ -148,7 +148,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     create:
     meta = NULL;
-    meta = AtomicDictMeta_New(log_size, NULL);
+    meta = AtomicDictMeta_New(log_size);
     if (meta == NULL)
         goto fail;
     AtomicDictMeta_ClearIndex(meta);
@@ -160,7 +160,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t i;
     for (i = 0; i < init_dict_size / ATOMIC_DICT_ENTRIES_IN_BLOCK; i++) {
         // allocate blocks
-        block = AtomicDict_NewBlock(meta);
+        block = AtomicDictBlock_New(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
@@ -171,7 +171,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
     if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK > 0) {
         // allocate additional block
-        block = AtomicDict_NewBlock(meta);
+        block = AtomicDictBlock_New(meta);
         if (block == NULL)
             goto fail;
         meta->blocks[i] = block;
@@ -260,6 +260,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_XDECREF(init_dict);
     Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
+    assert(Py_REFCNT(meta) == 1);
     return 0;
     fail:
     Py_XDECREF(meta);
@@ -276,18 +277,12 @@ AtomicDict_dealloc(AtomicDict *self)
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     if ((PyObject *) meta != Py_None) {
-        for (int64_t block_i = 0; block_i <= meta->greatest_allocated_block; block_i++) {
-            if (meta->greatest_refilled_block < block_i && block_i <= meta->greatest_deleted_block)
-                continue;
+        AtomicRef_Set(self->metadata, Py_None);  // this decref's meta
 
-            AtomicDict_FreeBlockInMeta(meta, block_i);
-        }
-        AtomicDict_Block **blocks_ptr = meta->blocks;
-        meta->blocks = NULL;
-        PyMem_RawFree(blocks_ptr);
+        assert(Py_REFCNT(meta) == 1);
+        Py_DECREF(meta); // should call dealloc
     }
 
-    Py_DECREF(meta); // decref for the above AtomicRef_Get
     Py_CLEAR(self->metadata);
     Py_CLEAR(self->reservation_buffers);
     // this should be enough to deallocate the reservation buffers themselves as well:

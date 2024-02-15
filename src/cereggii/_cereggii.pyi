@@ -9,7 +9,7 @@ Number = SupportsInt | SupportsFloat | SupportsComplex
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, **kwargs):
+    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int | None = None, **kwargs):
         """Constructor method
 
         :param iterable: an iterable to initialize this dictionary with. For now,

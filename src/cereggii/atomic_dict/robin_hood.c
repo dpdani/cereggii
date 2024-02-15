@@ -7,7 +7,7 @@
 #include "atomic_dict_internal.h"
 
 
-/*
+/**
  * Lythe and listin, gentilmen,
  * That be of frebore blode;
  * I shall you tel of a gode yeman,
@@ -127,6 +127,26 @@ AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
         if (reader.node.node == 0)
             break;
+
+        int64_t block = (int64_t) AtomicDict_BlockOf(reader.node.index);
+
+        if (current_meta->log_size == new_meta->log_size) {
+            if (current_meta->greatest_refilled_block < block && block <= current_meta->greatest_deleted_block)
+                continue;  // tombstone
+
+            if (current_meta->greatest_deleted_block > -1 && block > current_meta->greatest_refilled_block) {
+                int64_t new_block = block - current_meta->greatest_deleted_block;
+                if (current_meta->greatest_refilled_block > -1) {
+                    new_block += current_meta->greatest_refilled_block;
+                }
+                assert(current_meta->blocks[block] == new_meta->blocks[new_block]);
+                reader.node.index = AtomicDict_PositionInBlockOf(reader.node.index) + (
+                    new_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK
+                );
+
+                AtomicDict_WriteNodeAt(i, &reader.node, new_meta);
+            }
+        }
 
         AtomicDict_Entry *entry_p, entry;
         entry_p = AtomicDict_GetEntryAt(reader.node.index, new_meta);

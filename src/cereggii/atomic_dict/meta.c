@@ -9,17 +9,9 @@
 #include "pythread.h"
 
 
-/**
- * previous_blocks may be NULL.
- */
 AtomicDict_Meta *
-AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
+AtomicDictMeta_New(uint8_t log_size)
 {
-    if (log_size > 25) {
-        PyErr_SetString(PyExc_NotImplementedError, "log_size > 25. see https://github.com/dpdani/cereggii/issues/3");
-        return NULL;
-    }
-
     PyObject *generation = NULL;
     uint64_t *index = NULL;
     AtomicDict_Meta *meta = NULL;
@@ -41,6 +33,8 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
         goto fail;
     PyObject_Init((PyObject *) meta, &AtomicDictMeta_Type);
 
+    meta->blocks = NULL;
+
     meta->log_size = log_size;
     meta->size = 1UL << log_size;
     meta->generation = generation;
@@ -57,7 +51,11 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
 //    meta->nodes_in_zone = 16 / (meta->node_size / 8);
 //#endif
     meta->nodes_in_zone = 16 / (meta->node_size / 8);
-    meta->node_mask = (1UL << node_sizes.node_size) - 1;
+    if (meta->node_size == 64) {
+        meta->node_mask = ULONG_MAX;
+    } else {
+        meta->node_mask = (1UL << node_sizes.node_size) - 1;
+    }
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
     meta->tag_mask = (Py_hash_t) (1UL << node_sizes.tag_size) - 1;
@@ -118,7 +116,9 @@ AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta)
     fail:
     Py_XDECREF(generation);
     Py_XDECREF(meta);
-    PyMem_RawFree(index);
+    if (index != NULL) {
+        PyMem_RawFree(index);
+    }
     return NULL;
 }
 
@@ -173,11 +173,16 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    AtomicDict_Block **blocks = PyMem_RawRealloc(previous_blocks,
-                                                 sizeof(AtomicDict_Block *) *
-                                                 (to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+    AtomicDict_Block **blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) *
+                                                (to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
     if (blocks == NULL)
         goto fail;
+
+    if (previous_blocks != NULL) {
+        for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
+            blocks[block_i] = previous_blocks[block_i];
+        }
+    }
 
     if (previous_blocks == NULL) {
         blocks[0] = NULL;
@@ -246,11 +251,21 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
         self->index = NULL;
         PyMem_RawFree(index);
     }
+
+    if (self->blocks != NULL) {
+        for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+            Py_DECREF(self->blocks[block_i]);
+        }
+
+        PyMem_RawFree(self->blocks);
+    }
+
     uint8_t *copy_nodes_locks = self->copy_nodes_locks;
     if (copy_nodes_locks != NULL) {
         self->copy_nodes_locks = NULL;
         PyMem_RawFree(copy_nodes_locks);
     }
+
     Py_CLEAR(self->generation);
     Py_CLEAR(self->new_metadata_ready);
     Py_CLEAR(self->copy_nodes_done);

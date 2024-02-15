@@ -198,21 +198,6 @@ def test_full_dict_32():
     assert len(d.debug()["index"]) == 1 << 25
 
 
-def test_node_size_64_unavailable():
-    # see https://github.com/dpdani/cereggii/issues/3
-    with raises(NotImplementedError):
-        AtomicDict(min_size=1 << 26)
-
-
-# def test_insert_with_reservation_64():
-#     d = AtomicDict({k: None for k in range(16)}, min_size=(1 << 26) - 1)
-#     breakpoint()
-#     d[1 << 26] = 1
-#     for k in range(16):
-#         assert d[k] is None
-#     assert d[64] == 1
-
-
 def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d
@@ -517,12 +502,11 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 6
 
     for _ in range(2**10):
-        assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == _
+        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
         d[_] = None
     assert d.debug()["meta"]["log_size"] == 11
 
     for _ in range(2**10):
-        # first shrink at _ == 766
         del d[_]
     assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
 
@@ -536,16 +520,15 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 7
 
 
-@pytest.mark.skip()
 def test_large_grow_then_shrink():
     d = AtomicDict()
     assert d.debug()["meta"]["log_size"] == 6
 
-    for _ in range(2**24):
+    for _ in range(2**25):
         d[_] = None
-    assert d.debug()["meta"]["log_size"] == 25
+    assert d.debug()["meta"]["log_size"] == 26
 
-    for _ in range(2**24):
+    for _ in range(2**25):
         del d[_]
     assert d.debug()["meta"]["log_size"] == 7
 

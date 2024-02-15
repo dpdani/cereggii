@@ -212,10 +212,13 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
 
     beginning:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    if (meta == NULL)
+        goto fail;
 
     int migrated = AtomicDict_MaybeHelpMigrate(self, meta);
     if (migrated) {
         Py_DECREF(meta);
+        meta = NULL;
         goto beginning;
     }
 
@@ -223,6 +226,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
     if (entry_loc.entry == NULL || got_entry == -1)
         goto fail;
+
     if (got_entry == 0) {  // => must grow
         migrated = AtomicDict_Grow(self);
 
@@ -230,6 +234,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
             goto fail;
 
         Py_DECREF(meta);
+        meta = NULL;
         goto beginning;
     }
 

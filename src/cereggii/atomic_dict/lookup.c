@@ -76,6 +76,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
         goto beginning;
     }
     result->error = 0;
+    result->found = 0;
     result->entry_p = NULL;
     return;
     error:
@@ -83,6 +84,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     return;
     found:
     result->error = 0;
+    result->found = 1;
     result->position = ix + probe + reservations;
     result->node = reader.node;
 }

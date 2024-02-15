@@ -51,15 +51,23 @@ static PyTypeObject AtomicDictGen = {
     .tp_new = PyType_GenericNew,
 };
 
+
+/// blocks
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
 
 typedef struct AtomicDict_Block {
+    PyObject_HEAD
+
     PyObject *generation;
-//    PyObject *iteration;
+    // PyObject *iteration;
 
     AtomicDict_Entry entries[ATOMIC_DICT_ENTRIES_IN_BLOCK];
 } AtomicDict_Block;
+
+extern PyTypeObject AtomicDictBlock_Type;
+
+void AtomicDictBlock_dealloc(AtomicDict_Block *self);
 
 
 /// meta
@@ -119,7 +127,7 @@ void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 
 extern PyTypeObject AtomicDictMeta_Type;
 
-AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size, AtomicDict_Meta *previous_meta);
+AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size);
 
 void AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta);
 
@@ -131,11 +139,7 @@ int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_me
 
 void AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
-AtomicDict_Block *AtomicDict_NewBlock(AtomicDict_Meta *meta);
-
-void AtomicDict_FreeBlock(AtomicDict_Block *block_ptr);
-
-void AtomicDict_FreeBlockInMeta(AtomicDict_Meta *meta, uint64_t block_i);
+AtomicDict_Block *AtomicDictBlock_New(AtomicDict_Meta *meta);
 
 uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
 

@@ -23,7 +23,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
 {
     AtomicDict_SearchResult result;
     AtomicDict_Lookup(meta, key, hash, &result);
-    int need_to_shrink = 0;
+    int should_shrink = 0;
 
     if (result.error)
         goto fail;
@@ -108,7 +108,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         }
 
         if (all_deleted) {
-            need_to_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+            should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
         }
     }
 
@@ -123,7 +123,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
                 goto swap_found;
         }
 
-        need_to_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+        should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
         goto recycle_entry; // don't handle failure
 
         swap_found:
@@ -158,7 +158,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         swap_loc.entry->value = NULL;
     }
 
-    if (need_to_shrink)
+    if (should_shrink)
         return 2;
 
     return 1;
@@ -192,7 +192,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto fail;
     }
 
-    if (deleted == 2) {  // need to shrink
+    if (deleted == 2) {  // should shrink
         int success = AtomicDict_Shrink(self);
         if (success < 0)
             goto fail;
