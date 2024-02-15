@@ -38,8 +38,10 @@ AtomicDict_Shrink(AtomicDict *self)
     if (meta == NULL)
         goto fail;
 
-    if (meta->log_size == self->min_log_size)
+    if (meta->log_size == self->min_log_size) {
+        Py_DECREF(meta);
         return 0;
+    }
 
     int migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size - 1);
     if (migrate < 0)
@@ -99,7 +101,6 @@ AtomicDict_Compact_callable(AtomicDict *self)
         return NULL;
     }
 
-    Py_INCREF(Py_None);
     Py_RETURN_NONE;
 }
 
