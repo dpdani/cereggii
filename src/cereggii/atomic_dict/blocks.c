@@ -67,7 +67,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                 ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
             if (entry_loc->entry->flags == 0) {
                 if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
-                    entry_loc->location = (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + insert_position + offset;
+                    entry_loc->location =
+                        (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
+                        ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
+                    assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
                     AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
@@ -107,6 +110,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                                                 greatest_allocated_block + 1);
             entry_loc->entry = &block->entries[0];
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+            assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
@@ -118,6 +122,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     done:
     assert(entry_loc->entry != NULL);
     assert(entry_loc->entry->key == NULL);
+    assert(entry_loc->location < meta->size);
     return 1;
     fail:
     entry_loc->entry = NULL;

@@ -54,7 +54,9 @@ AtomicEvent_Wait(AtomicEvent *lock)
 {
     pthread_mutex_lock(&lock->mutex);
     while (lock->state == 0) {
+        Py_BEGIN_ALLOW_THREADS
         pthread_cond_wait(&lock->cond, &lock->mutex);
+        Py_END_ALLOW_THREADS
     }
     pthread_mutex_unlock(&lock->mutex);
 }
