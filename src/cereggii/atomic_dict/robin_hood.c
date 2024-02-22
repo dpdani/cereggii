@@ -441,6 +441,7 @@ AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t prob
         py_raw_node = NULL;
     }
 
+    Py_DECREF(list);
     return 1;
     fail:
     Py_XDECREF(list);
