@@ -131,8 +131,6 @@ AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size);
 
 void AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta);
 
-void AtomicDictMeta_CopyIndex(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
-
 int AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta);
 
 int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
@@ -240,22 +238,18 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
 
-int AtomicDict_MaybeHelpMigrate(AtomicDict *self, AtomicDict_Meta *meta);
+int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta);
 
 int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
 
 int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
                              uint8_t from_log_size, uint8_t to_log_size);
 
-int AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta);
 
-int AtomicDict_MigrateCopyNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
-
-int AtomicDict_MigrateCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
-
-int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 
 /// reservation buffer (see ./reservation_buffer.c)

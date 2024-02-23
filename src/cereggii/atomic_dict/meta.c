@@ -128,12 +128,6 @@ AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
     memset(meta->index, 0, meta->node_size / 8 * meta->size);
 }
 
-void
-AtomicDictMeta_CopyIndex(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
-{
-    memcpy(&to_meta->index[0], &from_meta->index[0], (from_meta->node_size / 8) * from_meta->size);
-}
-
 int
 AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
 {

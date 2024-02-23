@@ -215,7 +215,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (meta == NULL)
         goto fail;
 
-    int migrated = AtomicDict_MaybeHelpMigrate(self, meta);
+    int migrated = AtomicDict_MaybeHelpMigrate(meta);
     if (migrated) {
         Py_DECREF(meta);
         meta = NULL;
