@@ -156,13 +156,6 @@ Also see colesbury/nogil#121.
 
 ## AtomicDict
 
-Currently, the implementation of `AtomicDict` is quite limited:
-
-- (dpdani/cereggii#3) it can hold at most $2^{25}$ keys (~33.5M);
-- (dpdani/cereggii#4) it does not support deletions (`del d[k]`);
-- (dpdani/cereggii#5) it does not support dynamic resizing; and
-- several common functionalities are missing.
-
 You can see that there is some more performance to be gained by simply using `AtomicDict`, looking at the execution
 of [the count keys example](./examples/atomic_dict/count_keys.py).
 
