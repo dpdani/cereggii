@@ -7,7 +7,7 @@
 
 
 PyObject *
-AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+AtomicRef_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicRef *self;
     self = (AtomicRef *) type->tp_alloc(type, 0);
@@ -21,7 +21,7 @@ AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 int
-AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
+AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
     PyObject *reference = NULL;
     if (args != NULL) {
@@ -31,9 +31,9 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
 
     if (reference != NULL) {
         Py_INCREF(reference);
+        // decref'ed in destructor
         self->reference = reference;
     }
-    // decref'ed in destructor
     return 0;
 
     fail:

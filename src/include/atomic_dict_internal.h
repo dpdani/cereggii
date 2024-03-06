@@ -117,8 +117,6 @@ struct AtomicDict_Meta {
     uintptr_t migration_leader;
     uint8_t *copy_nodes_locks;
     AtomicEvent *new_metadata_ready;
-    AtomicEvent *copy_nodes_done;
-    AtomicEvent *compaction_done;
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
 };
