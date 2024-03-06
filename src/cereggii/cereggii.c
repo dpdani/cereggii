@@ -4,9 +4,11 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "atomic_event.h"
 #include "atomic_int.h"
 #include "atomic_ref.h"
 #include "atomic_dict.h"
+#include "atomic_dict_internal.h"
 
 
 static PyMethodDef AtomicInt_methods[] = {
@@ -210,8 +212,9 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug", (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"get",   (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"debug",   (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"compact", (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
+    {"get",     (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
@@ -236,6 +239,57 @@ static PyTypeObject AtomicDict_Type = {
     .tp_as_mapping = &AtomicDict_mapping_methods,
 };
 
+PyTypeObject AtomicDictMeta_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictMeta",
+    .tp_basicsize = sizeof(AtomicDict_Meta),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
+};
+
+PyTypeObject AtomicDictBlock_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictBlock",
+    .tp_basicsize = sizeof(AtomicDict_Block),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
+};
+
+PyTypeObject AtomicDictReservationBuffer_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictReservationBuffer",
+    .tp_basicsize = sizeof(AtomicDict_ReservationBuffer),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDict_ReservationBuffer_dealloc,
+};
+
+
+static PyMethodDef AtomicEvent_methods[] = {
+    {"wait",   (PyCFunction) AtomicEvent_Wait_callable,  METH_NOARGS, NULL},
+    {"set",    (PyCFunction) AtomicEvent_Set_callable,   METH_NOARGS, NULL},
+    {"is_set", (PyCFunction) AtomicEvent_IsSet_callable, METH_NOARGS, NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicEvent_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicEvent",
+    .tp_doc = PyDoc_STR("An atomic event based on pthread's condition locks."),
+    .tp_basicsize = sizeof(AtomicEvent),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = AtomicEvent_new,
+    .tp_dealloc = (destructor) AtomicEvent_dealloc,
+    .tp_init = (initproc) AtomicEvent_init,
+    .tp_methods = AtomicEvent_methods,
+};
+
 
 static PyModuleDef cereggii_module = {
     PyModuleDef_HEAD_INIT,
@@ -251,6 +305,14 @@ PyInit__cereggii(void)
 
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictReservationBuffer_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicEvent_Type) < 0)
+        return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicInt_Type) < 0)
@@ -265,6 +327,12 @@ PyInit__cereggii(void)
     Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
         Py_DECREF(&AtomicDict_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicEvent_Type);
+    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
+        Py_DECREF(&AtomicEvent_Type);
         goto fail;
     }
 

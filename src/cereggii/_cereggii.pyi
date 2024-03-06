@@ -1,7 +1,7 @@
 from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
-Value = NewType("Value", object)
+Value = NewType("Value", object | None)
 Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
@@ -9,7 +9,9 @@ Number = SupportsInt | SupportsFloat | SupportsComplex
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, **kwargs):
+    def __init__(
+        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int | None = None, **kwargs
+    ):
         """Constructor method
 
         :param iterable: an iterable to initialize this dictionary with. For now,
@@ -29,7 +31,7 @@ class AtomicDict:
             mapping ``initial_size`` to 123, but an empty one.
         """
     # def __contains__(self, item: Key) -> bool: ...
-    # def __delitem__(self, item: Key) -> None: ...
+    def __delitem__(self, item: Key) -> None: ...
     def __getitem__(self, item: Key) -> object: ...
     # def __ior__(self, other) -> None: ...
     # def __iter__(self) -> Iterable[Key, Value]: ...
@@ -125,6 +127,7 @@ class AtomicDict:
     #     :returns: None
     #     """
     # def values(self) -> Iterable[Value]: ...
+    def compact(self) -> None: ...
     def debug(self) -> dict: ...
 
 class AtomicRef:

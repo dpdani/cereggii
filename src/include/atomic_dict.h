@@ -12,11 +12,10 @@
 #include "atomic_ref.h"
 
 
-typedef struct {
+typedef struct AtomicDict {
     PyObject_HEAD
 
     AtomicRef *metadata;
-    AtomicRef *new_gen_metadata;
 
     uint8_t min_log_size;
 
@@ -35,6 +34,10 @@ PyObject *AtomicDict_GetItem(AtomicDict *self, PyObject *key);
 int AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value);
 
 int AtomicDict_DelItem(AtomicDict *self, PyObject *key);
+
+int AtomicDict_Compact(AtomicDict *self);
+
+PyObject *AtomicDict_Compact_callable(AtomicDict *self);
 
 PyObject *AtomicDict_Debug(AtomicDict *self);
 

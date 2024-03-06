@@ -9,45 +9,49 @@
 
 
 void
-AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
-                  int look_into_reservations, atomic_dict_search_result *result)
+AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                  AtomicDict_SearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    uint64_t ix = hash & ((1 << meta->log_size) - 1);
-    int probe;
-    int reservations = 0;
+    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    uint8_t is_compact;
+    uint64_t probe, reservations;
+    AtomicDict_BufferedNodeReader reader;
 
-    for (probe = 0; probe < meta->log_size; probe++) {
-        AtomicDict_ReadNodeAt((ix + probe + reservations) % (1 << meta->log_size), &result->node, meta);
+    beginning:
+    is_compact = meta->is_compact;
+    reservations = 0;
+    reader.zone = -1;
 
-        if (AtomicDict_NodeIsReservation(&result->node, meta)) {
+    for (probe = 0; probe < meta->size; probe++) {
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix + probe + reservations, &reader, meta);
+
+        if (AtomicDict_NodeIsReservation(&reader.node, meta)) {
             probe--;
             reservations++;
-            if (look_into_reservations) {
-                result->is_reservation = 1;
-                goto check_entry;
-            } else {
-                continue;
-            }
+            result->is_reservation = 1;
+            goto check_entry;
         }
         result->is_reservation = 0;
 
-        if (result->node.node == 0) {
+        if (reader.node.node == 0) {
             goto not_found;
         }
 
-        if (ix + probe + reservations - result->node.distance > ix) {
+        if (
+            is_compact && (
+                (ix + probe + reservations - reader.node.distance > ix)
+                || (probe >= meta->log_size)
+            )) {
             goto not_found;
         }
 
-        if (result->node.tag == (hash & meta->tag_mask)) {
+        if (reader.node.tag == (hash & meta->tag_mask)) {
             check_entry:
-            result->entry_p = &(meta
-                ->blocks[result->node.index >> 6]
-                ->entries[result->node.index & 63]);
-            result->entry = *result->entry_p; // READ
+            result->entry_p = AtomicDict_GetEntryAt(reader.node.index, meta);
+            AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
-            if (result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
+            if (result->entry.value == NULL || result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
                 continue;
             }
             if (result->entry.key == key) {
@@ -68,7 +72,11 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
     }  // probes exhausted
 
     not_found:
+    if (is_compact != meta->is_compact) {
+        goto beginning;
+    }
     result->error = 0;
+    result->found = 0;
     result->entry_p = NULL;
     return;
     error:
@@ -76,8 +84,74 @@ AtomicDict_Lookup(atomic_dict_meta *meta, PyObject *key, Py_hash_t hash,
     return;
     found:
     result->error = 0;
-    result->index = ix;
+    result->found = 1;
+    result->position = ix + probe + reservations;
+    result->node = reader.node;
 }
+
+void
+AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
+                       AtomicDict_SearchResult *result)
+{
+    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    uint8_t is_compact;
+    uint64_t probe, reservations;
+    AtomicDict_BufferedNodeReader reader;
+
+    beginning:
+    is_compact = meta->is_compact;
+    reservations = 0;
+    reader.zone = -1;
+
+    for (probe = 0; probe < meta->size; probe++) {
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix + probe + reservations, &reader, meta);
+
+        if (AtomicDict_NodeIsTombstone(&reader.node, meta)) {
+            probe--;
+            reservations++;
+            continue;
+        }
+
+        if (AtomicDict_NodeIsReservation(&reader.node, meta)) {
+            probe--;
+            reservations++;
+            result->is_reservation = 1;
+            goto check_entry;
+        }
+        result->is_reservation = 0;
+
+        if (reader.node.node == 0) {
+            goto not_found;
+        }
+
+        if (
+            is_compact && (
+                (ix + probe + reservations - reader.node.distance > ix)
+                || (probe >= meta->log_size)
+            )) {
+            goto not_found;
+        }
+
+        check_entry:
+        if (reader.node.index == entry_ix) {
+            goto found;
+        }
+    }  // probes exhausted
+
+    not_found:
+    if (is_compact != meta->is_compact) {
+        goto beginning;
+    }
+    result->error = 0;
+    result->found = 0;
+    return;
+    found:
+    result->error = 0;
+    result->found = 1;
+    result->position = ix + probe + reservations;
+    result->node = reader.node;
+}
+
 
 PyObject *
 AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)
@@ -86,13 +160,13 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
     if (hash == -1)
         goto fail;
 
-    atomic_dict_search_result result;
-    atomic_dict_meta *meta;
+    AtomicDict_SearchResult result;
+    AtomicDict_Meta *meta = NULL;
     retry:
-    meta = (atomic_dict_meta *) AtomicRef_Get(self->metadata);
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
     result.entry.value = NULL;
-    AtomicDict_Lookup(meta, key, hash, 0, &result);
+    AtomicDict_Lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
 
