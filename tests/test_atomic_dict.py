@@ -569,17 +569,17 @@ def test_fast_iter():
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
     for _ in range(4):
-        for p1 in range(64):
+        for _ in range(64):
             d[_] = 1
-        for p2 in range(64):
+        for _ in range(64):
             d[_] = 2
 
     def partition_1():
-        for k, v in d.fast_iter(partitions=2, this_partition=0):
+        for _, v in d.fast_iter(partitions=2, this_partition=0):
             assert v == 1
 
     def partition_2():
-        for k, v in d.fast_iter(partitions=2, this_partition=1):
+        for _, v in d.fast_iter(partitions=2, this_partition=1):
             assert v == 2
 
     threads = [

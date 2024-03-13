@@ -17,8 +17,8 @@ for n in range(1, multiprocessing.cpu_count() + 1):
 
     def iterator(i):
         current = 0
-        for k, v in d.fast_iter(partitions=n, this_partition=i):
-            current = k + v
+        for k, v in d.fast_iter(partitions=n, this_partition=i):  # noqa: B023
+            current = k + v  # noqa
 
     threads = [threading.Thread(target=iterator, args=(_,)) for _ in range(1, n + 1)]
 
