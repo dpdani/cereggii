@@ -24,6 +24,9 @@ typedef struct AtomicDict {
     PyObject *reservation_buffers; // PyListObject
 } AtomicDict;
 
+struct AtomicDict_FastIterator;
+typedef struct AtomicDict_FastIterator AtomicDict_FastIterator;
+
 
 PyObject *AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value);
 
@@ -42,6 +45,8 @@ PyObject *AtomicDict_Compact_callable(AtomicDict *self);
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);
+
+PyObject *AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
 PyObject *AtomicDict_Debug(AtomicDict *self);
 

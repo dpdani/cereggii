@@ -292,6 +292,26 @@ AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, Ato
                                                       int to_delete);
 
 
+/// iter
+struct AtomicDict_FastIterator {
+    PyObject_HEAD
+
+    AtomicDict *dict;
+    AtomicDict_Meta *meta;
+    uint64_t position;
+
+    int partitions;
+};
+
+extern PyTypeObject AtomicDictFastIterator_Type;
+
+void AtomicDictFastIterator_dealloc(AtomicDict_FastIterator *self);
+
+PyObject *AtomicDictFastIterator_Next(AtomicDict_FastIterator *self);
+
+PyObject *AtomicDictFastIterator_GetIter(AtomicDict_FastIterator *self);
+
+
 /// semi-internal
 typedef struct AtomicDict_SearchResult {
     int error;
