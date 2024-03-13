@@ -39,6 +39,10 @@ int AtomicDict_Compact(AtomicDict *self);
 
 PyObject *AtomicDict_Compact_callable(AtomicDict *self);
 
+PyObject *AtomicDict_LenBounds(AtomicDict *self);
+
+PyObject *AtomicDict_ApproxLen(AtomicDict *self);
+
 PyObject *AtomicDict_Debug(AtomicDict *self);
 
 PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);

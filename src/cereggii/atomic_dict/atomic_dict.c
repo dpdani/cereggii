@@ -358,6 +358,73 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
 }
 
 PyObject *
+AtomicDict_LenBounds(AtomicDict *self)
+{
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    if (meta == NULL)
+        goto fail;
+
+    int64_t gab = meta->greatest_allocated_block + 1;
+    int64_t gdb = meta->greatest_deleted_block + 1;
+    int64_t grb = meta->greatest_refilled_block + 1;
+    // todo: handle greedy alloc
+    Py_DECREF(meta);
+
+    int64_t upper = (gab - gdb + grb) * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+
+    Py_ssize_t threads_count = PyList_Size(self->reservation_buffers);
+    int64_t lower = (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+    if (lower < 0) lower = 0;
+
+    return Py_BuildValue("(ll)", lower, upper);
+
+    fail:
+    Py_XDECREF(meta);
+    return NULL;
+}
+
+PyObject *
+AtomicDict_ApproxLen(AtomicDict* self)
+{
+    PyObject *bounds = NULL;
+    PyObject *lower = NULL;
+    PyObject *upper = NULL;
+    PyObject *sum = NULL;
+    PyObject *avg = NULL;
+
+    bounds = AtomicDict_LenBounds(self);
+    if (bounds == NULL)
+        goto fail;
+
+    lower = PyTuple_GetItem(bounds, 0);
+    upper = PyTuple_GetItem(bounds, 1);
+    if (lower == NULL || upper == NULL)
+        goto fail;
+
+    sum = PyNumber_Add(lower, upper);
+    if (sum == NULL)
+        goto fail;
+
+    avg = PyNumber_FloorDivide(sum, PyLong_FromLong(2));
+    // PyLong_FromLong(2) will not return NULL
+
+    Py_DECREF(bounds);
+    Py_DECREF(lower);
+    Py_DECREF(upper);
+    Py_DECREF(sum);
+    return avg;
+
+    fail:
+    Py_XDECREF(bounds);
+    Py_XDECREF(lower);
+    Py_XDECREF(upper);
+    Py_XDECREF(sum);
+    Py_XDECREF(avg);
+    return NULL;
+}
+
+PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
     AtomicDict_Meta *meta = NULL;

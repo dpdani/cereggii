@@ -554,3 +554,12 @@ def test_dont_implode():
     d[2] = None
     assert d[2] is None
     assert d.debug()["meta"]["log_size"] == 6
+
+
+def test_len_bounds():
+    d = AtomicDict()
+    for _ in range(100):
+        d[_] = None
+
+    assert d.len_bounds() == (60, 128)
+    assert d.approx_len() == 94
