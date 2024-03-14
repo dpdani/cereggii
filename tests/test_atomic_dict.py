@@ -575,12 +575,18 @@ def test_fast_iter():
             d[_] = 2
 
     def partition_1():
+        n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=0):
             assert v == 1
+            n += 1
+        assert n == 4 * 64
 
     def partition_2():
+        n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=1):
             assert v == 2
+            n += 1
+        assert n == 4 * 64
 
     threads = [
         threading.Thread(target=partition_1),
