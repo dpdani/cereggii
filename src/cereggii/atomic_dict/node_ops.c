@@ -294,14 +294,14 @@ AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_BufferedNod
 }
 
 
-inline int
+inline void
 AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     AtomicDict_ComputeRawNode(node, meta);
     AtomicDict_WriteRawNodeAt(ix, node->node, meta);
 }
 
-inline int
+inline void
 AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
     uint64_t shift = ix & meta->shift_mask;
