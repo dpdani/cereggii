@@ -558,11 +558,27 @@ def test_dont_implode():
 
 def test_len_bounds():
     d = AtomicDict()
+
+    assert d.len_bounds() == (0, 0)
+    assert d.approx_len() == 0
+
+    for _ in range(10):
+        d[_] = None
+
+    assert d.len_bounds() == (10, 10)
+    assert d.approx_len() == 10
+
     for _ in range(100):
         d[_] = None
 
-    assert d.len_bounds() == (60, 128)
-    assert d.approx_len() == 94
+    assert d.len_bounds() == (97, 100)
+    assert d.approx_len() == 98
+
+    for _ in range(100):
+        del d[_]
+
+    assert d.len_bounds() == (0, 0)
+    assert d.approx_len() == 0
 
 
 def test_fast_iter():

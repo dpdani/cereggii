@@ -369,15 +369,50 @@ AtomicDict_LenBounds(AtomicDict *self)
     int64_t gdb = meta->greatest_deleted_block + 1;
     int64_t grb = meta->greatest_refilled_block + 1;
     // todo: handle greedy alloc
+
+    int64_t upper = (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+
+    // visit the gab
+    AtomicDict_Entry *entry_p, entry;
+    AtomicDict_SearchResult sr;
+    int64_t found = 0;
+    for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        uint64_t entry_ix = (gab - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
+        entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
+        AtomicDict_ReadEntry(entry_p, &entry);
+
+        if (entry.value != NULL) {
+            AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
+            if (sr.found) {
+                found++;
+            }
+        }
+    }
     Py_DECREF(meta);
 
-    int64_t upper = (gab - gdb + grb) * ATOMIC_DICT_ENTRIES_IN_BLOCK;
-
     Py_ssize_t threads_count = PyList_Size(self->reservation_buffers);
-    int64_t lower = (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+    int64_t lower =
+        (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+
+    AtomicDict_ReservationBuffer *rb;
+    for (int i = 0; i < threads_count; ++i) {
+        rb = (AtomicDict_ReservationBuffer *) PyList_GetItem(self->reservation_buffers, i);
+
+        if (rb == NULL)
+            goto fail;
+
+        lower += self->reservation_buffer_size - rb->count;
+    }
+
+    if (gab > 0 && gdb == 0) {
+        upper--;
+        lower--;
+    }
+
+    if (upper < 0) upper = 0;
     if (lower < 0) lower = 0;
 
-    return Py_BuildValue("(ll)", lower, upper);
+    return Py_BuildValue("(ll)", lower + found, upper + found);
 
     fail:
     Py_XDECREF(meta);
@@ -385,7 +420,7 @@ AtomicDict_LenBounds(AtomicDict *self)
 }
 
 PyObject *
-AtomicDict_ApproxLen(AtomicDict* self)
+AtomicDict_ApproxLen(AtomicDict *self)
 {
     PyObject *bounds = NULL;
     PyObject *lower = NULL;
