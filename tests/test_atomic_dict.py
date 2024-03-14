@@ -568,11 +568,11 @@ def test_len_bounds():
 def test_fast_iter():
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
-    for _ in range(4):
-        for _ in range(64):
+    for p in range(4):
+        for _ in range(p * 128, p * 128 + 64):
             d[_] = 1
-        for _ in range(64):
-            d[_] = 2
+        for _ in range(p * 128, p * 128 + 64):
+            d[_ + 64] = 2
 
     def partition_1():
         n = 0
