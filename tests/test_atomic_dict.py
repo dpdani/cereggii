@@ -571,8 +571,8 @@ def test_len_bounds():
     for _ in range(100):
         d[_] = None
 
-    assert d.len_bounds() == (97, 100)
-    assert d.approx_len() == 98
+    assert d.len_bounds() == (100, 100)
+    assert d.approx_len() == 100
 
     for _ in range(100):
         del d[_]

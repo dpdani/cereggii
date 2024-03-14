@@ -370,7 +370,7 @@ AtomicDict_LenBounds(AtomicDict *self)
     int64_t grb = meta->greatest_refilled_block + 1;
     // todo: handle greedy alloc
 
-    int64_t upper = (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+    int64_t supposedly_full_blocks = (gab - gdb + grb - 1);
 
     // visit the gab
     AtomicDict_Entry *entry_p, entry;
@@ -388,11 +388,53 @@ AtomicDict_LenBounds(AtomicDict *self)
             }
         }
     }
+
+    if (gab - 1 != gdb) {
+        supposedly_full_blocks--;
+
+        // visit the gdb
+        for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+            uint64_t entry_ix = gdb * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
+            entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
+            AtomicDict_ReadEntry(entry_p, &entry);
+
+            if (entry.value != NULL) {
+                AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
+                if (sr.found) {
+                    found++;
+                }
+            }
+        }
+    }
+
+    if (grb != gab - 1 && grb != gdb) {
+        supposedly_full_blocks--;
+
+        // visit the gdb
+        for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+            uint64_t entry_ix = grb * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
+            entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
+            AtomicDict_ReadEntry(entry_p, &entry);
+
+            if (entry.value != NULL) {
+                AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
+                if (sr.found) {
+                    found++;
+                }
+            }
+        }
+    }
     Py_DECREF(meta);
+
+    if (supposedly_full_blocks < 0) {
+        supposedly_full_blocks = 0;
+    }
+
+    int64_t upper = supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK;
 
     Py_ssize_t threads_count = PyList_Size(self->reservation_buffers);
     int64_t lower =
-        (gab - gdb + grb - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
 
     AtomicDict_ReservationBuffer *rb;
     for (int i = 0; i < threads_count; ++i) {
@@ -402,11 +444,6 @@ AtomicDict_LenBounds(AtomicDict *self)
             goto fail;
 
         lower += self->reservation_buffer_size - rb->count;
-    }
-
-    if (gab > 0 && gdb == 0) {
-        upper--;
-        lower--;
     }
 
     if (upper < 0) upper = 0;
