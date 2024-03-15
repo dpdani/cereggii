@@ -145,6 +145,8 @@ AtomicDict_Entry *AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta);
 
 void AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry);
 
+int AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta);
+
 
 /// operations on nodes (see ./node_ops.c)
 void AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta);

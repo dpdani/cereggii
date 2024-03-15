@@ -357,6 +357,29 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     return 0;
 }
 
+int
+AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta) {
+    int found = 0;
+
+    AtomicDict_Entry *entry_p, entry;
+    AtomicDict_SearchResult sr;
+
+    for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        uint64_t entry_ix = block_ix * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
+        entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
+        AtomicDict_ReadEntry(entry_p, &entry);
+
+        if (entry.value != NULL) {
+            AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
+            if (sr.found) {
+                found++;
+            }
+        }
+    }
+
+    return found;
+}
+
 PyObject *
 AtomicDict_LenBounds(AtomicDict *self)
 {
@@ -373,56 +396,20 @@ AtomicDict_LenBounds(AtomicDict *self)
     int64_t supposedly_full_blocks = (gab - gdb + grb - 1);
 
     // visit the gab
-    AtomicDict_Entry *entry_p, entry;
-    AtomicDict_SearchResult sr;
-    int64_t found = 0;
-    for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-        uint64_t entry_ix = (gab - 1) * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
-        entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-        AtomicDict_ReadEntry(entry_p, &entry);
-
-        if (entry.value != NULL) {
-            AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
-            if (sr.found) {
-                found++;
-            }
-        }
-    }
+    int64_t found = AtomicDict_CountKeysInBlock(gab - 1, meta);
 
     if (gab - 1 != gdb) {
         supposedly_full_blocks--;
 
         // visit the gdb
-        for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-            uint64_t entry_ix = gdb * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
-            entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-            AtomicDict_ReadEntry(entry_p, &entry);
-
-            if (entry.value != NULL) {
-                AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
-                if (sr.found) {
-                    found++;
-                }
-            }
-        }
+        found += AtomicDict_CountKeysInBlock(gdb, meta);
     }
 
     if (grb != gab - 1 && grb != gdb) {
         supposedly_full_blocks--;
 
-        // visit the gdb
-        for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-            uint64_t entry_ix = grb * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
-            entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-            AtomicDict_ReadEntry(entry_p, &entry);
-
-            if (entry.value != NULL) {
-                AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
-                if (sr.found) {
-                    found++;
-                }
-            }
-        }
+        // visit the grb
+        found += AtomicDict_CountKeysInBlock(grb, meta);
     }
     Py_DECREF(meta);
 
