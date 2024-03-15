@@ -212,9 +212,12 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug",   (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"compact", (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
-    {"get",     (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"debug",      (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"compact",    (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
+    {"get",        (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"len_bounds", (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
+    {"approx_len", (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
+    {"fast_iter",  (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
@@ -269,6 +272,18 @@ PyTypeObject AtomicDictReservationBuffer_Type = {
     .tp_dealloc = (destructor) AtomicDict_ReservationBuffer_dealloc,
 };
 
+PyTypeObject AtomicDictFastIterator_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictFastIterator",
+    .tp_basicsize = sizeof(AtomicDict_FastIterator),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictFastIterator_dealloc,
+    .tp_iter = (getiterfunc) AtomicDictFastIterator_GetIter,
+    .tp_iternext = (iternextfunc) AtomicDictFastIterator_Next,
+};
+
 
 static PyMethodDef AtomicEvent_methods[] = {
     {"wait",   (PyCFunction) AtomicEvent_Wait_callable,  METH_NOARGS, NULL},
@@ -310,6 +325,8 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictReservationBuffer_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;

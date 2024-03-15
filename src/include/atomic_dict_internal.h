@@ -145,6 +145,8 @@ AtomicDict_Entry *AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta);
 
 void AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry);
 
+int AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta);
+
 
 /// operations on nodes (see ./node_ops.c)
 void AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta);
@@ -198,9 +200,9 @@ void AtomicDict_ReadNodesFromZoneIntoBuffer(uint64_t idx, AtomicDict_BufferedNod
 void AtomicDict_ReadNodesFromZoneStartIntoBuffer(uint64_t idx, AtomicDict_BufferedNodeReader *reader,
                                                  AtomicDict_Meta *meta);
 
-int AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
+void AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
-int AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta);
+void AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta);
 
 int AtomicDict_NodeIsReservation(AtomicDict_Node *node, AtomicDict_Meta *meta);
 
@@ -291,47 +293,26 @@ AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, Ato
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       int to_delete);
 
-AtomicDict_RobinHoodResult AtomicDict_RobinHoodCompact(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta,
-                                                       uint64_t probe_head, uint64_t probe_length);
 
-void AtomicDict_RobinHoodCompact_LeftRightSort(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta,
-                                               uint64_t probe_head, uint64_t probe_length,
-                                               AtomicDict_BufferedNodeReader *reader_lx,
-                                               AtomicDict_BufferedNodeReader *reader_rx,
-                                               int (*should_go_left)(AtomicDict_Node *node, AtomicDict_Entry *entry,
-                                                                     AtomicDict_Meta *current_meta,
-                                                                     AtomicDict_Meta *new_meta));
+/// iter
+struct AtomicDict_FastIterator {
+    PyObject_HEAD
 
-void AtomicDict_RobinHoodCompact_ReadLeftRight(AtomicDict_Meta *new_meta, uint64_t left, uint64_t right,
-                                               AtomicDict_Entry *left_entry, AtomicDict_Entry *right_entry,
-                                               AtomicDict_Entry **left_entry_p, AtomicDict_Entry **right_entry_p,
-                                               AtomicDict_BufferedNodeReader *reader_lx,
-                                               AtomicDict_BufferedNodeReader *reader_rx);
+    AtomicDict *dict;
+    AtomicDict_Meta *meta;
+    uint64_t position;
 
-int AtomicDict_RobinHoodCompact_ShouldGoLeft(AtomicDict_Node *node, AtomicDict_Entry *entry,
-                                             AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+    int partitions;
+};
 
-int AtomicDict_RobinHoodCompact_IsNotTombstone(AtomicDict_Node *node, AtomicDict_Entry *_unused_entry,
-                                               AtomicDict_Meta *_unused_current_meta, AtomicDict_Meta *new_meta);
+extern PyTypeObject AtomicDictFastIterator_Type;
 
-int AtomicDict_RobinHoodCompact_CompactNodes(uint64_t probe_head, uint64_t probe_length, int right,
-                                             AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDictFastIterator_dealloc(AtomicDict_FastIterator *self);
 
-int AtomicDict_RobinHoodCompact_CompactNodes_Sort(uint64_t probe_head, uint64_t probe_length,
-                                                  AtomicDict_BufferedNodeReader *reader, AtomicDict_Meta *new_meta,
-                                                  Py_hash_t hash_mask);
+PyObject *AtomicDictFastIterator_Next(AtomicDict_FastIterator *self);
 
-uint64_t
-AtomicDict_RobinHoodCompact_CompactNodes_Partition(uint64_t probe_head, uint64_t probe_length,
-                                                   AtomicDict_BufferedNodeReader *reader_lx,
-                                                   AtomicDict_BufferedNodeReader *reader_rx,
-                                                   uint64_t *distance_0_cache, Py_hash_t hash_mask,
-                                                   AtomicDict_Meta *new_meta);
+PyObject *AtomicDictFastIterator_GetIter(AtomicDict_FastIterator *self);
 
-void
-AtomicDict_RobinHoodCompact_CompactNodes_Swap(uint64_t ix_a, uint64_t ix_b, AtomicDict_BufferedNodeReader *reader_a,
-                                              AtomicDict_BufferedNodeReader *reader_b, AtomicDict_Meta *new_meta,
-                                              uint64_t *distance_0_cache, uint64_t probe_head);
 
 /// semi-internal
 typedef struct AtomicDict_SearchResult {

@@ -357,6 +357,132 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
     return 0;
 }
 
+int
+AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta) {
+    int found = 0;
+
+    AtomicDict_Entry *entry_p, entry;
+    AtomicDict_SearchResult sr;
+
+    for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        uint64_t entry_ix = block_ix * ATOMIC_DICT_ENTRIES_IN_BLOCK + i;
+        entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
+        AtomicDict_ReadEntry(entry_p, &entry);
+
+        if (entry.value != NULL) {
+            AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
+            if (sr.found) {
+                found++;
+            }
+        }
+    }
+
+    return found;
+}
+
+PyObject *
+AtomicDict_LenBounds(AtomicDict *self)
+{
+    AtomicDict_Meta *meta = NULL;
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    if (meta == NULL)
+        goto fail;
+
+    int64_t gab = meta->greatest_allocated_block + 1;
+    int64_t gdb = meta->greatest_deleted_block + 1;
+    int64_t grb = meta->greatest_refilled_block + 1;
+    // todo: handle greedy alloc
+
+    int64_t supposedly_full_blocks = (gab - gdb + grb - 1);
+
+    // visit the gab
+    int64_t found = AtomicDict_CountKeysInBlock(gab - 1, meta);
+
+    if (gab - 1 != gdb) {
+        supposedly_full_blocks--;
+
+        // visit the gdb
+        found += AtomicDict_CountKeysInBlock(gdb, meta);
+    }
+
+    if (grb != gab - 1 && grb != gdb) {
+        supposedly_full_blocks--;
+
+        // visit the grb
+        found += AtomicDict_CountKeysInBlock(grb, meta);
+    }
+    Py_DECREF(meta);
+
+    if (supposedly_full_blocks < 0) {
+        supposedly_full_blocks = 0;
+    }
+
+    int64_t upper = supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+
+    Py_ssize_t threads_count = PyList_Size(self->reservation_buffers);
+    int64_t lower =
+        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+
+    AtomicDict_ReservationBuffer *rb;
+    for (int i = 0; i < threads_count; ++i) {
+        rb = (AtomicDict_ReservationBuffer *) PyList_GetItem(self->reservation_buffers, i);
+
+        if (rb == NULL)
+            goto fail;
+
+        lower += self->reservation_buffer_size - rb->count;
+    }
+
+    if (upper < 0) upper = 0;
+    if (lower < 0) lower = 0;
+
+    return Py_BuildValue("(ll)", lower + found, upper + found);
+
+    fail:
+    Py_XDECREF(meta);
+    return NULL;
+}
+
+PyObject *
+AtomicDict_ApproxLen(AtomicDict *self)
+{
+    PyObject *bounds = NULL;
+    PyObject *lower = NULL;
+    PyObject *upper = NULL;
+    PyObject *sum = NULL;
+    PyObject *avg = NULL;
+
+    bounds = AtomicDict_LenBounds(self);
+    if (bounds == NULL)
+        goto fail;
+
+    lower = PyTuple_GetItem(bounds, 0);
+    upper = PyTuple_GetItem(bounds, 1);
+    if (lower == NULL || upper == NULL)
+        goto fail;
+
+    sum = PyNumber_Add(lower, upper);
+    if (sum == NULL)
+        goto fail;
+
+    avg = PyNumber_FloorDivide(sum, PyLong_FromLong(2));
+    // PyLong_FromLong(2) will not return NULL
+
+    Py_DECREF(bounds);
+    Py_DECREF(lower);
+    Py_DECREF(upper);
+    Py_DECREF(sum);
+    return avg;
+
+    fail:
+    Py_XDECREF(bounds);
+    Py_XDECREF(lower);
+    Py_XDECREF(upper);
+    Py_XDECREF(sum);
+    Py_XDECREF(avg);
+    return NULL;
+}
+
 PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {

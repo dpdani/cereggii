@@ -554,3 +554,61 @@ def test_dont_implode():
     d[2] = None
     assert d[2] is None
     assert d.debug()["meta"]["log_size"] == 6
+
+
+def test_len_bounds():
+    d = AtomicDict()
+
+    assert d.len_bounds() == (0, 0)
+    assert d.approx_len() == 0
+
+    for _ in range(10):
+        d[_] = None
+
+    assert d.len_bounds() == (10, 10)
+    assert d.approx_len() == 10
+
+    for _ in range(100):
+        d[_] = None
+
+    assert d.len_bounds() == (100, 100)
+    assert d.approx_len() == 100
+
+    for _ in range(100):
+        del d[_]
+
+    assert d.len_bounds() == (0, 0)
+    assert d.approx_len() == 0
+
+
+def test_fast_iter():
+    d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
+
+    for p in range(4):
+        for _ in range(p * 128, p * 128 + 64):
+            d[_] = 1
+        for _ in range(p * 128, p * 128 + 64):
+            d[_ + 64] = 2
+
+    def partition_1():
+        n = 0
+        for _, v in d.fast_iter(partitions=2, this_partition=0):
+            assert v == 1
+            n += 1
+        assert n == 4 * 64
+
+    def partition_2():
+        n = 0
+        for _, v in d.fast_iter(partitions=2, this_partition=1):
+            assert v == 2
+            n += 1
+        assert n == 4 * 64
+
+    threads = [
+        threading.Thread(target=partition_1),
+        threading.Thread(target=partition_2),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
