@@ -1,0 +1,763 @@
+%% SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
+%%
+%% SPDX-License-Identifier: Apache-2.0
+
+
+atomicdict[P: { i: nat | i > 0 }]: THEORY
+BEGIN
+
+    IMPORTING stack
+    
+    range(i: nat): TYPE = {s: nat | 1 <= s & s <= i}
+
+    p: VAR range(P)
+    
+    
+    % data types
+    Address: TYPE+
+
+    null: Address
+
+    non_null_ax: AXIOM
+        EXISTS (a: Address): a /= null
+
+    hash: [Address, nat, nat -> nat]
+
+    Entry: TYPE = [#
+        key: Address,
+        value: Address,
+        tombstone: bool,
+        reserved: bool,
+        swapped: bool
+    #]
+
+    EmptyEntry: Entry = (#
+        key := null,
+        value := null,
+        tombstone := false,
+        reserved := false,
+        swapped := false
+    #)
+
+    Block: TYPE = [#
+        entries: [nat -> Entry]
+    #]
+
+    emptyBlock: Block = (#
+        entries := lambda (e: nat): EmptyEntry
+    #)
+
+    Node: TYPE = [#
+        block: nat,
+        pos: nat,
+        distance: nat
+    #]
+
+    NodeZero: Node = (#
+        block := 0,
+        pos := 0,
+        distance := 0
+    #)
+
+    Meta: TYPE = [#
+        index: [nat -> Node],
+        blocks: [nat -> Block],
+        log_size: nat,
+
+        migration_leader: {s: nat | 0 <= s & s <= P},
+        new_gen_metadata: Address
+    #]
+
+    AtomicDict: TYPE = [#
+        meta: Address
+    #]
+
+    PyObjectType: TYPE = {
+        %PyType_AtomicDict,
+        PyType_Meta,
+        PyType_Block,
+        PyType_Other
+    }
+
+    PyObject: TYPE = [#
+        address: Address,
+        references: nat,
+
+        type_: PyObjectType,
+
+        meta: Meta,
+        block: Block
+    #]
+
+    memory_is_infinite: AXIOM
+	    EXISTS (x: PyObject): TRUE
+    
+    PyNull: PyObject
+    PyNull_ax: AXIOM
+        address(PyNull) = null and references(PyNull) = 0
+
+    non_PyNull_ax: AXIOM
+        EXISTS (o: PyObject): o /= PyNull
+
+    AlivePyObject: TYPE = {
+        o: PyObject | o`address /= null and o`references > 0
+    }
+
+    DeadPyObject: TYPE = {
+        o: PyObject | o`references = 0
+    }
+
+    NotFound: PyObject
+    NotFound_ax: AXIOM
+        address(NotFound) /= null and references(NotFound) > 0
+    
+    Any: PyObject
+    Any_ax: AXIOM
+        address(Any) /= null and references(Any) > 0
+    
+    ExpectationFailed: PyObject
+    ExpectationFailed_ax: AXIOM
+        address(ExpectationFailed) /= null and references(ExpectationFailed) > 0
+
+    InputPyObject: TYPE = {
+        o: AlivePyObject | o /= NotFound and o /= Any and o /= ExpectationFailed
+    }
+
+
+    % global State
+    PC: TYPE = {
+        pc_main_1,
+        pc_main_2,
+
+        pc_getMeta_1,
+        pc_getMeta_2,
+        pc_getMeta_3,
+
+        pc_tryIncref_1,
+
+        pc_decref_1,
+
+        pc_releaseMeta_1,
+        pc_releaseMeta_2,
+
+        pc_find_1,
+
+        pc_insertOrUpdate_1,
+        pc_insertOrUpdate_2,
+        pc_insertOrUpdate_3,
+        pc_insertOrUpdate_4,
+        pc_insertOrUpdate_5,
+        pc_insertOrUpdate_6,
+        pc_insertOrUpdate_7,
+        pc_insertOrUpdate_8,
+        pc_insertOrUpdate_9,
+        pc_insertOrUpdate_10,
+        pc_insertOrUpdate_11,
+        pc_insertOrUpdate_12,
+        pc_insertOrUpdate_13,
+        pc_insertOrUpdate_14,
+        pc_insertOrUpdate_15,
+        pc_insertOrUpdate_16,
+        pc_insertOrUpdate_17,
+        pc_insertOrUpdate_18,
+        pc_insertOrUpdate_19,
+        pc_insertOrUpdate_20,
+        pc_insertOrUpdate_21,
+        pc_insertOrUpdate_22,
+        pc_insertOrUpdate_23,
+        pc_insertOrUpdate_24,
+        pc_insertOrUpdate_25,
+        pc_insertOrUpdate_26,
+        pc_insertOrUpdate_27,
+        pc_insertOrUpdate_28,
+        pc_insertOrUpdate_29,
+
+        pc_newEntry_1,
+
+        pc_getEntryAt_1,
+
+        pc_clearEntry_1,
+
+        pc_delete_1
+    }
+
+    State: TYPE+ = [#
+        pc: [range(P) -> PC],
+        frames: [range(P) -> stack[PC]],
+
+        dict: AtomicDict,
+        objects: [Address -> PyObject],
+
+        % internal variables
+        getMeta_var_ref: [range(P) -> Address],
+
+        tryIncref_var_ref: [range(P) -> Address],
+        tryIncref_var_success: [range(P) -> bool],
+
+        find_var_key: [range(P) -> Address],
+        
+        insertOrUpdate_var_key: [range(P) -> Address],
+        insertOrUpdate_var_expected: [range(P) -> Address],
+        insertOrUpdate_var_desired: [range(P) -> Address],
+        insertOrUpdate_var_done: [range(P) -> bool],
+        insertOrUpdate_var_expectation: [range(P) -> bool],
+        insertOrUpdate_var_distance: [range(P) -> nat],
+        insertOrUpdate_var_pos: [range(P) -> nat],
+        insertOrUpdate_var_node: [range(P) -> Node],
+        insertOrUpdate_var_return: [range(P) -> Address],
+
+        newEntry_var_entry: [range(P) -> Entry],
+        newEntry_var_entry_ix: [range(P) -> nat],
+        newEntry_var_block: [range(P) -> nat],
+        newEntry_var_pos: [range(P) -> nat],
+
+        getEntryAt_var_entry: [range(P) -> Entry],
+        getEntryAt_var_pos: [range(P) -> nat],
+        getEntryAt_var_block: [range(P) -> nat],
+        
+        delete_var_key: [range(P) -> Address],
+
+        decref_var_ref: [range(P) -> Address]
+    #]
+
+    s1, s2: VAR State
+
+    frames_non_empty: AXIOM 
+        FORALL (p: range(P), s1: State, cc: PC):
+            s1`pc(p) = cc IMPLIES some?(top(s1`frames(p)))
+
+
+    % initial state
+    initMetaAddress: Address
+
+    initMetaAddress_non_null: AXIOM
+        EXISTS (a: Address):
+            a /= null and initMetaAddress = a
+
+    initMeta: PyObject = (#
+        address := initMetaAddress,
+        references := 1,
+        type_ := PyType_Meta,
+        meta := (#
+            index := lambda (n: nat): NodeZero,
+            blocks := lambda (n: nat): emptyBlock,
+            log_size := 6,
+            migration_leader := 0,
+            new_gen_metadata := null
+        #),
+        block := emptyBlock
+    #)
+
+    Init: TYPE = {s: State |
+        s`dict`meta = initMetaAddress 
+        and s`objects(initMetaAddress) = initMeta
+        and (
+            forall (p: range(P)):
+                s`pc(p) = pc_main_1 
+                and s`frames(p) = push(pc_main_1, null)
+                and s`tryIncref_var_ref(p) = null
+                and s`getMeta_var_ref(p) = null
+        )
+    }
+
+    init_ax: AXIOM
+        EXISTS (s: Init): TRUE
+
+    % - procedures
+
+    % main
+    main_1(p, s1, s2): bool =
+        s1`pc(p) = pc_main_1 and (
+            s1=s2 with [
+                (pc)(p) := pc_getMeta_1,
+                (frames)(p) := push(pc_main_2, s1`frames(p))
+            ]
+        )
+
+    main_2(p, s1, s2): bool =  % non-deterministically call one of releaseMeta, find, insertOrUpdate, or delete
+        s1`pc(p) = pc_main_2 and (
+            (
+                s1=s2 with [
+                    (pc)(p) := pc_releaseMeta_1,
+                    (frames)(p) := push(pc_main_1, s1`frames(p))
+                ]
+            )
+            or (
+                exists (k: InputPyObject):
+                s1=s2 with [
+                    (pc)(p) := pc_find_1,
+                    (frames)(p) := push(pc_main_2, s1`frames(p)),
+                    (find_var_key)(p) := k`address
+                ]
+            )
+            or (
+                exists (k: InputPyObject, e: {o: AlivePyObject | o /= ExpectationFailed}, v: InputPyObject):
+                s1=s2 with [
+                    (pc)(p) := pc_insertOrUpdate_1,
+                    (frames)(p) := push(pc_main_2, s1`frames(p)),
+                    (insertOrUpdate_var_key)(p) := k`address,
+                    (insertOrUpdate_var_expected)(p) := e`address,
+                    (insertOrUpdate_var_desired)(p) := v`address
+                ]
+            )
+            or (
+                exists (k: InputPyObject): k /= PyNull and
+                s1=s2 with [
+                    (pc)(p) := pc_delete_1,
+                    (frames)(p) := push(pc_main_2, s1`frames(p)),
+                    (delete_var_key)(p) := k`address
+                ]
+            )
+        )
+
+    % getMeta (AtomicRef_Get)
+    getMeta_1(p, s1, s2): bool =
+        s1`pc(p) = pc_getMeta_1 and
+        s2=s1 with [
+            (pc)(p) := pc_tryIncref_1,
+            (frames)(p) := push(pc_getMeta_2, s1`frames(p)),
+            (getMeta_var_ref)(p) := s1`dict`meta,
+            (tryIncref_var_ref)(p) := s1`dict`meta
+        ]
+    
+    getMeta_2(p, s1, s2): bool =
+        s1`pc(p) = pc_getMeta_2 and (
+            if s1`tryIncref_var_success(p)
+            then s2=s1 with [
+                (pc)(p) := pc_getMeta_3
+            ]
+            else s2=s1 with [
+                (pc)(p) := pc_getMeta_1
+            ]
+            endif
+        )
+    
+    getMeta_3(p, s1, s2): bool =
+        s1`pc(p) = pc_getMeta_3 and
+        s2=s1 with [
+            (pc)(p) := val(top(s1`frames(p))),
+            (frames)(p) := pop(s1`frames(p))
+        ]
+
+    % tryIncref (_Py_TRY_INCREF)
+    tryIncref_1(p, s1, s2): bool =
+        s1`pc(p) = pc_tryIncref_1 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p))
+            ]
+        ) and (
+            if s1`objects(s1`tryIncref_var_ref(p))`references = 0
+            then s2=s1 with [
+                (tryIncref_var_success)(p) := false
+            ]
+            else s2=s1 with [
+                (tryIncref_var_success)(p) := true,
+                (objects)(s1`tryIncref_var_ref(p)) := s1`objects(s1`tryIncref_var_ref(p)) with [
+                    (references) := references(s1`objects(s1`tryIncref_var_ref(p))) + 1
+                ]
+            ]
+            endif
+        )
+
+    % decref (Py_DECREF)
+    decref_1(p, s1, s2): bool =
+        s1`pc(p) = pc_decref_1 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p))
+            ]
+        ) and (
+            s2=s1 with [
+                (objects) := s1`objects with [
+                    (s1`decref_var_ref(p)) := s1`objects(s1`decref_var_ref(p)) with [
+                        (references) := s1`objects(s1`decref_var_ref(p))`references - 1
+                    ]
+                ]
+            ]
+        )
+
+    % releaseMeta
+    releaseMeta_1(p, s1, s2): bool =
+        s1`pc(p) = pc_releaseMeta_1 and
+        s2=s1 with [
+            (pc)(p) := pc_decref_1,
+            (frames)(p) := push(pc_releaseMeta_2, s1`frames(p)),
+            (decref_var_ref)(p) := s1`getMeta_var_ref(p)
+        ]
+    
+    releaseMeta_2(p, s1, s2): bool =
+        s1`pc(p) = pc_releaseMeta_2 and
+        s2=s1 with [
+            (pc)(p) := val(top(s1`frames(p))),
+            (frames)(p) := pop(s1`frames(p)),
+            (getMeta_var_ref)(p) := null
+        ]
+
+    % find
+    find_1(p, s1, s2): bool =
+        s1`pc(p) = pc_find_1 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p))
+            ]
+        )
+    
+    % insertOrUpdate
+    insertOrUpdate_1(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_1 and (
+            if s1`objects(s1`insertOrUpdate_var_expected(p)) = NotFound
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_newEntry_1,
+                    (frames)(p) := push(pc_insertOrUpdate_3, s1`frames(p))
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_4
+                ]
+            endif
+        )
+    
+    insertOrUpdate_3(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_3 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_4,
+                (newEntry_var_entry)(p) := s1`newEntry_var_entry(p) with [
+                    (key) := s1`insertOrUpdate_var_key(p),
+                    (value) := s1`insertOrUpdate_var_desired(p)
+                ]
+            ]
+        )
+    
+    insertOrUpdate_4(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_4 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_5,
+                (insertOrUpdate_var_done)(p) := false,
+                (insertOrUpdate_var_expectation)(p) := true,
+                (insertOrUpdate_var_distance)(p) := 0
+            ]
+        )
+    
+    insertOrUpdate_5(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_5 and (
+            if not s1`insertOrUpdate_var_done(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_6
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_25
+                ]
+            endif
+        )
+    
+    insertOrUpdate_6(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_6 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_7,
+                (insertOrUpdate_var_pos)(p) := hash(
+                    s1`insertOrUpdate_var_key(p),
+                    s1`objects(s1`getMeta_var_ref(p))`meta`log_size,
+                    s1`insertOrUpdate_var_distance(p)
+                )
+            ]
+        )
+
+    insertOrUpdate_7(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_7 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_8,
+                (insertOrUpdate_var_node)(p) := s1`objects(s1`getMeta_var_ref(p))`meta`index(s1`insertOrUpdate_var_pos(p))
+            ]
+        )
+
+    insertOrUpdate_8(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_8 and (
+            if s1`insertOrUpdate_var_node(p) = NodeZero
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_9
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_14
+                ]
+            endif
+        )
+    
+    insertOrUpdate_9(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_9 and (
+            if s1`objects(s1`insertOrUpdate_var_expected(p)) /= NotFound
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_10
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_11
+                ]
+            endif
+        )
+    
+    insertOrUpdate_10(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_10 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_24,
+                (insertOrUpdate_var_done)(p) := true,
+                (insertOrUpdate_var_expectation)(p) := false
+            ]
+        )
+
+    insertOrUpdate_11(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_11 and (
+            if s1`objects(s1`getMeta_var_ref(p))`meta`index(s1`insertOrUpdate_var_pos(p)) = NodeZero
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_12,
+                    (objects)(s1`getMeta_var_ref(p))(meta) := s1`objects(s1`getMeta_var_ref(p))`meta with [
+                        (index)(s1`insertOrUpdate_var_pos(p)) := (#
+                            block := s1`newEntry_var_block(p),
+                            pos := s1`newEntry_var_pos(p),
+                            distance := s1`insertOrUpdate_var_distance(p)
+                        #)
+                    ],
+                    (insertOrUpdate_var_done)(p) := true
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_12
+                ]
+            endif
+        )
+
+    insertOrUpdate_12(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_12 and (
+            if not s1`insertOrUpdate_var_done(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_24,
+                    (insertOrUpdate_var_distance)(p) := s1`insertOrUpdate_var_distance(p) - 1
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_24
+                ]
+            endif
+        )
+    
+    insertOrUpdate_14(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_14 and (
+            s1=s2 with [
+                (pc)(p) := pc_getEntryAt_1,
+                (frames)(p) := push(pc_insertOrUpdate_15, s1`frames(p))
+            ]
+        )
+    
+    insertOrUpdate_15(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_15 and (
+            if s1`getEntryAt_var_entry(p)`key = s1`insertOrUpdate_var_key(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_16
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_24
+                ]
+            endif
+        )
+    
+    insertOrUpdate_16(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_16 and (
+            if s1`objects(s1`insertOrUpdate_var_expected(p)) = NotFound
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_17
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_19
+                ]
+            endif
+        )
+    
+    insertOrUpdate_17(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_17 and (
+            if s1`getEntryAt_var_entry(p)`tombstone or s1`getEntryAt_var_entry(p)`value = null
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_18
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_24
+                ]
+            endif
+        )
+    
+    insertOrUpdate_18(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_18 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_24,
+                (insertOrUpdate_var_done)(p) := true,
+                (insertOrUpdate_var_expectation)(p) := false
+            ]
+        )
+    
+    insertOrUpdate_19(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_19 and (
+            if s1`getEntryAt_var_entry(p)`value /= s1`insertOrUpdate_var_expected(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_20
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_21
+                ]
+            endif
+        )
+    
+    insertOrUpdate_20(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_20 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_24,
+                (insertOrUpdate_var_done)(p) := true,
+                (insertOrUpdate_var_expectation)(p) := false
+            ]
+        )
+    
+    insertOrUpdate_21(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_21 and (
+            if s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p))`entries(s1`getEntryAt_var_pos(p))`value = s1`insertOrUpdate_var_expected(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_22,
+                    (insertOrUpdate_var_done)(p) := true,
+                    (objects) := s1`objects with [
+                        (s1`getMeta_var_ref(p)) := s1`objects(s1`getMeta_var_ref(p)) with [
+                            (meta) := s1`objects(s1`getMeta_var_ref(p))`meta with [
+                                (blocks)(s1`getEntryAt_var_block(p)) := s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p)) with [
+                                    (entries)(s1`getEntryAt_var_pos(p)) := s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p))`entries(s1`getEntryAt_var_pos(p)) with [
+                                        (value) := s1`insertOrUpdate_var_desired(p)
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_22,
+                    (insertOrUpdate_var_done)(p) := false
+                ]
+            endif
+        )
+    
+    insertOrUpdate_22(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_22 and (
+            if not s1`insertOrUpdate_var_done(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_24
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_23
+                ]
+            endif
+        )
+    
+    insertOrUpdate_23(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_23 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_24,
+                (insertOrUpdate_var_distance)(p) := s1`insertOrUpdate_var_distance(p) - 1
+            ]
+        )
+    
+    insertOrUpdate_24(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_24 and (
+            s2=s1 with [
+                (pc)(p) := pc_insertOrUpdate_5,
+                (insertOrUpdate_var_distance)(p) := s1`insertOrUpdate_var_distance(p) + 1
+            ]
+        )
+    
+    insertOrUpdate_25(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_25 and (
+            if s1`objects(s1`insertOrUpdate_var_expected(p)) = NotFound and s1`insertOrUpdate_var_expectation(p) = false
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_clearEntry_1,
+                    (frames)(p) := push(pc_insertOrUpdate_27, s1`frames(p))
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_27
+                ]
+            endif
+        )
+    
+    insertOrUpdate_27(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_27 and (
+            if s1`insertOrUpdate_var_expectation(p) = true
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_28
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_insertOrUpdate_29
+                ]
+            endif
+        )
+    
+    insertOrUpdate_28(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_28 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p)),
+                (insertOrUpdate_var_return)(p) := s1`insertOrUpdate_var_expected(p)
+            ]
+        )
+    
+    insertOrUpdate_29(p, s1, s2): bool =
+        s1`pc(p) = pc_insertOrUpdate_29 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p)),
+                (insertOrUpdate_var_return)(p) := s1`insertOrUpdate_var_desired(p)
+            ]
+        )
+
+    % delete
+    delete_1(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_1 and (
+            s2=s1 with [
+                (pc)(p) := val(top(s1`frames(p))),
+                (frames)(p) := pop(s1`frames(p))
+            ]
+        )
+
+
+    % - invariants
+
+    % dict`meta is a valid meta
+    inv_dict_meta(s: State): bool =
+        s`objects(s`dict`meta)`type_ = PyType_Meta
+        and s`objects(s`dict`meta)`references > 0
+    
+
+
+    INV(s: State): bool =
+        inv_dict_meta(s)
+
+    % @QED INV_init proved by dp on Fri, 08 Mar 2024 18:26:03 GMT
+    INV_init: THEOREM
+        FORALL (s: Init): INV(s)
+
+END atomicdict
