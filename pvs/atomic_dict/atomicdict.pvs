@@ -189,7 +189,24 @@ BEGIN
 
         pc_clearEntry_1,
 
-        pc_delete_1
+        pc_delete_1,
+        pc_delete_2,
+        pc_delete_3,
+        pc_delete_4,
+        pc_delete_5,
+        pc_delete_6,
+        pc_delete_7,
+        pc_delete_8,
+        pc_delete_9,
+        pc_delete_10,
+        pc_delete_11,
+        pc_delete_12,
+        pc_delete_13,
+        pc_delete_14,
+        pc_delete_15,
+        pc_delete_16,
+        pc_delete_17,
+        pc_delete_18
     }
 
     pc_is_main?(pc: PC): bool =
@@ -257,6 +274,24 @@ BEGIN
     
     pc_is_delete?(pc: PC): bool =
         pc = pc_delete_1
+        or pc = pc_delete_2
+        or pc = pc_delete_3
+        or pc = pc_delete_4
+        or pc = pc_delete_5
+        or pc = pc_delete_6
+        or pc = pc_delete_7
+        or pc = pc_delete_8
+        or pc = pc_delete_9
+        or pc = pc_delete_10
+        or pc = pc_delete_11
+        or pc = pc_delete_12
+        or pc = pc_delete_13
+        or pc = pc_delete_14
+        or pc = pc_delete_15
+        or pc = pc_delete_16
+        or pc = pc_delete_17
+        or pc = pc_delete_18
+
 
     State: TYPE+ = [#
         pc: [range(P) -> PC],
@@ -302,6 +337,15 @@ BEGIN
         clearEntry_return_to: [range(P) -> PC],
         
         delete_var_key: [range(P) -> Address],
+        delete_var_expected: [range(P) -> Address],
+        delete_var_done: [range(P) -> bool],
+        delete_var_expectation: [range(P) -> bool],
+        delete_var_distance: [range(P) -> nat],
+        delete_var_pos: [range(P) -> nat],
+        delete_var_node: [range(P) -> Node],
+        delete_var_entry: [range(P) -> Entry],
+        delete_var_ok: [range(P) -> bool],
+        delete_var_return: [range(P) -> Address],
         delete_return_to: [range(P) -> PC],
 
         decref_var_ref: [range(P) -> Address],
@@ -842,10 +886,182 @@ BEGIN
     delete_1(p, s1, s2): bool =
         s1`pc(p) = pc_delete_1 and (
             s2=s1 with [
-                (pc)(p) := s1`delete_return_to(p)
+                (pc)(p) := pc_delete_2,
+                (delete_var_done)(p) := false,
+                (delete_var_expectation)(p) := true,
+                (delete_var_distance)(p) := 0
             ]
         )
+    
+    delete_2(p, s1, s2): bool =  % while(!done)
+        s1`pc(p) = pc_delete_2 and (
+            if not s1`delete_var_done(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_delete_3
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_14
+                ]
+            endif
+        )
+    
+    delete_3(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_3 and (
+            s2=s1 with [
+                (pc)(p) := pc_delete_4,
+                (delete_var_pos)(p) := hash(
+                    s1`delete_var_key(p),
+                    s1`objects(s1`getMeta_var_ref(p))`meta`log_size,
+                    s1`delete_var_distance(p)
+                )
+            ]
+        )
+    
+    delete_4(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_4 and (
+            s2=s1 with [
+                (pc)(p) := pc_delete_5,
+                (delete_var_node)(p) := s1`objects(s1`getMeta_var_ref(p))`meta`index(s1`delete_var_pos(p))
+            ]
+        )
+    
+    delete_5(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_5 and (
+            if s1`delete_var_node(p) = NodeZero
+            then
+                s2=s1 with [
+                    (pc)(p) := s1`delete_return_to(p),
+                    (delete_var_return)(p) := NotFound`address
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_7
+                ]
+            endif
+        )
+    
+    delete_7(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_7 and (
+            s2=s1 with [
+                (pc)(p) := pc_getEntryAt_1,
+                (getEntryAt_return_to)(p) := pc_delete_8,
+                (getEntryAt_var_pos)(p) := s1`delete_var_node(p)`pos
+            ]
+        )
+    
+    delete_8(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_8 and (
+            if s1`getEntryAt_var_entry(p)`key = s1`delete_var_key(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_delete_9
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_13
+                ]
+            endif
+        )
+    
+    delete_9(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_9 and (
+            if (
+                s1`getEntryAt_var_entry(p)`value = s1`delete_var_expected(p)
+                and s1`objects(s1`delete_var_expected(p)) /= Any
+            )
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_delete_10
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_11
+                ]
+            endif
+        )
+    
+    delete_10(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_10 and (
+            s2=s1 with [
+                (pc)(p) := pc_delete_13,
+                (delete_var_done)(p) := true,
+                (delete_var_expectation)(p) := false
+            ]
+        )
+    
+    delete_11(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_11 and (
+            s1=s2 with [
+                (pc)(p) := pc_delete_12
+            ]
+        ) and (
+            if s1`getEntryAt_var_entry(p)`value = s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p))`
+                entries(s1`getEntryAt_var_pos(p))`value
+            then
+                s2=s1 with [
+                    (objects)(s1`getMeta_var_ref(p))(meta) := s1`objects(s1`getMeta_var_ref(p))`meta with [
+                        (blocks)(s1`getEntryAt_var_block(p)) := s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p)) with [
+                            (entries)(s1`getEntryAt_var_pos(p)) := s1`objects(s1`getMeta_var_ref(p))`meta`blocks(s1`getEntryAt_var_block(p))`entries(s1`getEntryAt_var_pos(p)) with [
+                                (value) := null
+                            ]
+                        ]
+                    ],
+                    (delete_var_done)(p) := true
+                ]
+            else
+                s2=s1 with [
+                    (delete_var_done)(p) := false
+                ]
+            endif
+        )
+    
+    delete_12(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_12 and (
+            if not s1`delete_var_done(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_delete_2
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_13
+                ]
+            endif
+        )
+    
+    delete_13(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_13 and (
+            s2=s1 with [
+                (pc)(p) := pc_delete_2,
+                (delete_var_distance)(p) := s1`delete_var_distance(p) + 1
+            ]
+        )
+    
+    delete_14(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_14 and (
+            if not s1`delete_var_expectation(p)
+            then
+                s2=s1 with [
+                    (pc)(p) := pc_delete_15
+                ]
+            else
+                s2=s1 with [
+                    (pc)(p) := pc_delete_16
+                ]
+            endif
+        )
 
+    delete_15(p, s1, s2): bool =
+        s1`pc(p) = pc_delete_15 and (
+            s2=s1 with [
+                (pc)(p) := s1`delete_return_to(p),
+                (delete_var_return)(p) := ExpectationFailed`address
+            ]
+        )
+    
+    
 
     % - invariants
 
@@ -890,61 +1106,61 @@ BEGIN
     % - transitions
     step(p, s1, s2): bool =
         main_1(p, s1, s2)
-        xor main_2(p, s1, s2)
-        xor main_3(p, s1, s2)
+        or main_2(p, s1, s2)
+        or main_3(p, s1, s2)
 
-        xor getMeta_1(p, s1, s2)
-        xor getMeta_2(p, s1, s2)
-        xor getMeta_3(p, s1, s2)
+        or getMeta_1(p, s1, s2)
+        or getMeta_2(p, s1, s2)
+        or getMeta_3(p, s1, s2)
 
-        xor tryIncref_1(p, s1, s2)
+        or tryIncref_1(p, s1, s2)
 
-        xor (
+        or (
             state_can_call_decref?(s1, p) and decref_1(p, s1, s2)
         )
 
-        xor releaseMeta_1(p, s1, s2)
-        xor releaseMeta_2(p, s1, s2)
+        or releaseMeta_1(p, s1, s2)
+        or releaseMeta_2(p, s1, s2)
 
-        xor find_1(p, s1, s2)
+        or find_1(p, s1, s2)
 
-        xor insertOrUpdate_1(p, s1, s2)
-        % xor insertOrUpdate_2(p, s1, s2)
-        xor insertOrUpdate_3(p, s1, s2)
-        xor insertOrUpdate_4(p, s1, s2)
-        xor insertOrUpdate_5(p, s1, s2)
-        xor insertOrUpdate_6(p, s1, s2)
-        xor insertOrUpdate_7(p, s1, s2)
-        xor insertOrUpdate_8(p, s1, s2)
-        xor insertOrUpdate_9(p, s1, s2)
-        xor insertOrUpdate_10(p, s1, s2)
-        xor insertOrUpdate_11(p, s1, s2)
-        xor insertOrUpdate_12(p, s1, s2)
-        % xor insertOrUpdate_13(p, s1, s2)
-        xor insertOrUpdate_14(p, s1, s2)
-        xor insertOrUpdate_15(p, s1, s2)
-        xor insertOrUpdate_16(p, s1, s2)
-        xor insertOrUpdate_17(p, s1, s2)
-        xor insertOrUpdate_18(p, s1, s2)
-        xor insertOrUpdate_19(p, s1, s2)
-        xor insertOrUpdate_20(p, s1, s2)
-        xor insertOrUpdate_21(p, s1, s2)
-        xor insertOrUpdate_22(p, s1, s2)
-        xor insertOrUpdate_23(p, s1, s2)
-        xor insertOrUpdate_24(p, s1, s2)
-        xor insertOrUpdate_25(p, s1, s2)
-        % xor insertOrUpdate_26(p, s1, s2)
-        xor insertOrUpdate_27(p, s1, s2)
-        xor insertOrUpdate_28(p, s1, s2)
-        xor insertOrUpdate_29(p, s1, s2)
+        or insertOrUpdate_1(p, s1, s2)
+        % or insertOrUpdate_2(p, s1, s2)
+        or insertOrUpdate_3(p, s1, s2)
+        or insertOrUpdate_4(p, s1, s2)
+        or insertOrUpdate_5(p, s1, s2)
+        or insertOrUpdate_6(p, s1, s2)
+        or insertOrUpdate_7(p, s1, s2)
+        or insertOrUpdate_8(p, s1, s2)
+        or insertOrUpdate_9(p, s1, s2)
+        or insertOrUpdate_10(p, s1, s2)
+        or insertOrUpdate_11(p, s1, s2)
+        or insertOrUpdate_12(p, s1, s2)
+        % or insertOrUpdate_13(p, s1, s2)
+        or insertOrUpdate_14(p, s1, s2)
+        or insertOrUpdate_15(p, s1, s2)
+        or insertOrUpdate_16(p, s1, s2)
+        or insertOrUpdate_17(p, s1, s2)
+        or insertOrUpdate_18(p, s1, s2)
+        or insertOrUpdate_19(p, s1, s2)
+        or insertOrUpdate_20(p, s1, s2)
+        or insertOrUpdate_21(p, s1, s2)
+        or insertOrUpdate_22(p, s1, s2)
+        or insertOrUpdate_23(p, s1, s2)
+        or insertOrUpdate_24(p, s1, s2)
+        or insertOrUpdate_25(p, s1, s2)
+        % or insertOrUpdate_26(p, s1, s2)
+        or insertOrUpdate_27(p, s1, s2)
+        or insertOrUpdate_28(p, s1, s2)
+        or insertOrUpdate_29(p, s1, s2)
 
-        % xor newEntry_1(p, s1, s2)
+        % or newEntry_1(p, s1, s2)
 
-        % xor getEntryAt_1(p, s1, s2)
+        % or getEntryAt_1(p, s1, s2)
 
-        % xor clearEntry_1(p, s1, s2)
+        % or clearEntry_1(p, s1, s2)
 
-        xor delete_1(p, s1, s2)
+        or delete_1(p, s1, s2)
         ;
 
     decref_returns_lemma: LEMMA
