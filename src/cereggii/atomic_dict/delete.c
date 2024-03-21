@@ -69,7 +69,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         assert(result.found);
         _ = 0;
         reader.zone = -1;
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, (AtomicDict_BufferedNodeReader *) &reader, meta);
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, &reader, meta);
         AtomicDict_CopyNodeBuffers(reader.buffer, temp);
         AtomicDict_RobinHoodDelete(meta, temp, reader.idx_in_buffer);
         AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write, &_);

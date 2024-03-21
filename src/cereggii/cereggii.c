@@ -4,6 +4,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "constants.h"
 #include "atomic_event.h"
 #include "atomic_int.h"
 #include "atomic_ref.h"
@@ -313,6 +314,11 @@ static PyModuleDef cereggii_module = {
     .m_size = -1,
 };
 
+// see constants.h
+PyObject *NOT_FOUND = NULL;
+PyObject *ANY = NULL;
+PyObject *EXPECTATION_FAILED = NULL;
+
 __attribute__((unused)) PyMODINIT_FUNC
 PyInit__cereggii(void)
 {
@@ -340,6 +346,16 @@ PyInit__cereggii(void)
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
         return NULL;
+
+    NOT_FOUND = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    if (NOT_FOUND == NULL)
+        goto fail;
+    ANY = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    if (ANY == NULL)
+        goto fail;
+    EXPECTATION_FAILED = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    if (EXPECTATION_FAILED == NULL)
+        goto fail;
 
     Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
@@ -374,5 +390,8 @@ PyInit__cereggii(void)
     return m;
     fail:
     Py_DECREF(m);
+    Py_XDECREF(NOT_FOUND);
+    Py_XDECREF(ANY);
+    Py_XDECREF(EXPECTATION_FAILED);
     return NULL;
 }

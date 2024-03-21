@@ -4,185 +4,193 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "constants.h"
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "pythread.h"
 
 
-inline AtomicDict_InsertedOrUpdated
-AtomicDict_CheckNodeEntryAndMaybeUpdate(uint64_t distance_0, uint64_t i, AtomicDict_Node *node,
-                                        AtomicDict_Meta *meta, Py_hash_t hash, PyObject *key, PyObject *value)
+PyObject *
+AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                                  PyObject *expected, PyObject *desired,
+                                  AtomicDict_EntryLoc *entry_loc, int *must_grow)
 {
-    if (AtomicDict_NodeIsReservation(node, meta))
-        goto check_entry;
-    if (meta->is_compact && (distance_0 + i - node->distance) % meta->size > distance_0)
-        return nop;
-    if (node->tag != (hash & meta->tag_mask))
-        return nop;
+    assert(meta != NULL);
+    assert(key != NULL);
+    assert(key != NOT_FOUND);
+    assert(key != ANY);
+    assert(key != EXPECTATION_FAILED);
+    assert(hash != -1);
+    assert(expected != NULL);
+    assert(expected != EXPECTATION_FAILED);
+    assert(desired != NULL);
+    assert(desired != NOT_FOUND);
+    assert(desired != ANY);
+    assert(desired != EXPECTATION_FAILED);
+    // assert(entry_loc == NULL => (expected != NOT_FOUND && expected != ANY));
+    assert(entry_loc != NULL || (expected != NOT_FOUND && expected != ANY));
 
-    AtomicDict_Entry *entry_p;
-    AtomicDict_Entry entry;
-    check_entry:
-    entry_p = AtomicDict_GetEntryAt(node->index, meta);
-    entry = *entry_p;
-
-    if (entry.hash != hash)
-        return nop;
-    if (entry.key == key)
-        goto same_key_reservation;
-
-    int cmp = PyObject_RichCompareBool(entry.key, key, Py_EQ);
-    if (cmp < 0) {
-        // exception thrown during compare
-        return error;
-    }
-    if (cmp == 0)
-        return nop;
-
-    same_key_reservation:
-    if (entry.flags & ENTRY_FLAGS_TOMBSTONE) {
-        // help delete
-        return retry;
-    }
-    if (AtomicDict_NodeIsReservation(node, meta)) {
-        // help insert
-        return retry;
-    }
-
-    if (CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, entry.value, value)) {
-        Py_DECREF(entry.value);
-        return updated;
-    }
-    goto check_entry;
-}
-
-AtomicDict_InsertedOrUpdated
-AtomicDict_InsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc, Py_hash_t hash,
-                                          PyObject *key, PyObject *value, uint64_t distance_0,
-                                          AtomicDict_BufferedNodeReader *reader, AtomicDict_Node *temp)
-{
-    AtomicDict_Node node = {
-        .index = entry_loc->location,
-        .tag = hash,
-    }, _;
+    int done, expectation;
+    *must_grow = 0;
 
     beginning:
-    reader->zone = -1;
-    AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0, reader, meta);
-    AtomicDict_InsertedOrUpdated check_result;
-
-    for (int i = 0; i < meta->nodes_in_zone; ++i) {
-        if (reader->buffer[i].node == 0) {
-            AtomicDict_CopyNodeBuffers(reader->buffer, temp);
-            AtomicDict_RobinHoodResult rh = AtomicDict_RobinHoodInsert(meta, temp, &node, reader->idx_in_buffer);
-
-            if (rh == grow) {
-                return must_grow;
-            }
-
-            assert(rh == ok);
-            int begin_write, end_write;
-            AtomicDict_ComputeBeginEndWrite(meta, reader->buffer, temp, &begin_write, &end_write,
-                                            (int64_t *) &distance_0);
-            if (begin_write < 0)
-                goto beginning;
-            if (AtomicDict_AtomicWriteNodesAt(distance_0 + begin_write, end_write - begin_write,
-                                              &reader->buffer[begin_write], &temp[begin_write], meta)) {
-                return inserted;
-            }
-            goto beginning;
-        }
-
-        check_result = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &reader->buffer[i], meta, hash, key,
-                                                               value);
-        if (check_result == retry) {
-            goto beginning;
-        }
-        if (check_result == error) {
-            goto error;
-        }
-        if (check_result == updated) {
-            return updated;
-        }
-    }
-
-    return nop;
-
-    error:
-    return error;
-}
-
-AtomicDict_InsertedOrUpdated
-AtomicDict_InsertOrUpdate(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc)
-{
-    Py_hash_t hash = entry_loc->entry->hash;
-    PyObject *key = entry_loc->entry->key;
-    PyObject *value = entry_loc->entry->value;
-    assert(key != NULL && value != NULL);
+    done = 0;
+    expectation = 1;
+    uint64_t distance = 0;
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
-    assert(distance_0 >= 0);
-
+    uint64_t d0_zone = AtomicDict_ZoneOf(distance_0, meta);
     AtomicDict_BufferedNodeReader reader;
+    reader.zone = -1;
+    PyObject *current = NULL;
+    uint8_t is_compact = meta->is_compact;
     AtomicDict_Node temp[16];
-    AtomicDict_Node reservation;
-    uint64_t idx;
+    AtomicDict_Node to_insert;
+    int begin_write, end_write;
+    int64_t _ = 0;
 
-    AtomicDict_InsertedOrUpdated close_to_0;
-    close_to_0 = AtomicDict_InsertOrUpdateCloseToDistance0(meta, entry_loc, hash, key, value, distance_0,
-                                                           &reader, temp);
-    if (close_to_0 == error) {
-        goto error;
-    }
-    if (close_to_0 == inserted || close_to_0 == updated || close_to_0 == must_grow) {
-        return close_to_0;
-    }
+    while (!done) {
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(distance_0 + distance, &reader, meta);
 
-    beginning:
-    for (int i = 0; i < meta->size; ++i) {
-        idx = (distance_0 + i) % (meta->size);
+        if (reader.node.node == 0) {
+            if (expected != NOT_FOUND && expected != ANY) {
+                expectation = 0;
+                break;
+            }
+            assert(entry_loc != NULL);
 
-        AtomicDict_ReadNodesFromZoneIntoBuffer(distance_0 + i, &reader, meta);
+            if (d0_zone == AtomicDict_ZoneOf(distance_0 + distance, meta)) {
+                AtomicDict_CopyNodeBuffers(reader.buffer, temp);
 
-        if (reader.node.node == 0)
-            goto tail_found;
+                to_insert.index = entry_loc->location;
+                to_insert.distance = meta->max_distance;
+                to_insert.tag = hash;
 
-        AtomicDict_InsertedOrUpdated check_entry;
-        check_entry = AtomicDict_CheckNodeEntryAndMaybeUpdate(distance_0, i, &reader.node, meta, hash, key, value);
-        switch (check_entry) {
-            case retry:
-                goto beginning;
-            case error:
-                goto error;
-            case updated:
-                return updated;
-            case nop:
-                continue;
-            default:
-                assert(0);
+                AtomicDict_RobinHoodResult rhr =
+                    AtomicDict_RobinHoodInsert(meta, temp, &to_insert, (int) (distance_0 % meta->nodes_in_zone));
+
+                if (rhr == grow) {
+                    *must_grow = 1;
+                    goto fail;
+                }
+                assert(rhr == ok);
+
+                AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write, &_);
+                assert(_ == 0);
+
+                done = AtomicDict_AtomicWriteNodesAt(
+                    distance_0 + begin_write, end_write - begin_write,
+                    &reader.buffer[begin_write], &temp[begin_write], meta
+                );
+            } else {
+                // non-compact insert
+
+                if (is_compact) {
+                    CereggiiAtomic_StoreUInt8(&meta->is_compact, 0);
+                }
+
+                to_insert.index = entry_loc->location;
+                to_insert.distance = meta->max_distance;
+                to_insert.tag = hash;
+
+                done = AtomicDict_AtomicWriteNodesAt(distance_0 + distance, 1,
+                                                     &reader.buffer[reader.idx_in_buffer], &to_insert,
+                                                     meta);
+            }
+
+            if (!done)
+                continue;  // don't increase distance
+        } else if (reader.node.node == meta->tombstone.node) {
+            // pass
+        } else if (is_compact && !AtomicDict_NodeIsReservation(&reader.node, meta) && (
+            (distance_0 + distance - reader.node.distance > distance_0)
+        )) {
+            if (expected != NOT_FOUND && expected != ANY) {
+                expectation = 0;
+                break;
+            }
+        } else if (reader.node.tag != (hash & meta->tag_mask)) {
+            // pass
+        } else {
+            AtomicDict_Entry *entry_p, entry;
+            entry_p = AtomicDict_GetEntryAt(reader.node.index, meta);
+            AtomicDict_ReadEntry(entry_p, &entry);
+
+            int eq = 0;
+            if (entry.key != key) {
+                eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
+
+                if (eq < 0)  // exception raised during compare
+                    goto fail;
+            }
+
+            if (entry.key == key || eq) {
+                if (expected == NOT_FOUND) {
+                    if (entry.value != NULL) {
+                        done = 1;
+                        expectation = 0;
+                    }
+                    // if expected == NOT_FOUND && value == NULL:
+                    //   it means there's another thread T concurrently
+                    //   deleting this key.
+                    //   T's linearization point (setting value = NULL) has
+                    //   already been reached, thus we can proceed visiting
+                    //   the probe.
+                } else {
+                    // expected != NOT_FOUND, value may be NULL
+                    if (entry.value != expected && expected != ANY) {
+                        done = 1;
+                        expectation = 0;
+                    } else {
+                        current = entry.value;
+                        done = CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, entry.value, desired);
+
+                        if (!done) {
+                            current = NULL;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        distance++;
+
+        if (distance >= meta->size) {
+            *must_grow = 1;
+            goto fail;
         }
     }
 
-    // looped over the entire index without finding an emtpy slot
-    return must_grow;
+    // assert(expected == ANY => expectation == 1);
+    assert(expected != ANY || expectation == 1);
 
-    tail_found:
-    reservation.index = entry_loc->location;
-    reservation.distance = meta->max_distance;
-    reservation.tag = hash;
-    assert(reader.node.node == 0);
-    if (meta->is_compact) {
-        CereggiiAtomic_CompareExchangeUInt8(&meta->is_compact, 1, 0);
-        // no need to handle failure
-    }
-    if (!AtomicDict_AtomicWriteNodesAt(idx, 1, &reader.buffer[reader.idx_in_buffer], &reservation, meta)) {
-        reader.zone = -1;
+    if (expected != NOT_FOUND && expectation == 0 && meta->is_compact != is_compact)
         goto beginning;
+
+    if (expectation && expected == NOT_FOUND) {
+        Py_INCREF(NOT_FOUND);
+        return NOT_FOUND;
+    } else if (expectation && expected == ANY) {
+        if (current == NULL) {
+            Py_INCREF(NOT_FOUND);
+            return NOT_FOUND;
+        } else {
+            return current;
+        }
+    } else if (expectation) {
+        assert(current != NULL);
+        // no need to incref:
+        //   - should incref because it's being returned
+        //   - should decref because it has just been removed from the dict
+        return current;
+    } else {
+        Py_INCREF(EXPECTATION_FAILED);
+        return EXPECTATION_FAILED;
     }
 
-    return inserted;
-    error:
-    return error;
+    fail:
+    return NULL;
 }
 
 int
@@ -208,7 +216,6 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     rb = AtomicDict_GetReservationBuffer(self);
     if (rb == NULL)
         goto fail;
-
 
     beginning:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
@@ -242,20 +249,24 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     entry_loc.entry->hash = hash;
     entry_loc.entry->value = value;
 
-    AtomicDict_InsertedOrUpdated result = AtomicDict_InsertOrUpdate(meta, &entry_loc);
+    int must_grow;
+    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, ANY, value, &entry_loc, &must_grow);
+    assert(result != EXPECTATION_FAILED);
 
-    if (result != inserted) {
+    if (result != NOT_FOUND) {
         entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
         entry_loc.entry->hash = 0;
         AtomicDict_ReservationBufferPut(rb, &entry_loc, 1);
     }
-    if (result == error) {
-        goto fail;
-    }
 
-    if (result == must_grow) {
+    if (result == NULL && !must_grow)
+        goto fail;
+
+    Py_DECREF(result);
+
+    if (must_grow) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)

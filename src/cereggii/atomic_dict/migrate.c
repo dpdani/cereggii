@@ -8,6 +8,7 @@
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "atomic_ops.h"
+#include "constants.h"
 
 
 int
@@ -257,8 +258,16 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
             AtomicDict_Lookup(current_meta, entry_loc.entry->key, entry_loc.entry->hash, &sr);
 
             if (sr.found) {
-                AtomicDict_InsertedOrUpdated result = AtomicDict_InsertOrUpdate(new_meta, &entry_loc);
-                assert(result == inserted);
+                int must_grow;
+                PyObject *result = AtomicDict_ExpectedInsertOrUpdate(new_meta,
+                                                                     entry_loc.entry->key, entry_loc.entry->hash,
+                                                                     NOT_FOUND, entry_loc.entry->value,
+                                                                     &entry_loc, &must_grow);
+                assert(result != EXPECTATION_FAILED);
+                assert(!must_grow);
+                assert(result != NULL);
+                assert(result == NOT_FOUND);
+                Py_DECREF(result);
             }
         }
 

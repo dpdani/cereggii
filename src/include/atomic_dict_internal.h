@@ -335,7 +335,10 @@ int AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
-AtomicDict_InsertedOrUpdated AtomicDict_InsertOrUpdate(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc);
+PyObject *AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                                            PyObject *expected, PyObject *desired,
+                                            AtomicDict_EntryLoc *entry_loc, int *must_grow);
+
 
 /// node sizes table
 /*
