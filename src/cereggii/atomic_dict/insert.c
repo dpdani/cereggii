@@ -63,7 +63,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
                 AtomicDict_CopyNodeBuffers(reader.buffer, temp);
 
                 to_insert.index = entry_loc->location;
-                to_insert.distance = meta->max_distance;
+                to_insert.distance = 0;
                 to_insert.tag = hash;
 
                 AtomicDict_RobinHoodResult rhr =
@@ -79,7 +79,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
                 assert(_ == 0);
 
                 done = AtomicDict_AtomicWriteNodesAt(
-                    distance_0 + begin_write, end_write - begin_write,
+                    distance_0 - (distance_0 % meta->nodes_in_zone) + begin_write, end_write - begin_write,
                     &reader.buffer[begin_write], &temp[begin_write], meta
                 );
             } else {
@@ -264,7 +264,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (result == NULL && !must_grow)
         goto fail;
 
-    Py_DECREF(result);
+    Py_XDECREF(result);
 
     if (must_grow) {
         migrated = AtomicDict_Grow(self);
