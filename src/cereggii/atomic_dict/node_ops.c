@@ -127,15 +127,6 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
         *end_write = meta->nodes_in_zone;
     }
     assert(*end_write > *begin_write);
-
-    if (AtomicDict_MustWriteBytes(*end_write - *begin_write, meta) == 16) {
-        while (!AtomicDict_IndexAddressIsAligned(*start_ix + *begin_write, 16, meta)) {
-            --*begin_write;
-        }
-        if (begin_write < 0) {
-            *start_ix += *begin_write;
-        }
-    }
 }
 
 void
