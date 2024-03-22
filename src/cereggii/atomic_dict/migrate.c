@@ -267,7 +267,6 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
                 assert(!must_grow);
                 assert(result != NULL);
                 assert(result == NOT_FOUND);
-                Py_DECREF(result);
             }
         }
 

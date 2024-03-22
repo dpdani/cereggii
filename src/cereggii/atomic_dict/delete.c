@@ -61,18 +61,16 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     AtomicDict_BufferedNodeReader reader;
     AtomicDict_Node temp[16];
     int begin_write, end_write;
-    int64_t _;
 
     do {
         AtomicDict_LookupEntry(meta, entry_ix, hash, &result);
         assert(!result.error);
         assert(result.found);
-        _ = 0;
         reader.zone = -1;
         AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, &reader, meta);
         AtomicDict_CopyNodeBuffers(reader.buffer, temp);
         AtomicDict_RobinHoodDelete(meta, temp, reader.idx_in_buffer);
-        AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write, &_);
+        AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write);
     } while (!AtomicDict_AtomicWriteNodesAt(result.position - reader.idx_in_buffer + begin_write,
                                             end_write - begin_write,
                                             &reader.buffer[begin_write], &temp[begin_write], meta));

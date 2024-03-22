@@ -184,7 +184,7 @@ void AtomicDict_Read16NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Me
 void AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buffer);
 
 void AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
-                                     int *begin_write, int *end_write, int64_t *start_ix);
+                                     int *begin_write, int *end_write);
 
 typedef struct AtomicDict_BufferedNodeReader {
     int64_t zone;

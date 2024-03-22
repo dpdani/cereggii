@@ -103,7 +103,7 @@ AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buf
 
 void
 AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
-                                int *begin_write, int *end_write, int64_t *start_ix)
+                                int *begin_write, int *end_write)
 {
     int j;
     *begin_write = -1;
