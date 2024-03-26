@@ -86,7 +86,7 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
                                                   AtomicDict_EntryLoc *entry_loc,
                                                   int *must_grow, int *done, int *expectation,
                                                   AtomicDict_BufferedNodeReader *reader,
-                                                  AtomicDict_Node *to_insert, uint64_t distance_0)
+                                                  AtomicDict_Node *to_insert, uint64_t distance_0, int skip_entry_check)
 {
     assert(entry_loc != NULL);
     AtomicDict_Node temp[16];
@@ -99,13 +99,15 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
         if (reader->buffer[i].node == 0)
             goto empty_slot;
 
-        int updated = AtomicDict_ExpectedUpdateEntry(meta, reader->buffer[i].index, key, hash, expected, desired,
-                                                     current, done, expectation);
-        if (updated < 0)
-            goto fail;
+        if (!skip_entry_check) {
+            int updated = AtomicDict_ExpectedUpdateEntry(meta, reader->buffer[i].index, key, hash, expected, desired,
+                                                         current, done, expectation);
+            if (updated < 0)
+                goto fail;
 
-        if (updated)
-            return 1;
+            if (updated)
+                return 1;
+        }
     }
     return 0;
 
@@ -146,7 +148,8 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
 PyObject *
 AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
                                   PyObject *expected, PyObject *desired,
-                                  AtomicDict_EntryLoc *entry_loc, int *must_grow)
+                                  AtomicDict_EntryLoc *entry_loc, int *must_grow,
+                                  int skip_entry_check)
 {
     assert(meta != NULL);
     assert(key != NULL);
@@ -179,7 +182,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
     if (AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(meta, key, hash, expected, desired, &current, entry_loc,
                                                           must_grow, &done, &expectation, &reader, &to_insert,
-                                                          distance_0) < 0)
+                                                          distance_0, skip_entry_check) < 0)
         goto fail;
 
     while (!done) {
@@ -220,7 +223,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             }
         } else if (reader.node.tag != (hash & meta->tag_mask)) {
             // pass
-        } else {
+        } else if (!skip_entry_check) {
             int updated = AtomicDict_ExpectedUpdateEntry(meta, reader.node.index, key, hash, expected, desired,
                                                          &current, &done, &expectation);
             if (updated < 0)
@@ -324,7 +327,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     entry_loc.entry->value = value;
 
     int must_grow;
-    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, ANY, value, &entry_loc, &must_grow);
+    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, ANY, value, &entry_loc, &must_grow, 0);
     assert(result != EXPECTATION_FAILED);
 
     if (result != NOT_FOUND) {
@@ -342,7 +345,8 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         Py_XDECREF(result);
     }
 
-    if (must_grow) {
+    if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
+                     ATOMIC_DICT_ENTRIES_IN_BLOCK >= meta->size * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)

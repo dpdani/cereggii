@@ -184,7 +184,7 @@ def test_full_dict():
     d = AtomicDict(min_size=1 << 10)
     for k in range((1 << 10) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 10
+    assert len(d.debug()["index"]) == 1 << 11
 
 
 @pytest.mark.skip()

@@ -262,7 +262,7 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
                 PyObject *result = AtomicDict_ExpectedInsertOrUpdate(new_meta,
                                                                      entry_loc.entry->key, entry_loc.entry->hash,
                                                                      NOT_FOUND, entry_loc.entry->value,
-                                                                     &entry_loc, &must_grow);
+                                                                     &entry_loc, &must_grow, 1);
                 assert(result != EXPECTATION_FAILED);
                 assert(!must_grow);
                 assert(result != NULL);

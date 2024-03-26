@@ -127,6 +127,32 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
         *end_write = meta->nodes_in_zone;
     }
     assert(*end_write > *begin_write);
+
+    int n = *end_write - *begin_write;
+    int must_write = AtomicDict_MustWriteBytes(n, meta);
+    int must_write_nodes = must_write / (meta->node_size / 8);
+
+    if (n != must_write_nodes || !AtomicDict_IndexAddressIsAligned(*begin_write, n, meta)) {
+        // no need to check for alignment from the beginning of index, since
+        // we already assume that begin_write = 0 is already 16-bytes aligned.
+
+        if (must_write_nodes == meta->nodes_in_zone) {
+            *begin_write = 0;
+            *end_write = meta->nodes_in_zone;
+        } else {
+            if (*begin_write <= meta->nodes_in_region && *end_write <= meta->nodes_in_region) {
+                *begin_write = 0;
+                *end_write = meta->nodes_in_region;
+            } else if (*begin_write >= meta->nodes_in_region && *end_write >= meta->nodes_in_region) {
+                *begin_write = meta->nodes_in_region;
+                *end_write = meta->nodes_in_zone;
+            } else {
+                // fallback to entire zone
+                *begin_write = 0;
+                *end_write = meta->nodes_in_zone;
+            }
+        }
+    }
 }
 
 void

@@ -100,7 +100,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
             if (greatest_allocated_block + 2 < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-                meta->blocks[greatest_allocated_block + 2] = NULL;
+                CereggiiAtomic_StorePtr((void **) &meta->blocks[greatest_allocated_block + 2], NULL);
             }
             CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
                                                 greatest_allocated_block,
