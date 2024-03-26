@@ -137,7 +137,8 @@ class AtomicDict:
     def len_bounds(self) -> tuple[int, int]: ...
     def approx_len(self) -> int: ...
     def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]: ...
-    # def aggregate(self, iterator: Iterator[tuple[Key, Value]], aggregation: Callable[[Key, Value, Value], Value]) -> None:
+    # def aggregate(self, iterator: Iterator[tuple[Key, Value]], aggregation: Callable[[Key, Value, Value], Value])
+    # -> None:
     #     """
     #     Aggregate the values in this dictionary with those found in ``iterator``, as computed by ``aggregation``.
     #
