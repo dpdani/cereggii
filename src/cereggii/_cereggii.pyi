@@ -7,6 +7,10 @@ Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
+NOT_FOUND: object
+ANY: object
+EXPECTATION_FAILED: object
+
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 

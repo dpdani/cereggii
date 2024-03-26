@@ -112,6 +112,12 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
     return 0;
 
     empty_slot:
+    if (expected != NOT_FOUND && expected != ANY) {
+        *done = 1;
+        *expectation = 0;
+        return 0;
+    }
+
     AtomicDict_CopyNodeBuffers(reader->buffer, temp);
 
     to_insert->index = entry_loc->location;
@@ -270,18 +276,15 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     return NULL;
 }
 
-int
-AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
+PyObject *
+AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *desired)
 {
-    if (value == NULL) {
-        return AtomicDict_DelItem(self, key);
-    }
-
     assert(key != NULL);
-    assert(value != NULL);
+    assert(expected != NULL);
+    assert(desired != NULL);
 
     Py_INCREF(key);
-    Py_INCREF(value);
+    Py_INCREF(desired);
 
     AtomicDict_Meta *meta = NULL;
 
@@ -306,31 +309,35 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
         goto beginning;
     }
 
-    AtomicDict_EntryLoc entry_loc;
-    int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
-    if (entry_loc.entry == NULL || got_entry == -1)
-        goto fail;
-
-    if (got_entry == 0) {  // => must grow
-        migrated = AtomicDict_Grow(self);
-
-        if (migrated < 0)
+    AtomicDict_EntryLoc entry_loc = {
+        .entry = NULL,
+        .location = 0,
+    };
+    if (expected == NOT_FOUND || expected == ANY) {
+        int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
+        if (entry_loc.entry == NULL || got_entry == -1)
             goto fail;
 
-        Py_DECREF(meta);
-        meta = NULL;
-        goto beginning;
+        if (got_entry == 0) {  // => must grow
+            migrated = AtomicDict_Grow(self);
+
+            if (migrated < 0)
+                goto fail;
+
+            Py_DECREF(meta);
+            meta = NULL;
+            goto beginning;
+        }
+
+        entry_loc.entry->key = key;
+        entry_loc.entry->hash = hash;
+        entry_loc.entry->value = desired;
     }
 
-    entry_loc.entry->key = key;
-    entry_loc.entry->hash = hash;
-    entry_loc.entry->value = value;
-
     int must_grow;
-    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, ANY, value, &entry_loc, &must_grow, 0);
-    assert(result != EXPECTATION_FAILED);
+    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
-    if (result != NOT_FOUND) {
+    if (result != NOT_FOUND && entry_loc.location != 0) {
         entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
@@ -340,10 +347,6 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
 
     if (result == NULL && !must_grow)
         goto fail;
-
-    if (result != NOT_FOUND && result != ANY && result != EXPECTATION_FAILED) {
-        Py_XDECREF(result);
-    }
 
     if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
                      ATOMIC_DICT_ENTRIES_IN_BLOCK >= meta->size * 2 / 3) {
@@ -357,10 +360,78 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     }
 
     Py_DECREF(meta);
-    return 0;
+    return result;
     fail:
     Py_XDECREF(meta);
     Py_DECREF(key);
-    Py_DECREF(value);
+    Py_DECREF(desired);
+    return NULL;
+}
+
+PyObject *
+AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *key = NULL;
+    PyObject *expected = NULL;
+    PyObject *desired = NULL;
+
+    char *kw_list[] = {"key", "expected", "desired", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", kw_list, &key, &expected, &desired))
+        goto fail;
+
+    if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        goto fail;
+    }
+
+    if (expected == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "expected == EXPECTATION_FAILED");
+        goto fail;
+    }
+
+    if (desired == NOT_FOUND || desired == ANY || desired == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "desired in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        goto fail;
+    }
+
+    PyObject *ret = AtomicDict_CompareAndSet(self, key, expected, desired);
+    Py_INCREF(ret);
+    return ret;
+
+    fail:
+    return NULL;
+}
+
+int
+AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
+{
+    if (value == NULL) {
+        return AtomicDict_DelItem(self, key);
+    }
+
+    if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        goto fail;
+    }
+
+    if (value == NOT_FOUND || value == ANY || value == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "value in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        goto fail;
+    }
+
+    PyObject *result = AtomicDict_CompareAndSet(self, key, ANY, value);
+
+    if (result == NULL)
+        goto fail;
+
+    assert(result != EXPECTATION_FAILED);
+
+    if (result != NOT_FOUND && result != ANY && result != EXPECTATION_FAILED) {
+        Py_DECREF(result);
+    }
+
+    return 0;
+    fail:
     return -1;
 }

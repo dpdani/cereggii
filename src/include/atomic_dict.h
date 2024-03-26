@@ -38,6 +38,10 @@ int AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value);
 
 int AtomicDict_DelItem(AtomicDict *self, PyObject *key);
 
+PyObject *AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *desired);
+
+PyObject *AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 int AtomicDict_Compact(AtomicDict *self);
 
 PyObject *AtomicDict_Compact_callable(AtomicDict *self);

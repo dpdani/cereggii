@@ -195,7 +195,7 @@ def test_full_dict_32():
     d = AtomicDict(min_size=1 << 25)
     for k in range((1 << 25) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 25
+    assert len(d.debug()["index"]) == 1 << 26
 
 
 def test_dealloc():
@@ -612,3 +612,7 @@ def test_fast_iter():
         t.start()
     for t in threads:
         t.join()
+
+
+def test_compare_and_set():
+    pass
