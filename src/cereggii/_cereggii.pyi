@@ -10,6 +10,7 @@ Number = SupportsInt | SupportsFloat | SupportsComplex
 NOT_FOUND: object
 ANY: object
 EXPECTATION_FAILED: object
+ExpectationFailed: Exception
 
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
@@ -132,9 +133,32 @@ class AtomicDict:
     #     :returns: None
     #     """
     # def values(self) -> Iterable[Value]: ...
+    def compare_and_set(self, key: Key, expected: Value, desired: Value) -> None: ...
     def len_bounds(self) -> tuple[int, int]: ...
     def approx_len(self) -> int: ...
     def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]: ...
+    # def aggregate(self, iterator: Iterator[tuple[Key, Value]], aggregation: Callable[[Key, Value, Value], Value]) -> None:
+    #     """
+    #     Aggregate the values in this dictionary with those found in ``iterator``, as computed by ``aggregation``.
+    #
+    #     The ``aggregation`` parameter expects a function that takes as input a key, the value currently stored
+    #     in the dictionary, and the new value from ``iterator``, and then returns the aggregated value.
+    #
+    #     For instance, to aggregate counts::
+    #
+    #         d = AtomicDict()
+    #
+    #         it = [
+    #             ("red", 1),
+    #             ("green", 3),
+    #             ("blue", 40),
+    #             ("red", 1),
+    #         ]
+    #
+    #         d.aggregate(it, lambda key, current, new:
+    #             new if current is cereggii.NOT_FOUND else current + new
+    #         )
+    #     """
     def compact(self) -> None: ...
     def debug(self) -> dict: ...
 

@@ -10,5 +10,6 @@
 extern PyObject *NOT_FOUND;
 extern PyObject *ANY;
 extern PyObject *EXPECTATION_FAILED;
+extern PyObject *Cereggii_ExpectationFailed;
 
 #endif //CEREGGII_CONSTANTS_H

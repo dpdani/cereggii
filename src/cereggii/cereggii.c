@@ -319,6 +319,7 @@ static PyModuleDef cereggii_module = {
 PyObject *NOT_FOUND = NULL;
 PyObject *ANY = NULL;
 PyObject *EXPECTATION_FAILED = NULL;
+PyObject *Cereggii_ExpectationFailed = NULL;
 
 __attribute__((unused)) PyMODINIT_FUNC
 PyInit__cereggii(void)
@@ -356,6 +357,7 @@ PyInit__cereggii(void)
         Py_DECREF(NOT_FOUND);
         goto fail;
     }
+
     ANY = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
     if (ANY == NULL)
         goto fail;
@@ -364,12 +366,22 @@ PyInit__cereggii(void)
         Py_DECREF(ANY);
         goto fail;
     }
+
     EXPECTATION_FAILED = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
     if (EXPECTATION_FAILED == NULL)
         goto fail;
     Py_INCREF(EXPECTATION_FAILED);
     if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
         Py_DECREF(EXPECTATION_FAILED);
+        goto fail;
+    }
+
+    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+    if (Cereggii_ExpectationFailed == NULL)
+        goto fail;
+    Py_INCREF(Cereggii_ExpectationFailed);
+    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
+        Py_DECREF(Cereggii_ExpectationFailed);
         goto fail;
     }
 

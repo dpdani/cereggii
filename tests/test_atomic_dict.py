@@ -6,6 +6,7 @@ import threading
 from collections import Counter
 
 import pytest
+import cereggii
 from cereggii import AtomicDict
 from pytest import raises
 
@@ -615,4 +616,22 @@ def test_fast_iter():
 
 
 def test_compare_and_set():
-    pass
+    d = AtomicDict({
+        "spam": 0,
+        "foo": None,
+    })
+    d.compare_and_set(key="spam", expected=0, desired=100)
+    assert d["spam"] == 100
+
+    with pytest.raises(cereggii.ExpectationFailed):
+        d.compare_and_set(key="foo", expected=100, desired=0)
+    assert d["foo"] is None
+
+    d.compare_and_set(key="witch", expected=cereggii.NOT_FOUND, desired="duck")
+    assert d["witch"] == "duck"
+
+    d.compare_and_set(key="foo", expected=cereggii.ANY, desired=0)
+    assert d["foo"] == 0
+
+    d.compare_and_set(key="bar", expected=cereggii.ANY, desired="baz")
+    assert d["bar"] == "baz"

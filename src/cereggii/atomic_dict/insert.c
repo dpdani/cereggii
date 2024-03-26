@@ -279,9 +279,35 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 PyObject *
 AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *desired)
 {
-    assert(key != NULL);
-    assert(expected != NULL);
-    assert(desired != NULL);
+    if (key == NULL) {
+        PyErr_SetString(PyExc_ValueError, "key == NULL");
+        return NULL;
+    }
+
+    if (expected == NULL) {
+        PyErr_SetString(PyExc_ValueError, "expected == NULL");
+        return NULL;
+    }
+
+    if (desired == NULL) {
+        PyErr_SetString(PyExc_ValueError, "desired == NULL");
+        return NULL;
+    }
+
+    if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        return NULL;
+    }
+
+    if (expected == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "expected == EXPECTATION_FAILED");
+        return NULL;
+    }
+
+    if (desired == NOT_FOUND || desired == ANY || desired == EXPECTATION_FAILED) {
+        PyErr_SetString(PyExc_ValueError, "desired in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
+        return NULL;
+    }
 
     Py_INCREF(key);
     Py_INCREF(desired);
@@ -380,24 +406,18 @@ AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kw
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", kw_list, &key, &expected, &desired))
         goto fail;
 
-    if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
-        PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
-        goto fail;
-    }
-
-    if (expected == EXPECTATION_FAILED) {
-        PyErr_SetString(PyExc_ValueError, "expected == EXPECTATION_FAILED");
-        goto fail;
-    }
-
-    if (desired == NOT_FOUND || desired == ANY || desired == EXPECTATION_FAILED) {
-        PyErr_SetString(PyExc_ValueError, "desired in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
-        goto fail;
-    }
-
     PyObject *ret = AtomicDict_CompareAndSet(self, key, expected, desired);
-    Py_INCREF(ret);
-    return ret;
+
+    if (ret == NULL)
+        goto fail;
+
+    if (ret == EXPECTATION_FAILED) {
+        PyObject *error = PyUnicode_FromFormat("self[%R] != %R", key, expected);
+        PyErr_SetObject(Cereggii_ExpectationFailed, error);
+        goto fail;
+    }
+
+    Py_RETURN_NONE;
 
     fail:
     return NULL;
