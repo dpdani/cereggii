@@ -616,10 +616,12 @@ def test_fast_iter():
 
 
 def test_compare_and_set():
-    d = AtomicDict({
-        "spam": 0,
-        "foo": None,
-    })
+    d = AtomicDict(
+        {
+            "spam": 0,
+            "foo": None,
+        }
+    )
     d.compare_and_set(key="spam", expected=0, desired=100)
     assert d["spam"] == 100
 
