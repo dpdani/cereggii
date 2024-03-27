@@ -184,7 +184,7 @@ void AtomicDict_Read16NodesAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Me
 void AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buffer);
 
 void AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
-                                     int *begin_write, int *end_write, int64_t *start_ix);
+                                     int *begin_write, int *end_write);
 
 typedef struct AtomicDict_BufferedNodeReader {
     int64_t zone;
@@ -335,7 +335,10 @@ int AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash);
 
 int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
 
-AtomicDict_InsertedOrUpdated AtomicDict_InsertOrUpdate(AtomicDict_Meta *meta, AtomicDict_EntryLoc *entry_loc);
+PyObject *AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+                                            PyObject *expected, PyObject *desired,
+                                            AtomicDict_EntryLoc *entry_loc, int *must_grow, int skip_entry_check);
+
 
 /// node sizes table
 /*

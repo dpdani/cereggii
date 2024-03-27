@@ -24,6 +24,8 @@ AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes, Atomic
      *   1. there are meta->nodes_in_two_regions valid nodes in `nodes`
      *   2. there is at least 1 empty node
      * */
+    assert(distance_0_ix >= 0);
+    assert(distance_0_ix < meta->nodes_in_zone);
 
     AtomicDict_Node current = *to_insert;
     AtomicDict_Node temp;

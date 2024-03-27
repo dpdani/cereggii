@@ -174,7 +174,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 
     if (previous_blocks == NULL) {
         blocks[0] = NULL;
-    } else if (greatest_allocated_block == (from_meta->size - 1) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+    } else {
         blocks[greatest_allocated_block + 1] = NULL;
     }
 

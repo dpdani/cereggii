@@ -6,6 +6,7 @@ import threading
 from collections import Counter
 
 import pytest
+import cereggii
 from cereggii import AtomicDict
 from pytest import raises
 
@@ -184,7 +185,7 @@ def test_full_dict():
     d = AtomicDict(min_size=1 << 10)
     for k in range((1 << 10) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 10
+    assert len(d.debug()["index"]) == 1 << 11
 
 
 @pytest.mark.skip()
@@ -195,7 +196,7 @@ def test_full_dict_32():
     d = AtomicDict(min_size=1 << 25)
     for k in range((1 << 25) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 25
+    assert len(d.debug()["index"]) == 1 << 26
 
 
 def test_dealloc():
@@ -612,3 +613,27 @@ def test_fast_iter():
         t.start()
     for t in threads:
         t.join()
+
+
+def test_compare_and_set():
+    d = AtomicDict(
+        {
+            "spam": 0,
+            "foo": None,
+        }
+    )
+    d.compare_and_set(key="spam", expected=0, desired=100)
+    assert d["spam"] == 100
+
+    with pytest.raises(cereggii.ExpectationFailed):
+        d.compare_and_set(key="foo", expected=100, desired=0)
+    assert d["foo"] is None
+
+    d.compare_and_set(key="witch", expected=cereggii.NOT_FOUND, desired="duck")
+    assert d["witch"] == "duck"
+
+    d.compare_and_set(key="foo", expected=cereggii.ANY, desired=0)
+    assert d["foo"] == 0
+
+    d.compare_and_set(key="bar", expected=cereggii.ANY, desired="baz")
+    assert d["bar"] == "baz"
