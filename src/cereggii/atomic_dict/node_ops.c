@@ -133,7 +133,7 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
     int must_write_nodes = must_write / (meta->node_size / 8);
 
     if (n != must_write_nodes || !AtomicDict_IndexAddressIsAligned(*begin_write, n, meta)) {
-        // no need to check for alignment from the beginning of index, since
+        // no need to check for alignment from the beginning of the index, since
         // we already assume that begin_write = 0 is already 16-bytes aligned.
 
         if (must_write_nodes == meta->nodes_in_zone) {

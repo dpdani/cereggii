@@ -13,23 +13,23 @@
 
 
 static PyMethodDef AtomicInt_methods[] = {
-    {"get",               (PyCFunction) AtomicInt_Get_callable,             METH_NOARGS,                  NULL},
-    {"set",               (PyCFunction) AtomicInt_Set_callable,             METH_O,                       NULL},
+    {"get",               (PyCFunction) AtomicInt_Get_callable,             METH_NOARGS,  NULL},
+    {"set",               (PyCFunction) AtomicInt_Set_callable,             METH_O,       NULL},
     {"compare_and_set",   (PyCFunction) AtomicInt_CompareAndSet_callable,   METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",       (PyCFunction) AtomicInt_GetAndSet_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
-    {"increment_and_get", (PyCFunction) AtomicInt_IncrementAndGet_callable, METH_VARARGS,                 NULL},
-    {"get_and_increment", (PyCFunction) AtomicInt_GetAndIncrement_callable, METH_VARARGS,                 NULL},
-    {"decrement_and_get", (PyCFunction) AtomicInt_DecrementAndGet_callable, METH_VARARGS,                 NULL},
-    {"get_and_decrement", (PyCFunction) AtomicInt_GetAndDecrement_callable, METH_VARARGS,                 NULL},
-    {"update_and_get",    (PyCFunction) AtomicInt_UpdateAndGet_callable,    METH_O,                       NULL},
-    {"get_and_update",    (PyCFunction) AtomicInt_GetAndUpdate_callable,    METH_O,                       NULL},
-    {"get_handle",        (PyCFunction) AtomicInt_GetHandle,                METH_NOARGS,                  NULL},
-    {"as_integer_ratio",  (PyCFunction) AtomicInt_AsIntegerRatio,           METH_NOARGS,                  NULL},
-    {"bit_length",        (PyCFunction) AtomicInt_BitLength,                METH_NOARGS,                  NULL},
-    {"conjugate",         (PyCFunction) AtomicInt_Conjugate,                METH_NOARGS,                  NULL},
+    {"increment_and_get", (PyCFunction) AtomicInt_IncrementAndGet_callable, METH_VARARGS, NULL},
+    {"get_and_increment", (PyCFunction) AtomicInt_GetAndIncrement_callable, METH_VARARGS, NULL},
+    {"decrement_and_get", (PyCFunction) AtomicInt_DecrementAndGet_callable, METH_VARARGS, NULL},
+    {"get_and_decrement", (PyCFunction) AtomicInt_GetAndDecrement_callable, METH_VARARGS, NULL},
+    {"update_and_get",    (PyCFunction) AtomicInt_UpdateAndGet_callable,    METH_O,       NULL},
+    {"get_and_update",    (PyCFunction) AtomicInt_GetAndUpdate_callable,    METH_O,       NULL},
+    {"get_handle",        (PyCFunction) AtomicInt_GetHandle,                METH_NOARGS,  NULL},
+    {"as_integer_ratio",  (PyCFunction) AtomicInt_AsIntegerRatio,           METH_NOARGS,  NULL},
+    {"bit_length",        (PyCFunction) AtomicInt_BitLength,                METH_NOARGS,  NULL},
+    {"conjugate",         (PyCFunction) AtomicInt_Conjugate,                METH_NOARGS,  NULL},
     {"from_bytes",        (PyCFunction) AtomicInt_FromBytes,                METH_VARARGS | METH_KEYWORDS |
                                                                             METH_CLASS,                   NULL},
-    {"to_bytes",          (PyCFunction) AtomicInt_ToBytes,                  METH_NOARGS,                  NULL},
+    {"to_bytes",          (PyCFunction) AtomicInt_ToBytes,                  METH_NOARGS,  NULL},
     {NULL}
 };
 
@@ -85,7 +85,7 @@ static PyNumberMethods AtomicInt_as_number = {
 
 PyTypeObject AtomicInt_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_name = "cereggii.AtomicInt",
+    .tp_name = "cereggii.AtomicInt",
     .tp_doc = PyDoc_STR("An int that may be updated atomically."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicInt),
@@ -101,23 +101,23 @@ PyTypeObject AtomicInt_Type = {
 };
 
 static PyMethodDef AtomicIntHandle_methods[] = {
-    {"get",               (PyCFunction) AtomicIntHandle_Get_callable,             METH_NOARGS,                  NULL},
-    {"set",               (PyCFunction) AtomicIntHandle_Set_callable,             METH_O,                       NULL},
+    {"get",               (PyCFunction) AtomicIntHandle_Get_callable,             METH_NOARGS,  NULL},
+    {"set",               (PyCFunction) AtomicIntHandle_Set_callable,             METH_O,       NULL},
     {"compare_and_set",   (PyCFunction) AtomicIntHandle_CompareAndSet_callable,   METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",       (PyCFunction) AtomicIntHandle_GetAndSet_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
-    {"increment_and_get", (PyCFunction) AtomicIntHandle_IncrementAndGet_callable, METH_VARARGS,                 NULL},
-    {"get_and_increment", (PyCFunction) AtomicIntHandle_GetAndIncrement_callable, METH_VARARGS,                 NULL},
-    {"decrement_and_get", (PyCFunction) AtomicIntHandle_DecrementAndGet_callable, METH_VARARGS,                 NULL},
-    {"get_and_decrement", (PyCFunction) AtomicIntHandle_GetAndDecrement_callable, METH_VARARGS,                 NULL},
-    {"update_and_get",    (PyCFunction) AtomicIntHandle_UpdateAndGet_callable,    METH_O,                       NULL},
-    {"get_and_update",    (PyCFunction) AtomicIntHandle_GetAndUpdate_callable,    METH_O,                       NULL},
-    {"get_handle",        (PyCFunction) AtomicIntHandle_GetHandle,                METH_NOARGS,                  NULL},
-    {"as_integer_ratio",  (PyCFunction) AtomicIntHandle_AsIntegerRatio,           METH_NOARGS,                  NULL},
-    {"bit_length",        (PyCFunction) AtomicIntHandle_BitLength,                METH_NOARGS,                  NULL},
-    {"conjugate",         (PyCFunction) AtomicIntHandle_Conjugate,                METH_NOARGS,                  NULL},
+    {"increment_and_get", (PyCFunction) AtomicIntHandle_IncrementAndGet_callable, METH_VARARGS, NULL},
+    {"get_and_increment", (PyCFunction) AtomicIntHandle_GetAndIncrement_callable, METH_VARARGS, NULL},
+    {"decrement_and_get", (PyCFunction) AtomicIntHandle_DecrementAndGet_callable, METH_VARARGS, NULL},
+    {"get_and_decrement", (PyCFunction) AtomicIntHandle_GetAndDecrement_callable, METH_VARARGS, NULL},
+    {"update_and_get",    (PyCFunction) AtomicIntHandle_UpdateAndGet_callable,    METH_O,       NULL},
+    {"get_and_update",    (PyCFunction) AtomicIntHandle_GetAndUpdate_callable,    METH_O,       NULL},
+    {"get_handle",        (PyCFunction) AtomicIntHandle_GetHandle,                METH_NOARGS,  NULL},
+    {"as_integer_ratio",  (PyCFunction) AtomicIntHandle_AsIntegerRatio,           METH_NOARGS,  NULL},
+    {"bit_length",        (PyCFunction) AtomicIntHandle_BitLength,                METH_NOARGS,  NULL},
+    {"conjugate",         (PyCFunction) AtomicIntHandle_Conjugate,                METH_NOARGS,  NULL},
     {"from_bytes",        (PyCFunction) AtomicIntHandle_FromBytes,                METH_VARARGS | METH_KEYWORDS |
                                                                                   METH_CLASS,                   NULL},
-    {"to_bytes",          (PyCFunction) AtomicIntHandle_ToBytes,                  METH_NOARGS,                  NULL},
+    {"to_bytes",          (PyCFunction) AtomicIntHandle_ToBytes,                  METH_NOARGS,  NULL},
     {NULL}
 };
 
@@ -173,7 +173,7 @@ static PyNumberMethods AtomicIntHandle_as_number = {
 
 PyTypeObject AtomicIntHandle_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_name = "cereggii.AtomicIntHandle",
+    .tp_name = "cereggii.AtomicIntHandle",
     .tp_doc = PyDoc_STR("An immutable handle for referencing an AtomicInt."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicIntHandle),
@@ -199,7 +199,7 @@ static PyMethodDef AtomicRef_methods[] = {
 
 PyTypeObject AtomicRef_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        .tp_name = "cereggii.AtomicRef",
+    .tp_name = "cereggii.AtomicRef",
     .tp_doc = PyDoc_STR("An object reference that may be updated atomically."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_basicsize = sizeof(AtomicRef),
@@ -213,11 +213,11 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug",           (PyCFunction) AtomicDict_Debug,                   METH_NOARGS,                  NULL},
-    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS,                  NULL},
+    {"debug",           (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS,                  NULL},
-    {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS,                  NULL},
+    {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
+    {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
     {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
     {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
