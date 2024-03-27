@@ -12,4 +12,18 @@ extern PyObject *ANY;
 extern PyObject *EXPECTATION_FAILED;
 extern PyObject *Cereggii_ExpectationFailed;
 
+
+typedef struct CereggiiConstant {
+    PyObject_HEAD
+
+    char *name;
+} CereggiiConstant;
+
+extern PyTypeObject CereggiiConstant_Type;
+
+
+PyObject *CereggiiConstant_New(char *name);
+
+PyObject *CereggiiConstant_Repr(CereggiiConstant *self);
+
 #endif //CEREGGII_CONSTANTS_H
