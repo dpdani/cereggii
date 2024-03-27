@@ -252,9 +252,11 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (meta == NULL)
         goto fail;
 
+    Py_ssize_t chunk_start = 0;
     Py_ssize_t pos = 0;
 
-    while (PyDict_Next(batch, &pos, &key, &value)) {
+    next_chunk:
+    while (PyDict_Next(batch, &pos, &key, &value) && pos % chunk_size != chunk_size - 1) {
         hash = PyObject_Hash(key);
         if (hash == -1)
             goto fail;
@@ -262,9 +264,9 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         __builtin_prefetch(AtomicDict_IndexAddressOf(AtomicDict_Distance0Of(hash, meta), meta));
     }
 
-    pos = 0;
+    pos = chunk_start;
 
-    while (PyDict_Next(batch, &pos, &key, &value)) {
+    while (PyDict_Next(batch, &pos, &key, &value) && pos % chunk_size != chunk_size - 1) {
         hash = PyObject_Hash(key);
         if (hash == -1)
             goto fail;
@@ -281,6 +283,11 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (PyDict_SetItem(batch, key, result.entry.value) < 0)
                 goto fail;
         }
+    }
+
+    if (PyDict_Size(batch) != pos) {
+        chunk_start = pos;
+        goto next_chunk;
     }
 
     if (self->metadata->reference != (PyObject *) meta) {
