@@ -220,6 +220,7 @@ static PyMethodDef AtomicDict_methods[] = {
     {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
     {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
     {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
+    {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
@@ -308,6 +309,24 @@ PyTypeObject AtomicEvent_Type = {
 };
 
 
+// see constants.h
+PyObject *NOT_FOUND = NULL;
+PyObject *ANY = NULL;
+PyObject *EXPECTATION_FAILED = NULL;
+PyObject *Cereggii_ExpectationFailed = NULL;
+
+PyTypeObject CereggiiConstant_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.Constant",
+    .tp_doc = PyDoc_STR("A constant value."),
+    .tp_basicsize = sizeof(CereggiiConstant),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = NULL,
+    .tp_repr = (reprfunc) CereggiiConstant_Repr,
+};
+
+
 static PyModuleDef cereggii_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
@@ -315,17 +334,13 @@ static PyModuleDef cereggii_module = {
     .m_size = -1,
 };
 
-// see constants.h
-PyObject *NOT_FOUND = NULL;
-PyObject *ANY = NULL;
-PyObject *EXPECTATION_FAILED = NULL;
-PyObject *Cereggii_ExpectationFailed = NULL;
-
 __attribute__((unused)) PyMODINIT_FUNC
 PyInit__cereggii(void)
 {
     PyObject *m;
 
+    if (PyType_Ready(&CereggiiConstant_Type) < 0)
+        return NULL;
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
@@ -349,28 +364,25 @@ PyInit__cereggii(void)
     if (m == NULL)
         return NULL;
 
-    NOT_FOUND = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
     if (NOT_FOUND == NULL)
         goto fail;
-    Py_INCREF(NOT_FOUND);
     if (PyModule_AddObject(m, "NOT_FOUND", NOT_FOUND) < 0) {
         Py_DECREF(NOT_FOUND);
         goto fail;
     }
 
-    ANY = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    ANY = CereggiiConstant_New("ANY");
     if (ANY == NULL)
         goto fail;
-    Py_INCREF(ANY);
     if (PyModule_AddObject(m, "ANY", ANY) < 0) {
         Py_DECREF(ANY);
         goto fail;
     }
 
-    EXPECTATION_FAILED = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
     if (EXPECTATION_FAILED == NULL)
         goto fail;
-    Py_INCREF(EXPECTATION_FAILED);
     if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
         Py_DECREF(EXPECTATION_FAILED);
         goto fail;

@@ -35,6 +35,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
+        "cereggii/constants.c"
 )
 
 # Install the module

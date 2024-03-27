@@ -6,6 +6,7 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "constants.h"
 
 
 void
@@ -174,7 +175,7 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         Py_DECREF(meta);
         goto retry;
     }
-    Py_DECREF(meta); // for atomic_ref_get_ref
+    Py_DECREF(meta); // for AtomicRef_Get (if condition)
 
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
@@ -216,4 +217,81 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
     PyObject *value = AtomicDict_GetItemOrDefault(self, key, default_value);
     Py_INCREF(value);
     return value;
+}
+
+PyObject *
+AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *batch = NULL;
+
+    int chunk_size = 128;
+
+    char *kw_list[] = {"batch", "chunk_size", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", kw_list, &batch, &chunk_size))
+        return NULL;
+
+    if (!PyDict_CheckExact(batch)) {
+        PyErr_SetString(PyExc_TypeError, "type(batch) != dict");
+        return NULL;
+    }
+
+    if (chunk_size <= 0) {
+        PyErr_SetString(PyExc_ValueError, "chunk_size <= 0");
+        return NULL;
+    }
+
+    PyObject *key, *value;
+    Py_hash_t hash;
+
+    AtomicDict_SearchResult result;
+    AtomicDict_Meta *meta = NULL;
+    retry:
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+
+    if (meta == NULL)
+        goto fail;
+
+    Py_ssize_t pos = 0;
+
+    while (PyDict_Next(batch, &pos, &key, &value)) {
+        hash = PyObject_Hash(key);
+        if (hash == -1)
+            goto fail;
+
+        __builtin_prefetch(AtomicDict_IndexAddressOf(AtomicDict_Distance0Of(hash, meta), meta));
+    }
+
+    pos = 0;
+
+    while (PyDict_Next(batch, &pos, &key, &value)) {
+        hash = PyObject_Hash(key);
+        if (hash == -1)
+            goto fail;
+
+        result.entry.value = NULL;
+        AtomicDict_Lookup(meta, key, hash, &result);
+        if (result.error)
+            goto fail;
+
+        if (result.entry_p == NULL) {
+            if (PyDict_SetItem(batch, key, NOT_FOUND) < 0)
+                goto fail;
+        } else {
+            if (PyDict_SetItem(batch, key, result.entry.value) < 0)
+                goto fail;
+        }
+    }
+
+    if (self->metadata->reference != (PyObject *) meta) {
+        Py_DECREF(meta);
+        goto retry;
+    }
+
+    Py_DECREF(meta);
+    Py_INCREF(batch);
+    return batch;
+    fail:
+    Py_XDECREF(meta);
+    return NULL;
 }
