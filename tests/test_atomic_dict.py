@@ -644,7 +644,7 @@ def test_compare_and_set():
 def test_batch_getitem():
     keys_count = 2**12
     d = AtomicDict({_: _ for _ in range(keys_count)})
-    batch = {random.randrange(0, 2 * keys_count): None for _ in range(keys_count // 2)}
+    batch = {random.randrange(0, 2 * keys_count): None for _ in range(keys_count // 2)}  # noqa: S311
     d.batch_getitem(batch)
 
     for k in batch:
