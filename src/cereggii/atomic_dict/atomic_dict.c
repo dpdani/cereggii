@@ -32,16 +32,16 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         assert(PyThread_tss_is_created(tss_key) != 0);
         self->tss_key = tss_key;
 
-        self->reservation_buffers = NULL;
-        self->reservation_buffers = Py_BuildValue("[]");
-        if (self->reservation_buffers == NULL)
+        self->accessors = NULL;
+        self->accessors = Py_BuildValue("[]");
+        if (self->accessors == NULL)
             goto fail;
     }
     return (PyObject *) self;
 
     fail:
     Py_XDECREF(self->metadata);
-    Py_XDECREF(self->reservation_buffers);
+    Py_XDECREF(self->accessors);
     Py_XDECREF(self);
     return NULL;
 }
@@ -182,8 +182,11 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     meta->inserting_block = 0;
-    AtomicDict_ReservationBuffer *rb;
+    AtomicDict_AccessorStorage *storage;
     AtomicDict_EntryLoc entry_loc;
+    self->sync_op.v = 0;
+    self->len = 0;
+    self->len_dirty = 0;
 
     if (init_dict != NULL && PyDict_Size(init_dict) > 0) {
         PyObject *key, *value;
@@ -195,30 +198,31 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (hash == -1)
                 goto fail;
 
-            int inserted = AtomicDict_UnsafeInsert(self, key, hash, value, pos); // we want to avoid pos = 0
+            self->len++;
+            int inserted = AtomicDict_UnsafeInsert(self, key, hash, value, self->len); // we want to avoid pos = 0
             if (inserted == -1) {
                 Py_DECREF(meta);
                 log_size++;
                 goto create;
             }
         }
-        meta->inserting_block = pos >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+        meta->inserting_block = self->len >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 
-        if (pos > 0) {
-            rb = AtomicDict_GetReservationBuffer(self);
-            if (rb == NULL)
+        if (self->len > 0) {
+            storage = AtomicDict_GetAccessorStorage(self);
+            if (storage == NULL)
                 goto fail;
 
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
-            if (AtomicDict_BlockOf(pos + 1) <= meta->greatest_allocated_block) {
-                entry_loc.entry = AtomicDict_GetEntryAt(pos + 1, meta);
-                entry_loc.location = pos + 1;
+            if (AtomicDict_BlockOf(self->len + 1) <= meta->greatest_allocated_block) {
+                entry_loc.entry = AtomicDict_GetEntryAt(self->len + 1, meta);
+                entry_loc.location = self->len + 1;
 
                 uint8_t n =
                     self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
                 assert(n <= ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                while (AtomicDict_BlockOf(pos + n) > meta->greatest_allocated_block) {
+                while (AtomicDict_BlockOf(self->len + n) > meta->greatest_allocated_block) {
                     n--;
 
                     if (n == 0)
@@ -226,15 +230,17 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
 
                 if (n > 0) {
-                    AtomicDict_ReservationBufferPut(rb, &entry_loc, n);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n);
                 }
             }
         }
     }
 
+    self->accessors_lock.v = 0;  // https://github.com/colesbury/nogil/blob/043f29ab2afab9cef5edd07875816d3354cb9d2c/Objects/dictobject.c#L334
+
     if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
-        rb = AtomicDict_GetReservationBuffer(self);
-        if (rb == NULL)
+        storage = AtomicDict_GetAccessorStorage(self);
+        if (storage == NULL)
             goto fail;
 
         // mark entry 0 as reserved and put the remaining entries
@@ -246,13 +252,13 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (entry_loc.entry->key == NULL) {
                 int found = 0;
                 for (int j = 0; j < RESERVATION_BUFFER_SIZE; ++j) {
-                    if (rb->reservations[j].location == entry_loc.location) {
+                    if (storage->reservation_buffer.reservations[j].location == entry_loc.location) {
                         found = 1;
                         break;
                     }
                 }
                 if (!found) {
-                    AtomicDict_ReservationBufferPut(rb, &entry_loc, 1);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1);
                 }
             }
         }
@@ -284,7 +290,7 @@ AtomicDict_dealloc(AtomicDict *self)
     }
 
     Py_CLEAR(self->metadata);
-    Py_CLEAR(self->reservation_buffers);
+    Py_CLEAR(self->accessors);
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them anyway
     PyThread_tss_delete(self->tss_key);
@@ -297,7 +303,7 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    Py_VISIT(self->reservation_buffers);
+    Py_VISIT(self->accessors);
     // traverse this dict's elements (iter XXX)
     return 0;
 }
@@ -358,7 +364,8 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
 }
 
 int
-AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta) {
+AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta)
+{
     int found = 0;
 
     AtomicDict_Entry *entry_p, entry;
@@ -419,13 +426,13 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     int64_t upper = supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK;
 
-    Py_ssize_t threads_count = PyList_Size(self->reservation_buffers);
+    Py_ssize_t threads_count = PyList_Size(self->accessors);
     int64_t lower =
         supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
 
     AtomicDict_ReservationBuffer *rb;
     for (int i = 0; i < threads_count; ++i) {
-        rb = (AtomicDict_ReservationBuffer *) PyList_GetItem(self->reservation_buffers, i);
+        rb = (AtomicDict_ReservationBuffer *) PyList_GetItem(self->accessors, i);
 
         if (rb == NULL)
             goto fail;
@@ -481,6 +488,55 @@ AtomicDict_ApproxLen(AtomicDict *self)
     Py_XDECREF(sum);
     Py_XDECREF(avg);
     return NULL;
+}
+
+Py_ssize_t
+AtomicDict_Len(AtomicDict *self)
+{
+    PyObject *len = NULL, *local_len = NULL;
+    Py_ssize_t int_len;
+
+    AtomicDict_BeginSynchronousOperation(self);
+
+    if (!self->len_dirty) {
+        int_len = self->len;
+        AtomicDict_EndSynchronousOperation(self);
+        return int_len;
+    }
+
+    len = PyLong_FromSsize_t(self->len);
+    if (len == NULL)
+        goto fail;
+
+    for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
+        AtomicDict_AccessorStorage *storage = NULL;
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        assert(storage != NULL);
+
+        local_len = PyLong_FromLong(storage->local_len);
+        if (local_len == NULL)
+            goto fail;
+
+        len = PyNumber_InPlaceAdd(len, local_len);
+        Py_DECREF(local_len);
+        local_len = NULL;
+        storage->local_len = 0;
+    }
+
+    int_len = PyLong_AsSsize_t(len);
+    assert(!PyErr_Occurred());
+
+    self->len = int_len;
+    self->len_dirty = 0;
+
+    AtomicDict_EndSynchronousOperation(self);
+
+    Py_DECREF(len);
+    return int_len;
+    fail:
+    Py_XDECREF(len);
+    AtomicDict_EndSynchronousOperation(self);
+    return -1;
 }
 
 PyObject *

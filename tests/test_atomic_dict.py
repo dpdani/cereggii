@@ -649,3 +649,24 @@ def test_batch_getitem():
 
     for k in batch:
         assert d.get(k, cereggii.NOT_FOUND) == batch[k]
+
+
+def test_len():
+    d = AtomicDict({_: None for _ in range(10)})
+    assert len(d) == 10
+
+    for _ in range(32):
+        d[_ + 10] = None
+
+    assert len(d) == 42
+
+    for _ in range(32):
+        d[_ + 10] = None
+
+    assert len(d) == 42  # updates don't change count
+
+    for _ in range(32):
+        del d[_ + 10]
+
+    assert len(d) == 10
+    assert len(d) == 10  # test twice for len_dirty

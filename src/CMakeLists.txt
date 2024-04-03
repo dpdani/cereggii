@@ -17,6 +17,7 @@ include_directories("include/")
 
 # Add the module to compile
 Python3_add_library(_cereggii MODULE
+        "cereggii/atomic_dict/accessor_storage.c"
         "cereggii/atomic_dict/atomic_dict.c"
         "cereggii/atomic_dict/blocks.c"
         "cereggii/atomic_dict/delete.c"
@@ -27,7 +28,6 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/migrate.c"
         "cereggii/atomic_dict/node_ops.c"
         "cereggii/atomic_dict/node_sizes_table.c"
-        "cereggii/atomic_dict/reservation_buffer.c"
         "cereggii/atomic_dict/robin_hood.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"

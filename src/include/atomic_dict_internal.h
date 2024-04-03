@@ -238,7 +238,7 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_Shrink(AtomicDict *self);
 
-int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta);
+int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex);
 
 int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
 
@@ -256,18 +256,9 @@ int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta
 #define RESERVATION_BUFFER_SIZE 64
 
 typedef struct AtomicDict_ReservationBuffer {
-    PyObject_HEAD
-
     int head, tail, count;
     AtomicDict_EntryLoc reservations[RESERVATION_BUFFER_SIZE];
 } AtomicDict_ReservationBuffer;
-
-
-extern PyTypeObject AtomicDictReservationBuffer_Type;
-
-AtomicDict_ReservationBuffer *AtomicDict_GetReservationBuffer(AtomicDict *dk);
-
-void AtomicDict_ReservationBuffer_dealloc(AtomicDict_ReservationBuffer *self);
 
 void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n);
 
@@ -278,6 +269,28 @@ AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uin
 
 int AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
                              AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
+
+
+/// accessor storage
+typedef struct AtomicDict_AccessorStorage {
+    PyObject_HEAD
+
+    PyMutex self_mutex;
+
+    int32_t local_len;
+
+    AtomicDict_ReservationBuffer reservation_buffer;
+} AtomicDict_AccessorStorage;
+
+extern PyTypeObject AtomicDictAccessorStorage_Type;
+
+AtomicDict_AccessorStorage *AtomicDict_GetAccessorStorage(AtomicDict *self);
+
+void AtomicDict_BeginSynchronousOperation(AtomicDict *self);
+
+void AtomicDict_EndSynchronousOperation(AtomicDict *self);
+
+void AtomicDict_AccessorStorage_dealloc(AtomicDict_AccessorStorage *self);
 
 
 /// robin hood hashing

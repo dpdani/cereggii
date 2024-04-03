@@ -174,13 +174,38 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     assert(key != NULL);
 
     AtomicDict_Meta *meta = NULL;
+    beginning:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    if (meta == NULL)
+        goto fail;
 
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
 
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetAccessorStorage(self);
+
+    if (storage == NULL)
+        goto fail;
+
+    _PyMutex_lock(&storage->self_mutex);
+    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
+    if (migrated) {
+        // self_mutex was unlocked during the operation
+        Py_DECREF(meta);
+        meta = NULL;
+        goto beginning;
+    }
+
     int deleted = AtomicDict_Delete(meta, key, hash);
+
+    if (deleted > 0) {
+        storage->local_len--;
+        self->len_dirty = 1;
+    }
+
+    _PyMutex_unlock(&storage->self_mutex);
 
     if (deleted < 0)
         goto fail;

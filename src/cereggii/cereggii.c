@@ -225,7 +225,7 @@ static PyMethodDef AtomicDict_methods[] = {
 };
 
 static PyMappingMethods AtomicDict_mapping_methods = {
-    .mp_length = (lenfunc) NULL, // atomic_dict_imprecise_length / atomic_dict_precise_length
+    .mp_length = (lenfunc) AtomicDict_Len,
     .mp_subscript = (binaryfunc) AtomicDict_GetItem,
     .mp_ass_subscript = (objobjargproc) AtomicDict_SetItem,
 };
@@ -265,14 +265,14 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
 };
 
-PyTypeObject AtomicDictReservationBuffer_Type = {
+PyTypeObject AtomicDictAccessorStorage_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._AtomicDictReservationBuffer",
-    .tp_basicsize = sizeof(AtomicDict_ReservationBuffer),
+    .tp_name = "cereggii._AtomicDictAccessorStorage",
+    .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDict_ReservationBuffer_dealloc,
+    .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
 };
 
 PyTypeObject AtomicDictFastIterator_Type = {
@@ -347,7 +347,7 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicDictReservationBuffer_Type) < 0)
+    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
