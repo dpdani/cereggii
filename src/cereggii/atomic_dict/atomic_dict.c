@@ -101,7 +101,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     if (init_dict != NULL) {
-        init_dict_size = PyDict_Size(init_dict);
+        init_dict_size = PyDict_Size(init_dict) * 2;
     }
     if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK == 0) { // allocate one more entry: cannot write to entry 0
         init_dict_size++;
