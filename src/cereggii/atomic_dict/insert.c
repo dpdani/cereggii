@@ -318,9 +318,9 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (hash == -1)
         goto fail;
 
-    AtomicDict_ReservationBuffer *rb = NULL;
-    rb = AtomicDict_GetReservationBuffer(self);
-    if (rb == NULL)
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetAccessorStorage(self);
+    if (storage == NULL)
         goto fail;
 
     beginning:
@@ -328,8 +328,10 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (meta == NULL)
         goto fail;
 
-    int migrated = AtomicDict_MaybeHelpMigrate(meta);
+    _PyMutex_lock(&storage->self_mutex);
+    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
+        // self_mutex was unlocked during the operation
         Py_DECREF(meta);
         meta = NULL;
         goto beginning;
@@ -340,11 +342,12 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         .location = 0,
     };
     if (expected == NOT_FOUND || expected == ANY) {
-        int got_entry = AtomicDict_GetEmptyEntry(self, meta, rb, &entry_loc, hash);
+        int got_entry = AtomicDict_GetEmptyEntry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
         if (entry_loc.entry == NULL || got_entry == -1)
             goto fail;
 
         if (got_entry == 0) {  // => must grow
+            _PyMutex_unlock(&storage->self_mutex);
             migrated = AtomicDict_Grow(self);
 
             if (migrated < 0)
@@ -368,8 +371,14 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
         entry_loc.entry->hash = 0;
-        AtomicDict_ReservationBufferPut(rb, &entry_loc, 1);
+        AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1);
     }
+
+    if (result == NOT_FOUND && entry_loc.location != 0) {
+        storage->local_len++;
+        self->len_dirty = 1;
+    }
+    _PyMutex_unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;

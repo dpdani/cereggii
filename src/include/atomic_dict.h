@@ -18,10 +18,16 @@ typedef struct AtomicDict {
     AtomicRef *metadata;
 
     uint8_t min_log_size;
-
     uint8_t reservation_buffer_size;
+
+    PyMutex sync_op;
+
+    Py_ssize_t len;
+    uint8_t len_dirty;
+
     Py_tss_t *tss_key;
-    PyObject *reservation_buffers; // PyListObject
+    PyMutex accessors_lock;
+    PyObject *accessors; // PyListObject
 } AtomicDict;
 
 struct AtomicDict_FastIterator;
@@ -49,6 +55,8 @@ PyObject *AtomicDict_Compact_callable(AtomicDict *self);
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);
+
+Py_ssize_t AtomicDict_Len(AtomicDict *self);
 
 PyObject *AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs);
 

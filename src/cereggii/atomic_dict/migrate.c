@@ -107,12 +107,13 @@ AtomicDict_Compact_callable(AtomicDict *self)
 
 
 int
-AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta)
+AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
 {
     if (current_meta->migration_leader == 0) {
         return 0;
     }
 
+    _PyMutex_unlock(self_mutex);
     AtomicDict_FollowerMigrate(current_meta);
     return 1;
 }
@@ -162,12 +163,25 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
 
     // blocks
+    AtomicDict_BeginSynchronousOperation(self);
     if (from_log_size < to_log_size) {
-        AtomicDictMeta_CopyBlocks(current_meta, new_meta);
+        int ok = AtomicDictMeta_CopyBlocks(current_meta, new_meta);
+
+        if (ok < 0) {
+            AtomicDict_EndSynchronousOperation(self);
+            goto fail;
+        }
     } else {
-        AtomicDictMeta_InitBlocks(new_meta);
+        int ok = AtomicDictMeta_InitBlocks(new_meta);
+
+        if (ok < 0) {
+            AtomicDict_EndSynchronousOperation(self);
+            goto fail;
+        }
+
         AtomicDictMeta_ShrinkBlocks(self, current_meta, new_meta);
     }
+    AtomicDict_EndSynchronousOperation(self);
 
     for (uint64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
         Py_INCREF(new_meta->blocks[block_i]);

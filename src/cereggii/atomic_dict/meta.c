@@ -203,11 +203,11 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 
         to_meta->blocks[block_j] = from_meta->blocks[block_i];
 
-        for (Py_ssize_t i = 0; i < PyList_Size(self->reservation_buffers); ++i) {
-            AtomicDict_ReservationBuffer *rb = (AtomicDict_ReservationBuffer *)
-                PyList_GetItem(self->reservation_buffers, i);  // will be FetchItem, with proper critical section
+        for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
+            AtomicDict_AccessorStorage *storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            assert(storage != NULL);
 
-            AtomicDict_UpdateBlocksInReservationBuffer(rb, block_i, block_j);
+            AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);
         }
 
         block_j++;
