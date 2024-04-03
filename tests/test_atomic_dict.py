@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import gc
+import random
 import threading
 from collections import Counter
 
@@ -174,14 +175,15 @@ def test_insert_non_compact():
 
 def test_full_dict():
     d = AtomicDict({k: None for k in range(63)})
-    assert len(d.debug()["index"]) == 64
+    assert len(d.debug()["index"]) == 128
+
     d = AtomicDict(min_size=64)
     for k in range(62):
         d[k] = None
     assert len(d.debug()["index"]) == 64
 
     d = AtomicDict({k: None for k in range((1 << 10) - 1)})
-    assert len(d.debug()["index"]) == 1 << 10
+    assert len(d.debug()["index"]) == 1 << 11
     d = AtomicDict(min_size=1 << 10)
     for k in range((1 << 10) - 2):
         d[k] = None
@@ -429,7 +431,7 @@ def test_grow():
         assert d[_] is None
 
     d = AtomicDict({_: None for _ in range(63)})
-    assert d.debug()["meta"]["log_size"] == 6
+    assert d.debug()["meta"]["log_size"] == 7
     d[128] = None
     assert d.debug()["meta"]["log_size"] == 7
     for _ in [*range(63), 128]:
@@ -637,3 +639,13 @@ def test_compare_and_set():
 
     d.compare_and_set(key="bar", expected=cereggii.ANY, desired="baz")
     assert d["bar"] == "baz"
+
+
+def test_batch_getitem():
+    keys_count = 2**12
+    d = AtomicDict({_: _ for _ in range(keys_count)})
+    batch = {random.randrange(0, 2 * keys_count): None for _ in range(keys_count // 2)}  # noqa: S311
+    d.batch_getitem(batch)
+
+    for k in batch:
+        assert d.get(k, cereggii.NOT_FOUND) == batch[k]
