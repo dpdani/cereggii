@@ -53,51 +53,32 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t init_dict_size = 0;
     int64_t min_size = 0;
     int64_t buffer_size = 4;
+    int greedy = 0;
     PyObject *init_dict = NULL;
     AtomicDict_Meta *meta = NULL;
 
-    if (args != NULL) {
-        if (!PyArg_ParseTuple(args, "|O", &init_dict)) {
+    char *kw_list[] = {"init_dict", "min_size", "buffer_size", "greedy", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|Ollp", kw_list, &init_dict, &min_size, &buffer_size, &greedy))
+        goto fail;
+
+    if (init_dict != NULL) {
+        if (!PyDict_Check(init_dict)) {
+            PyErr_SetString(PyExc_TypeError, "type(iterable) != dict");
             goto fail;
-        }
-        if (init_dict != NULL) {
-            if (!PyDict_Check(init_dict)) {
-                PyErr_SetString(PyExc_TypeError, "type(iterable) is not dict");
-                goto fail;
-            }
         }
     }
 
-    if (kwargs != NULL) {
-        // it is unnecessary to acquire the GIL/begin a critical section:
-        // this is the only reference to kwargs
-        PyObject *min_size_arg = PyDict_GetItemString(kwargs, "min_size");
-        if (min_size_arg != NULL) {
-            min_size = PyLong_AsLong(min_size_arg);
-            PyDict_DelItemString(kwargs, "min_size");
-            if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
-                PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
-                return -1;
-            }
-        }
-        PyObject *buffer_size_arg = PyDict_GetItemString(kwargs, "buffer_size");
-        if (buffer_size_arg != NULL) {
-            buffer_size = PyLong_AsLong(buffer_size_arg);
-            PyDict_DelItemString(kwargs, "buffer_size");
-            if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
-                buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
-                buffer_size != 64) {
-                PyErr_SetString(PyExc_ValueError, "buffer_size not in (1, 2, 4, 8, 16, 32, 64)");
-                return -1;
-            }
-        }
+    if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+        PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
+        return -1;
+    }
 
-        if (init_dict == NULL) {
-            init_dict = kwargs;
-        } else {
-            // this internally calls Py_BEGIN_CRITICAL_SECTION
-            PyDict_Update(init_dict, kwargs);
-        }
+    if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
+        buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
+        buffer_size != 64) {
+        PyErr_SetString(PyExc_ValueError, "buffer_size not in (1, 2, 4, 8, 16, 32, 64)");
+        return -1;
     }
 
     if (init_dict != NULL) {
@@ -135,6 +116,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         return -1;
     }
     self->min_log_size = log_size;
+    self->greedy_allocate = greedy;
 
     while (init_dict_size_tmp >>= 1) {
         init_dict_log_size++;
@@ -158,27 +140,38 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     AtomicDict_Block *block;
     int64_t i;
-    for (i = 0; i < init_dict_size / ATOMIC_DICT_ENTRIES_IN_BLOCK; i++) {
-        // allocate blocks
-        block = AtomicDictBlock_New(meta);
-        if (block == NULL)
-            goto fail;
-        meta->blocks[i] = block;
-        if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-            meta->blocks[i + 1] = NULL;
+
+    if (self->greedy_allocate) {
+        for (i = 0; i < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK; i++) {
+            block = AtomicDictBlock_New(meta);
+            if (block == NULL)
+                goto fail;
+            meta->blocks[i] = block;
+            meta->greatest_allocated_block++;
         }
-        meta->greatest_allocated_block++;
-    }
-    if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK > 0) {
-        // allocate additional block
-        block = AtomicDictBlock_New(meta);
-        if (block == NULL)
-            goto fail;
-        meta->blocks[i] = block;
-        if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-            meta->blocks[i + 1] = NULL;
+    } else {
+        for (i = 0; i < init_dict_size / ATOMIC_DICT_ENTRIES_IN_BLOCK; i++) {
+            // allocate blocks
+            block = AtomicDictBlock_New(meta);
+            if (block == NULL)
+                goto fail;
+            meta->blocks[i] = block;
+            if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+                meta->blocks[i + 1] = NULL;
+            }
+            meta->greatest_allocated_block++;
         }
-        meta->greatest_allocated_block++;
+        if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK > 0) {
+            // allocate additional block
+            block = AtomicDictBlock_New(meta);
+            if (block == NULL)
+                goto fail;
+            meta->blocks[i] = block;
+            if (i + 1 < (1 << log_size) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+                meta->blocks[i + 1] = NULL;
+            }
+            meta->greatest_allocated_block++;
+        }
     }
 
     meta->inserting_block = 0;

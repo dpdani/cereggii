@@ -215,7 +215,7 @@ int AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected,
 
 
 /// delete
-int AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t gab, int64_t gdb);
+int AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t inb, int64_t gdb);
 
 
 /// insert

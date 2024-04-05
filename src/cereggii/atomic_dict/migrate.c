@@ -187,6 +187,17 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         Py_INCREF(new_meta->blocks[block_i]);
     }
 
+    if (self->greedy_allocate) {
+        for (uint64_t i = new_meta->greatest_allocated_block + 1;
+             i < new_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK; ++i) {
+            AtomicDict_Block *block = AtomicDictBlock_New(new_meta);
+            if (block == NULL)
+                goto fail;
+            new_meta->blocks[i] = block;
+            new_meta->greatest_allocated_block++;
+        }
+    }
+
     AtomicDictMeta_ClearIndex(new_meta);
 
     // 👀
@@ -251,7 +262,8 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
     for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
         uint64_t lock = (copy_lock + tid) % (new_meta->greatest_allocated_block + 1);
 
-        int locked = CereggiiAtomic_CompareExchangePtr((void **) &new_meta->blocks[lock]->generation, current_meta->generation, NULL);
+        int locked = CereggiiAtomic_CompareExchangePtr((void **) &new_meta->blocks[lock]->generation,
+                                                       current_meta->generation, NULL);
         if (!locked)
             continue;
 

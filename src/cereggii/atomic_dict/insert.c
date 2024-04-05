@@ -383,7 +383,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
+    if (must_grow || (meta->inserting_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
                      ATOMIC_DICT_ENTRIES_IN_BLOCK >= meta->size * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 

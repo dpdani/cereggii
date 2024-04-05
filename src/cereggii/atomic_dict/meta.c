@@ -196,8 +196,14 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 {
     to_meta->blocks[0] = from_meta->blocks[0];  // entry 0 must be kept
 
+    int64_t limit = from_meta->greatest_allocated_block;
+
+    if (self->greedy_allocate) {
+        limit = from_meta->inserting_block;
+    }
+
     int64_t block_j = 1;
-    for (int64_t block_i = 1; block_i <= from_meta->greatest_allocated_block; ++block_i) {
+    for (int64_t block_i = 1; block_i <= limit; ++block_i) {
         if (from_meta->greatest_refilled_block < block_i && block_i <= from_meta->greatest_deleted_block)
             continue;
 
