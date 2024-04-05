@@ -648,3 +648,26 @@ def test_len():
 
     assert len(d) == 10
     assert len(d) == 10  # test twice for len_dirty
+
+
+def test_greedy_grow_then_shrink():
+    d = AtomicDict(greedy=True)
+    assert d.debug()["meta"]["log_size"] == 6
+
+    for _ in range(2**10):
+        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
+        d[_] = None
+    assert d.debug()["meta"]["log_size"] == 11
+
+    for _ in range(2**10):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
+
+    for _ in range(2**20, 2**20 + 2**14):
+        d[_] = None
+
+    assert d.debug()["meta"]["log_size"] == 15
+
+    for _ in range(2**20, 2**20 + 2**14):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 7

@@ -50,73 +50,69 @@ AtomicDictBlock_dealloc(AtomicDict_Block *self)
 
 
 int
-AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
-                         AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
+AtomicDict_MakeReservation(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+                           AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
 {
-    AtomicDict_ReservationBufferPop(rb, entry_loc);
+    Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1) & ~(self->reservation_buffer_size - 1);
+    int64_t inserting_block;
 
-    if (entry_loc->entry == NULL) {
-        Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1) & ~(self->reservation_buffer_size - 1);
-        int64_t inserting_block;
-
-        reserve_in_inserting_block:
-        inserting_block = meta->inserting_block;
-        for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_BLOCK; offset += self->reservation_buffer_size) {
-            entry_loc->entry = &meta
-                ->blocks[inserting_block]
-                ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
-            if (entry_loc->entry->flags == 0) {
-                if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
-                    entry_loc->location =
-                        (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
-                        ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                    assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
-                    AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
-                    AtomicDict_ReservationBufferPop(rb, entry_loc);
-                    goto done;
-                }
+    reserve_in_inserting_block:
+    inserting_block = meta->inserting_block;
+    for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_BLOCK; offset += self->reservation_buffer_size) {
+        entry_loc->entry = &meta
+            ->blocks[inserting_block]
+            ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
+        if (entry_loc->entry->flags == 0) {
+            if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
+                entry_loc->location =
+                    (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
+                    ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
+                assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
+                AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
+                AtomicDict_ReservationBufferPop(rb, entry_loc);
+                goto done;
             }
         }
+    }
 
-        if (meta->inserting_block != inserting_block)
-            goto reserve_in_inserting_block;
+    if (meta->inserting_block != inserting_block)
+        goto reserve_in_inserting_block;
 
-        int64_t greatest_allocated_block = meta->greatest_allocated_block;
-        if (greatest_allocated_block > inserting_block) {
-            CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
-            goto reserve_in_inserting_block; // even if the above CAS fails
+    int64_t greatest_allocated_block = meta->greatest_allocated_block;
+    if (greatest_allocated_block > inserting_block) {
+        CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
+        goto reserve_in_inserting_block; // even if the above CAS fails
+    }
+    if (greatest_allocated_block + 1 >= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+        return 0; // must grow
+    }
+    assert(greatest_allocated_block + 1 <= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+
+    AtomicDict_Block *block = NULL;
+    block = AtomicDictBlock_New(meta);
+    if (block == NULL)
+        goto fail;
+
+    block->entries[0].flags = ENTRY_FLAGS_RESERVED;
+
+    if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
+        if (greatest_allocated_block + 2 < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+            CereggiiAtomic_StorePtr((void **) &meta->blocks[greatest_allocated_block + 2], NULL);
         }
-        if (greatest_allocated_block + 1 >= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-            return 0; // must grow
-        }
-        assert(greatest_allocated_block + 1 <= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
-
-        AtomicDict_Block *block = NULL;
-        block = AtomicDictBlock_New(meta);
-        if (block == NULL)
-            goto fail;
-
-        block->entries[0].flags = ENTRY_FLAGS_RESERVED;
-
-        if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
-            if (greatest_allocated_block + 2 < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-                CereggiiAtomic_StorePtr((void **) &meta->blocks[greatest_allocated_block + 2], NULL);
-            }
-            CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
-                                                greatest_allocated_block,
-                                                greatest_allocated_block + 1);
-            CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block,
-                                                greatest_allocated_block,
-                                                greatest_allocated_block + 1);
-            entry_loc->entry = &block->entries[0];
-            entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
-            assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
-            AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
-            AtomicDict_ReservationBufferPop(rb, entry_loc);
-        } else {
-            Py_DECREF(block);
-            goto reserve_in_inserting_block;
-        }
+        CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
+                                            greatest_allocated_block,
+                                            greatest_allocated_block + 1);
+        CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block,
+                                            greatest_allocated_block,
+                                            greatest_allocated_block + 1);
+        entry_loc->entry = &block->entries[0];
+        entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+        assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
+        AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
+        AtomicDict_ReservationBufferPop(rb, entry_loc);
+    } else {
+        Py_DECREF(block);
+        goto reserve_in_inserting_block;
     }
 
     done:
@@ -127,6 +123,69 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     fail:
     entry_loc->entry = NULL;
     return -1;
+}
+
+
+int
+AtomicDict_MakeGreedyReservation(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+                                 AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
+{
+    Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1) & ~(self->reservation_buffer_size - 1);
+    int64_t inserting_block = meta->inserting_block;
+    int64_t block;
+
+    for (block = inserting_block; block <= meta->greatest_allocated_block; ++block) {
+        for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_BLOCK; offset += self->reservation_buffer_size) {
+            entry_loc->entry = &meta
+                ->blocks[block]
+                ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
+            if (entry_loc->entry->flags == 0) {
+                if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
+                    entry_loc->location =
+                        (block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
+                        ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
+                    assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
+                    AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
+                    AtomicDict_ReservationBufferPop(rb, entry_loc);
+                    goto done;
+                }
+            }
+        }
+    }
+
+    // ran out of blocks without making a reservation
+    // => must grow
+    return 0;
+
+    done:
+    if (block != inserting_block) {
+        meta->inserting_block = block;
+    }
+    assert(entry_loc->entry != NULL);
+    assert(entry_loc->entry->key == NULL);
+    assert(entry_loc->location < meta->size);
+    return 1;
+}
+
+
+int
+AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
+                         AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
+{
+    AtomicDict_ReservationBufferPop(rb, entry_loc);
+
+    if (entry_loc->entry == NULL) {
+        if (self->greedy_allocate) {
+            return AtomicDict_MakeGreedyReservation(self, meta, rb, entry_loc, hash);
+        } else {
+            return AtomicDict_MakeReservation(self, meta, rb, entry_loc, hash);
+        }
+    }
+
+    assert(entry_loc->entry != NULL);
+    assert(entry_loc->entry->key == NULL);
+    assert(entry_loc->location < meta->size);
+    return 1;
 }
 
 inline uint64_t
