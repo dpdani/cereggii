@@ -442,6 +442,9 @@ def test_compact():
     d = AtomicDict({0: None, 1: None, 64: None, 65: None})
     for _ in range(20):
         d[2**_] = None
+        assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len(
+            {0, 1, 64, 65, *[2**i for i in range(_ + 1)]}
+        ), _
     for _ in [0, 1, 64, 65]:
         assert d[_] is None
     for _ in range(20):
@@ -505,7 +508,8 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 6
 
     for _ in range(2**10):
-        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
+        debug = d.debug()
+        assert len(Counter(debug["index"]).keys()) == _ + 1, debug["meta"]["log_size"]
         d[_] = None
     assert d.debug()["meta"]["log_size"] == 11
 
@@ -513,10 +517,16 @@ def test_grow_then_shrink():
         del d[_]
     assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
 
+    debug = d.debug()
+    empty = 0
+    tombstone = 448
+    assert len(Counter(debug["index"]).keys()) == len({empty, tombstone}), debug["meta"]["log_size"]
+
     for _ in range(2**20, 2**20 + 2**14):
         d[_] = None
 
     assert d.debug()["meta"]["log_size"] == 15
+    assert len(Counter(d.debug()["index"]).keys()) == 2**14 + 1
 
     for _ in range(2**20, 2**20 + 2**14):
         del d[_]

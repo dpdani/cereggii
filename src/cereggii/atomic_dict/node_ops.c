@@ -93,6 +93,15 @@ AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Node *no
     AtomicDict_ParseNodeFromRaw(node_raw, node, meta);
 }
 
+inline uint64_t
+AtomicDict_ParseRawNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Meta *meta)
+{
+    uint64_t shift = AtomicDict_ShiftInRegionOf(ix, meta);
+    uint64_t node_raw =
+        (region & (meta->node_mask << (shift * meta->node_size))) >> (shift * meta->node_size);
+    return node_raw;
+}
+
 inline void
 AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buffer)
 {
@@ -155,11 +164,18 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
     }
 }
 
-void
+inline void
 AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     uint64_t node_region = meta->index[AtomicDict_RegionOf(ix, meta)];
     AtomicDict_ParseNodeFromRegion(ix, node_region, node, meta);
+}
+
+inline int64_t
+AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
+{
+    uint64_t node_region = meta->index[AtomicDict_RegionOf(ix, meta)];
+    AtomicDict_ParseRawNodeFromRegion(ix, node_region, meta);
 }
 
 /**

@@ -106,7 +106,7 @@ AtomicDict_Compact_callable(AtomicDict *self)
 }
 
 
-int
+inline int
 AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
 {
     if (current_meta->migration_leader == 0) {
@@ -125,6 +125,7 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
 {
     assert(to_log_size <= from_log_size + 1);
     assert(to_log_size >= from_log_size - 1);
+
     if (current_meta->migration_leader == 0) {
         int i_am_leader = CereggiiAtomic_CompareExchangeUIntPtr(
             &current_meta->migration_leader,
@@ -143,7 +144,9 @@ int
 AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed */, uint8_t from_log_size,
                          uint8_t to_log_size)
 {
+    int holding_sync_lock = 0;
     AtomicDict_Meta *new_meta;
+
     beginning:
     new_meta = NULL;
     new_meta = AtomicDictMeta_New(to_log_size);
@@ -164,30 +167,38 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     // blocks
     AtomicDict_BeginSynchronousOperation(self);
+    holding_sync_lock = 1;
     if (from_log_size < to_log_size) {
         int ok = AtomicDictMeta_CopyBlocks(current_meta, new_meta);
 
-        if (ok < 0) {
-            AtomicDict_EndSynchronousOperation(self);
+        if (ok < 0)
             goto fail;
-        }
     } else {
         int ok = AtomicDictMeta_InitBlocks(new_meta);
 
-        if (ok < 0) {
-            AtomicDict_EndSynchronousOperation(self);
+        if (ok < 0)
             goto fail;
-        }
 
         AtomicDictMeta_ShrinkBlocks(self, current_meta, new_meta);
     }
-    AtomicDict_EndSynchronousOperation(self);
 
     for (uint64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
         Py_INCREF(new_meta->blocks[block_i]);
     }
 
     AtomicDictMeta_ClearIndex(new_meta);
+
+    if (from_log_size >= to_log_size) {
+        AtomicDict_EndSynchronousOperation(self);
+        holding_sync_lock = 0;
+    } else {
+        current_meta->hashes = PyMem_RawMalloc(current_meta->size * sizeof(Py_hash_t));
+        if (current_meta->hashes == NULL)
+            goto fail;
+
+        current_meta->accessor_key = self->accessor_key;
+        current_meta->accessors = self->accessors;
+    }
 
     // 👀
     Py_INCREF(new_meta);
@@ -200,16 +211,30 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
     assert(set);
+
+    if (holding_sync_lock) {
+        for (int i = 0; i < PyList_Size(self->accessors); ++i) {
+            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            accessor->participant_in_migration = 0;
+        }
+    }
+
     AtomicEvent_Set(current_meta->migration_done);
-    Py_DECREF(new_meta);  // this may seem strange: why decref'ing the new meta?
+    Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
     // the reason is that AtomicRef_CompareAndSet also increases new_meta's refcount,
     // which is exactly what we want. but the reference count was already 1, as it
     // was set during the initialization of new_meta. that's what we're decref'ing
     // for in here.
 
+    if (holding_sync_lock) {
+        AtomicDict_EndSynchronousOperation(self);
+    }
     return 1;
 
     fail:
+    if (holding_sync_lock) {
+        AtomicDict_EndSynchronousOperation(self);
+    }
     // don't block other threads indefinitely
     AtomicEvent_Set(current_meta->migration_done);
     AtomicEvent_Set(current_meta->node_migration_done);
@@ -217,7 +242,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     return -1;
 }
 
-void
+inline void
 AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
@@ -228,8 +253,18 @@ AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta)
     AtomicEvent_Wait(current_meta->migration_done);
 }
 
-void
+inline void
 AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+{
+    if (current_meta->log_size < new_meta->log_size) {
+        AtomicDict_QuickMigrate(current_meta, new_meta);
+    } else {
+        AtomicDict_SlowMigrate(current_meta, new_meta);
+    }
+}
+
+inline void
+AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         int node_migration_done = AtomicDict_MigrateReInsertAll(current_meta, new_meta);
@@ -241,17 +276,43 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
     }
 }
 
+inline void
+AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+{
+    if (!AtomicEvent_IsSet(current_meta->hashes_done)) {
+        int hashes_done = AtomicDict_PrepareHashArray(current_meta, new_meta);
+
+        if (hashes_done) {
+            AtomicEvent_Set(current_meta->hashes_done);
+        }
+        AtomicEvent_Wait(current_meta->hashes_done);
+    }
+    if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
+        // assert(self->accessors_lock is held by leader);
+        AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
+        CereggiiAtomic_StoreInt(&storage->participant_in_migration, 1);
+
+        int node_migration_done = AtomicDict_MigrateNodes(current_meta, new_meta);
+
+        if (node_migration_done) {
+            AtomicEvent_Set(current_meta->node_migration_done);
+        }
+        AtomicEvent_Wait(current_meta->node_migration_done);
+    }
+}
+
 int
 AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
-    uint64_t tid = _Py_ThreadId();
+    uint64_t thread_id = _Py_ThreadId();
 
     int64_t copy_lock;
 
     for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
-        uint64_t lock = (copy_lock + tid) % (new_meta->greatest_allocated_block + 1);
+        uint64_t lock = (copy_lock + thread_id) % (new_meta->greatest_allocated_block + 1);
 
-        int locked = CereggiiAtomic_CompareExchangePtr((void **) &new_meta->blocks[lock]->generation, current_meta->generation, NULL);
+        int locked = CereggiiAtomic_CompareExchangePtr((void **) &new_meta->blocks[lock]->generation,
+                                                       current_meta->generation, NULL);
         if (!locked)
             continue;
 
@@ -292,6 +353,212 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
 
     for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
         if (new_meta->blocks[copy_lock]->generation != new_meta->generation) {
+            done = 0;
+            break;
+        }
+    }
+
+    return done;
+}
+
+int
+AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+{
+    uint64_t thread_id = _Py_ThreadId();
+
+    int64_t block_i;
+    AtomicDict_Block *block;
+
+    for (block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
+        uint64_t lock = (block_i + thread_id) % (new_meta->greatest_allocated_block + 1);
+
+        block = new_meta->blocks[lock];
+        if ((void **) block == (void **) NOT_FOUND)
+            continue;
+
+        CereggiiAtomic_StorePtr((void **) &new_meta->blocks[lock], NOT_FOUND);  // soft-locking
+
+        if (new_meta->greatest_refilled_block < lock && lock <= new_meta->greatest_deleted_block)
+            goto mark_as_done;
+
+        AtomicDict_EntryLoc entry_loc;
+
+        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+            entry_loc.location = (lock << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + i;
+            entry_loc.entry = &block->entries[i];
+
+            if (entry_loc.entry->key == NULL || entry_loc.entry->value == NULL ||
+                entry_loc.entry->flags & ENTRY_FLAGS_TOMBSTONE || entry_loc.entry->flags & ENTRY_FLAGS_SWAPPED)
+                continue;
+
+            AtomicDict_SearchResult sr;
+            AtomicDict_LookupEntry(current_meta, entry_loc.location, entry_loc.entry->hash, &sr);
+
+            if (sr.found) {
+                current_meta->hashes[sr.position] = entry_loc.entry->hash;
+            }
+        }
+
+        mark_as_done:
+        block->generation = new_meta->generation;
+        CereggiiAtomic_StorePtr((void **) &new_meta->blocks[lock], block);
+    }
+
+    int done = 1;
+
+    for (block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
+        AtomicDict_Block *b = new_meta->blocks[block_i];
+
+        if ((void *) b == (void *) NOT_FOUND) {
+            done = 0;
+            break;
+        }
+
+        if (b->generation != new_meta->generation) {
+            done = 0;
+            break;
+        }
+    }
+
+    return done;
+}
+
+inline void
+AtomicDict_MigrateNode(uint64_t current_size_mask, AtomicDict_Meta *new_meta, AtomicDict_Node *node, Py_hash_t hash)
+{
+    AtomicDict_SearchResult search;
+    AtomicDict_LookupEntry(new_meta, node->index, hash, &search);
+    if (search.found)
+        return;
+
+    int inserted = AtomicDict_UnsafeInsert(new_meta, hash, node->index);
+
+    if (inserted == -1) {
+        if (new_meta->is_compact) {
+            new_meta->is_compact = 0;
+        }
+
+        uint64_t ix = AtomicDict_Distance0Of(hash, new_meta);
+
+        while (AtomicDict_ReadRawNodeAt(ix, new_meta) != 0) {
+            ix++;
+            ix &= current_size_mask;
+        }
+
+        node->distance = new_meta->max_distance;
+        node->tag = hash;
+
+        AtomicDict_WriteNodeAt(ix, node, new_meta);
+    }
+}
+
+inline void
+AtomicDict_SeekToProbeStart(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask)
+{
+    uint64_t node;
+
+    assert(AtomicDict_ReadRawNodeAt((displacement + *pos) & current_size_mask, meta) == 0);
+
+    do {
+        (*pos)++;
+        node = AtomicDict_ReadRawNodeAt((displacement + *pos) & current_size_mask, meta);
+    } while (node == 0);
+}
+
+inline void
+AtomicDict_SeekToProbeEnd(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask)
+{
+    uint64_t node;
+
+    assert(AtomicDict_ReadRawNodeAt((displacement + *pos) & current_size_mask, meta) != 0);
+
+    do {
+        (*pos)++;
+        node = AtomicDict_ReadRawNodeAt((displacement + *pos) & current_size_mask, meta);
+    } while (node != 0);
+}
+
+int
+AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+{
+    uint64_t thread_id = _Py_ThreadId();
+
+    uint64_t current_size = current_meta->size;
+    uint64_t current_size_mask = current_size - 1;
+    uint64_t displacement = thread_id & current_size_mask;
+
+    AtomicDict_Node node, taken = {
+        .index = 0,
+        .distance = 1,
+        .tag = 0,
+    };
+    AtomicDict_ComputeRawNode(&taken, current_meta);
+
+    uint64_t probe_start, probe_length;
+    uint64_t i = 0;
+
+    AtomicDict_ReadNodeAt(displacement, &node, current_meta);
+
+    if (node.node != 0 && node.distance != 0) { // todo: handle tombstone probe head
+        AtomicDict_SeekToProbeEnd(current_meta, &i, displacement, current_size_mask);
+    }
+    if (AtomicDict_ReadRawNodeAt((i + displacement) & current_size_mask, current_meta) == 0) {
+        AtomicDict_SeekToProbeStart(current_meta, &i, displacement, current_size_mask);
+    }
+
+    probe_start = (displacement + i) & current_size_mask;
+    probe_length = 0;
+
+    for (; i < current_size; ++i) {
+        uint64_t ix = (displacement + i) & current_size_mask;
+
+        AtomicDict_ReadNodeAt(ix, &node, current_meta);
+
+        if (node.node == taken.node) {
+//            seek_to_next_probe:
+            AtomicDict_SeekToProbeEnd(current_meta, &i, displacement, current_size_mask);
+            AtomicDict_SeekToProbeStart(current_meta, &i, displacement, current_size_mask);
+        }
+
+        if (node.node == 0) {
+            AtomicDict_SeekToProbeStart(current_meta, &i, displacement, current_size_mask);
+            probe_start = (displacement + i) & current_size_mask;
+            probe_length = 0;
+
+            i--;
+            continue;
+        }
+
+        if (ix == probe_start) {
+            AtomicDict_WriteRawNodeAt(ix, taken.node, current_meta);
+//            if (!AtomicDict_AtomicWriteNodesAt(ix, 1, &node, &taken, new_meta))
+//                goto seek_to_next_probe;
+        }
+        probe_length++;
+
+        if (AtomicDict_NodeIsTombstone(&node, current_meta))
+            continue;
+
+        Py_hash_t hash = current_meta->hashes[ix];
+        AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
+    }
+
+    AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
+    CereggiiAtomic_StoreInt(&storage->participant_in_migration, 2);
+
+    return AtomicDict_NodesMigrationDone(current_meta);
+}
+
+inline int
+AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
+{
+    int done = 1;
+
+    for (Py_ssize_t migrator = 0; migrator < PyList_Size(current_meta->accessors); ++migrator) {
+        AtomicDict_AccessorStorage *storage =
+            (AtomicDict_AccessorStorage *) PyList_GetItem(current_meta->accessors, migrator);
+
+        if (storage->participant_in_migration == 1) {
             done = 0;
             break;
         }

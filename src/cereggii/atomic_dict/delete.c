@@ -184,7 +184,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto fail;
 
     AtomicDict_AccessorStorage *storage = NULL;
-    storage = AtomicDict_GetAccessorStorage(self);
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
 
     if (storage == NULL)
         goto fail;

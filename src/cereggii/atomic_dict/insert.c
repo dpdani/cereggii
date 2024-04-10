@@ -186,6 +186,23 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     uint8_t is_compact = meta->is_compact;
     AtomicDict_Node to_insert;
 
+    if (expected == NOT_FOUND || expected == ANY) {
+        // insert fast-path
+        if (AtomicDict_ReadRawNodeAt(distance_0, meta) == 0) {
+            assert(entry_loc != NULL);
+
+            AtomicDict_Node node = {
+                .index = entry_loc->location,
+                .distance = 0,
+                .tag = hash,
+            };
+
+            if (AtomicDict_AtomicWriteNodesAt(distance_0, 1, &meta->zero, &node, meta)) {
+                return NOT_FOUND;
+            }
+        }
+    }
+
     if (AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(meta, key, hash, expected, desired, &current, entry_loc,
                                                           must_grow, &done, &expectation, &reader, &to_insert,
                                                           distance_0, skip_entry_check) < 0)
@@ -319,7 +336,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto fail;
 
     AtomicDict_AccessorStorage *storage = NULL;
-    storage = AtomicDict_GetAccessorStorage(self);
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
         goto fail;
 

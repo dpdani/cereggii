@@ -94,10 +94,15 @@ AtomicDictMeta_New(uint8_t log_size)
 
     meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;
-    meta->copy_nodes_locks = NULL;
+    meta->accessor_key = NULL;
+    meta->accessors = NULL;
+    meta->hashes = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
+        goto fail;
+    meta->hashes_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->hashes_done == NULL)
         goto fail;
     meta->node_migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->node_migration_done == NULL)
@@ -248,15 +253,16 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
         PyMem_RawFree(self->blocks);
     }
 
-    uint8_t *copy_nodes_locks = self->copy_nodes_locks;
-    if (copy_nodes_locks != NULL) {
-        self->copy_nodes_locks = NULL;
-        PyMem_RawFree(copy_nodes_locks);
+    int64_t *hashes = self->hashes;
+    if (hashes != NULL) {
+        self->hashes = NULL;
+        PyMem_RawFree(hashes);
     }
 
     Py_CLEAR(self->generation);
     Py_CLEAR(self->new_gen_metadata);
     Py_CLEAR(self->new_metadata_ready);
+    Py_CLEAR(self->hashes_done);
     Py_CLEAR(self->node_migration_done);
     Py_CLEAR(self->migration_done);
     Py_TYPE(self)->tp_free((PyObject *) self);
