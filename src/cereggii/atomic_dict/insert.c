@@ -209,7 +209,8 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
         goto fail;
 
     while (!done) {
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(distance_0 + distance, &reader, meta);
+        uint64_t ix = (distance_0 + distance) & (meta->size - 1);
+        AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix, &reader, meta);
 
         if (reader.node.node == 0) {
             if (expected != NOT_FOUND && expected != ANY) {
@@ -227,9 +228,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             to_insert.distance = meta->max_distance;
             to_insert.tag = hash;
 
-            done = AtomicDict_AtomicWriteNodesAt(distance_0 + distance, 1,
-                                                 &reader.buffer[reader.idx_in_buffer], &to_insert,
-                                                 meta);
+            done = AtomicDict_AtomicWriteNodesAt(ix, 1, &reader.buffer[reader.idx_in_buffer], &to_insert, meta);
 
             if (!done) {
                 reader.zone = -1;
@@ -238,7 +237,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
         } else if (reader.node.node == meta->tombstone.node) {
             // pass
         } else if (is_compact && !AtomicDict_NodeIsReservation(&reader.node, meta) && (
-            (distance_0 + distance - reader.node.distance > distance_0)
+            (ix - reader.node.distance > distance_0)
         )) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;

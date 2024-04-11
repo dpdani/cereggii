@@ -85,7 +85,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     found:
     result->error = 0;
     result->found = 1;
-    result->position = ix + probe + reservations;
+    result->position = (ix + probe + reservations) & (meta->size - 1);
     result->node = node;
 }
 
@@ -149,7 +149,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     found:
     result->error = 0;
     result->found = 1;
-    result->position = ix + probe + reservations;
+    result->position = (ix + probe + reservations) & (meta->size - 1);
     result->node = node;
 }
 

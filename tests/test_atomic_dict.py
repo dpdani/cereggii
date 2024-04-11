@@ -495,7 +495,11 @@ def test_compact():
     d = AtomicDict({0: None, 1: None})
     for _ in range(20):
         d[2**_] = None
+    assert d.debug()["meta"]["log_size"] == 7
     d.compact()
+    for _ in range(20):
+        assert d[2**_] is None
+    assert d.debug()["meta"]["log_size"] == 17
 
     d = AtomicDict({}, min_size=2**16)
     assert len(d.debug()["index"]) == 2**16

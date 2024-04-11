@@ -106,7 +106,7 @@ AtomicDict_Compact_callable(AtomicDict *self)
 }
 
 
-inline int
+int
 AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
 {
     if (current_meta->migration_leader == 0) {
@@ -242,7 +242,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     return -1;
 }
 
-inline void
+void
 AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
@@ -253,7 +253,7 @@ AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta)
     AtomicEvent_Wait(current_meta->migration_done);
 }
 
-inline void
+void
 AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     if (current_meta->log_size < new_meta->log_size) {
@@ -263,7 +263,7 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
     }
 }
 
-inline void
+void
 AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
@@ -276,7 +276,7 @@ AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
     }
 }
 
-inline void
+void
 AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     if (!AtomicEvent_IsSet(current_meta->hashes_done)) {
@@ -395,6 +395,7 @@ AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
             AtomicDict_LookupEntry(current_meta, entry_loc.location, entry_loc.entry->hash, &sr);
 
             if (sr.found) {
+                assert(&current_meta->hashes[sr.position] < current_meta->hashes + current_meta->size);
                 current_meta->hashes[sr.position] = entry_loc.entry->hash;
             }
         }
@@ -423,22 +424,28 @@ AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     return done;
 }
 
-inline void
+void
 AtomicDict_MigrateNode(uint64_t current_size_mask, AtomicDict_Meta *new_meta, AtomicDict_Node *node, Py_hash_t hash)
 {
-    AtomicDict_SearchResult search;
-    AtomicDict_LookupEntry(new_meta, node->index, hash, &search);
-    if (search.found)
-        return;
+//    AtomicDict_SearchResult search;
+//    AtomicDict_LookupEntry(new_meta, node->index, hash, &search);
+//    if (search.found)
+//        return;
 
-    int inserted = AtomicDict_UnsafeInsert(new_meta, hash, node->index);
+    uint64_t ix, d0 = AtomicDict_Distance0Of(hash, new_meta);
 
-    if (inserted == -1) {
-        if (new_meta->is_compact) {
-            new_meta->is_compact = 0;
-        }
+    if (!new_meta->is_compact)
+        goto non_compact;
 
-        uint64_t ix = AtomicDict_Distance0Of(hash, new_meta);
+    node->tag = hash;
+
+    AtomicDict_RobinHoodResult inserted = AtomicDict_RobinHoodInsertRaw(new_meta, node, (int64_t) d0);
+
+    if (inserted == grow || inserted == failed) {
+        new_meta->is_compact = 0;
+
+        non_compact:
+        ix = d0;
 
         while (AtomicDict_ReadRawNodeAt(ix, new_meta) != 0) {
             ix++;
@@ -452,7 +459,7 @@ AtomicDict_MigrateNode(uint64_t current_size_mask, AtomicDict_Meta *new_meta, At
     }
 }
 
-inline void
+void
 AtomicDict_SeekToProbeStart(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask)
 {
     uint64_t node;
@@ -465,7 +472,7 @@ AtomicDict_SeekToProbeStart(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displ
     } while (node == 0);
 }
 
-inline void
+void
 AtomicDict_SeekToProbeEnd(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask)
 {
     uint64_t node;
@@ -549,7 +556,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     return AtomicDict_NodesMigrationDone(current_meta);
 }
 
-inline int
+int
 AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
 {
     int done = 1;

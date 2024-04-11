@@ -332,6 +332,9 @@ typedef enum AtomicDict_RobinHoodResult {
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       AtomicDict_Node *to_insert, int distance_0_ix);
 
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert,
+                                                         int64_t distance_0_ix);
+
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       int to_delete);
 
