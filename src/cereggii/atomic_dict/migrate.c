@@ -198,6 +198,10 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
         current_meta->accessor_key = self->accessor_key;
         current_meta->accessors = self->accessors;
+
+        for (int64_t block = 0; block <= new_meta->greatest_allocated_block; ++block) {
+            new_meta->blocks[block]->generation = new_meta->generation;
+        }
     }
 
     // 👀
@@ -237,6 +241,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
     // don't block other threads indefinitely
     AtomicEvent_Set(current_meta->migration_done);
+    AtomicEvent_Set(current_meta->hashes_done);
     AtomicEvent_Set(current_meta->node_migration_done);
     AtomicEvent_Set(current_meta->new_metadata_ready);
     return -1;
@@ -279,14 +284,14 @@ AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 void
 AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
-    if (!AtomicEvent_IsSet(current_meta->hashes_done)) {
-        int hashes_done = AtomicDict_PrepareHashArray(current_meta, new_meta);
-
-        if (hashes_done) {
-            AtomicEvent_Set(current_meta->hashes_done);
-        }
-        AtomicEvent_Wait(current_meta->hashes_done);
-    }
+//    if (!AtomicEvent_IsSet(current_meta->hashes_done)) {
+//        int hashes_done = AtomicDict_PrepareHashArray(current_meta, new_meta);
+//
+//        if (hashes_done) {
+//            AtomicEvent_Set(current_meta->hashes_done);
+//        }
+//        AtomicEvent_Wait(current_meta->hashes_done);
+//    }
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
         AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
@@ -502,6 +507,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     AtomicDict_ComputeRawNode(&taken, current_meta);
 
     uint64_t probe_start, probe_length;
+    uint64_t distance_lx = 0, distance_rx = 0;
     uint64_t i = 0;
 
     AtomicDict_ReadNodeAt(displacement, &node, current_meta);
@@ -522,12 +528,16 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
         AtomicDict_ReadNodeAt(ix, &node, current_meta);
 
         if (node.node == taken.node) {
-//            seek_to_next_probe:
+            seek_to_next_probe:
             AtomicDict_SeekToProbeEnd(current_meta, &i, displacement, current_size_mask);
             AtomicDict_SeekToProbeStart(current_meta, &i, displacement, current_size_mask);
         }
 
         if (node.node == 0) {
+            assert(distance_lx > 0 || distance_rx > 0);
+
+            distance_lx = 0;
+            distance_rx = 0;
             AtomicDict_SeekToProbeStart(current_meta, &i, displacement, current_size_mask);
             probe_start = (displacement + i) & current_size_mask;
             probe_length = 0;
@@ -537,17 +547,23 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
         }
 
         if (ix == probe_start) {
-            AtomicDict_WriteRawNodeAt(ix, taken.node, current_meta);
-//            if (!AtomicDict_AtomicWriteNodesAt(ix, 1, &node, &taken, new_meta))
-//                goto seek_to_next_probe;
+//            AtomicDict_WriteRawNodeAt(ix, taken.node, current_meta);
+            if (!AtomicDict_AtomicWriteNodesAt(ix, 1, &node, &taken, current_meta))
+                goto seek_to_next_probe;
         }
         probe_length++;
 
         if (AtomicDict_NodeIsTombstone(&node, current_meta))
             continue;
 
-        Py_hash_t hash = current_meta->hashes[ix];
-        AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
+        Py_hash_t hash = AtomicDict_GetEntryAt(node.index, new_meta)->hash;
+        if (AtomicDict_Distance0Of(hash, current_meta) == AtomicDict_Distance0Of(hash, new_meta)) {
+            AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
+            distance_lx++;
+        } else {
+            AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
+            distance_rx++;
+        }
     }
 
     AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);

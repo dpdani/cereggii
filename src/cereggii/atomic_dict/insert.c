@@ -80,27 +80,27 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
 }
 
 int
-AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
-                                                  PyObject *key, Py_hash_t hash,
+AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
                                                   PyObject *expected, PyObject *desired, PyObject **current,
-                                                  AtomicDict_EntryLoc *entry_loc,
-                                                  int *must_grow, int *done, int *expectation,
-                                                  AtomicDict_BufferedNodeReader *reader,
-                                                  AtomicDict_Node *to_insert, uint64_t distance_0, int skip_entry_check)
+                                                  AtomicDict_EntryLoc *entry_loc, int *must_grow, int *done,
+                                                  int *expectation, AtomicDict_Node *to_insert, uint64_t distance_0,
+                                                  int skip_entry_check)
 {
     assert(entry_loc != NULL);
+    AtomicDict_BufferedNodeReader reader;
     AtomicDict_Node temp[16];
     int begin_write, end_write;
 
     beginning:
-    AtomicDict_ReadNodesFromZoneStartIntoBuffer(distance_0, reader, meta);
+    reader.zone = -1;
+    AtomicDict_ReadNodesFromZoneStartIntoBuffer(distance_0, &reader, meta);
 
     for (int i = (int) (distance_0 % meta->nodes_in_zone); i < meta->nodes_in_zone; i++) {
-        if (reader->buffer[i].node == 0)
+        if (reader.buffer[i].node == 0)
             goto empty_slot;
 
         if (!skip_entry_check) {
-            int updated = AtomicDict_ExpectedUpdateEntry(meta, reader->buffer[i].index, key, hash, expected, desired,
+            int updated = AtomicDict_ExpectedUpdateEntry(meta, reader.buffer[i].index, key, hash, expected, desired,
                                                          current, done, expectation);
             if (updated < 0)
                 goto fail;
@@ -118,7 +118,7 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
         return 0;
     }
 
-    AtomicDict_CopyNodeBuffers(reader->buffer, temp);
+    AtomicDict_CopyNodeBuffers(reader.buffer, temp);
 
     to_insert->index = entry_loc->location;
     to_insert->distance = 0;
@@ -133,15 +133,15 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta,
     }
     assert(rhr == ok);
 
-    AtomicDict_ComputeBeginEndWrite(meta, reader->buffer, temp, &begin_write, &end_write);
+    AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write);
 
     *done = AtomicDict_AtomicWriteNodesAt(
         distance_0 - (distance_0 % meta->nodes_in_zone) + begin_write, end_write - begin_write,
-        &reader->buffer[begin_write], &temp[begin_write], meta
+        &reader.buffer[begin_write], &temp[begin_write], meta
     );
 
     if (!*done) {
-        reader->zone = -1;
+        reader.zone = -1;
         goto beginning;
     }
 
@@ -180,22 +180,18 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     expectation = 1;
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
     uint64_t distance = distance_0 % meta->nodes_in_zone; // shorter distances handled by the fast-path
-    AtomicDict_BufferedNodeReader reader;
-    reader.zone = -1;
     PyObject *current = NULL;
     uint8_t is_compact = meta->is_compact;
-    AtomicDict_Node to_insert;
+    AtomicDict_Node to_insert, node;
 
     if (expected == NOT_FOUND || expected == ANY) {
         // insert fast-path
         if (AtomicDict_ReadRawNodeAt(distance_0, meta) == 0) {
             assert(entry_loc != NULL);
 
-            AtomicDict_Node node = {
-                .index = entry_loc->location,
-                .distance = 0,
-                .tag = hash,
-            };
+            node.index = entry_loc->location;
+            node.distance = 0;
+            node.tag = hash;
 
             if (AtomicDict_AtomicWriteNodesAt(distance_0, 1, &meta->zero, &node, meta)) {
                 return NOT_FOUND;
@@ -204,15 +200,15 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     }
 
     if (AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(meta, key, hash, expected, desired, &current, entry_loc,
-                                                          must_grow, &done, &expectation, &reader, &to_insert,
+                                                          must_grow, &done, &expectation, &to_insert,
                                                           distance_0, skip_entry_check) < 0)
         goto fail;
 
     while (!done) {
         uint64_t ix = (distance_0 + distance) & (meta->size - 1);
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(ix, &reader, meta);
+        AtomicDict_ReadNodeAt(ix, &node, meta);
 
-        if (reader.node.node == 0) {
+        if (node.node == 0) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -228,25 +224,23 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             to_insert.distance = meta->max_distance;
             to_insert.tag = hash;
 
-            done = AtomicDict_AtomicWriteNodesAt(ix, 1, &reader.buffer[reader.idx_in_buffer], &to_insert, meta);
+            done = AtomicDict_AtomicWriteNodesAt(ix, 1, &node, &to_insert, meta);
 
-            if (!done) {
-                reader.zone = -1;
+            if (!done)
                 continue;  // don't increase distance
-            }
-        } else if (reader.node.node == meta->tombstone.node) {
+        } else if (node.node == meta->tombstone.node) {
             // pass
-        } else if (is_compact && !AtomicDict_NodeIsReservation(&reader.node, meta) && (
-            (ix - reader.node.distance > distance_0)
+        } else if (is_compact && !AtomicDict_NodeIsReservation(&node, meta) && (
+            (ix - node.distance > distance_0)
         )) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
             }
-        } else if (reader.node.tag != (hash & meta->tag_mask)) {
+        } else if (node.tag != (hash & meta->tag_mask)) {
             // pass
         } else if (!skip_entry_check) {
-            int updated = AtomicDict_ExpectedUpdateEntry(meta, reader.node.index, key, hash, expected, desired,
+            int updated = AtomicDict_ExpectedUpdateEntry(meta, node.index, key, hash, expected, desired,
                                                          &current, &done, &expectation);
             if (updated < 0)
                 goto fail;
