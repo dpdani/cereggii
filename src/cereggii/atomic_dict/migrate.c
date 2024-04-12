@@ -430,38 +430,33 @@ AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 }
 
 void
-AtomicDict_MigrateNode(uint64_t current_size_mask, AtomicDict_Meta *new_meta, AtomicDict_Node *node, Py_hash_t hash)
+AtomicDict_MigrateNode(AtomicDict_Node *node, Py_hash_t hash, uint64_t *distance, AtomicDict_Meta *new_meta,
+                       uint64_t size_mask)
 {
-//    AtomicDict_SearchResult search;
-//    AtomicDict_LookupEntry(new_meta, node->index, hash, &search);
-//    if (search.found)
-//        return;
-
     uint64_t ix, d0 = AtomicDict_Distance0Of(hash, new_meta);
-
-    if (!new_meta->is_compact)
-        goto non_compact;
-
     node->tag = hash;
+
+    if (!new_meta->is_compact) {
+        ix = (d0 + *distance) & size_mask;
+
+        node->distance = new_meta->max_distance;
+
+        assert(AtomicDict_ReadRawNodeAt(ix, new_meta) == 0);
+        AtomicDict_WriteNodeAt(ix, node, new_meta);
+
+        (*distance)++;
+        return;
+    }
 
     AtomicDict_RobinHoodResult inserted = AtomicDict_RobinHoodInsertRaw(new_meta, node, (int64_t) d0);
 
-    if (inserted == grow || inserted == failed) {
+    assert(inserted != failed);
+
+    if (inserted == grow) {
         new_meta->is_compact = 0;
-
-        non_compact:
-        ix = d0;
-
-        while (AtomicDict_ReadRawNodeAt(ix, new_meta) != 0) {
-            ix++;
-            ix &= current_size_mask;
-        }
-
-        node->distance = new_meta->max_distance;
-        node->tag = hash;
-
-        AtomicDict_WriteNodeAt(ix, node, new_meta);
     }
+
+    (*distance)++;
 }
 
 void
@@ -498,6 +493,9 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     uint64_t current_size = current_meta->size;
     uint64_t current_size_mask = current_size - 1;
     uint64_t displacement = thread_id & current_size_mask;
+
+    uint64_t new_size = new_meta->size;
+    uint64_t new_size_mask = new_size - 1;
 
     AtomicDict_Node node, taken = {
         .index = 0,
@@ -558,11 +556,9 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
 
         Py_hash_t hash = AtomicDict_GetEntryAt(node.index, new_meta)->hash;
         if (AtomicDict_Distance0Of(hash, current_meta) == AtomicDict_Distance0Of(hash, new_meta)) {
-            AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
-            distance_lx++;
+            AtomicDict_MigrateNode(&node, hash, &distance_lx, new_meta, new_size_mask);
         } else {
-            AtomicDict_MigrateNode(current_size_mask, new_meta, &node, hash);
-            distance_rx++;
+            AtomicDict_MigrateNode(&node, hash, &distance_rx, new_meta, new_size_mask);
         }
     }
 

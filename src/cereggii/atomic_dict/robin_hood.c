@@ -66,31 +66,43 @@ AtomicDict_RobinHoodResult
 AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert, int64_t distance_0_ix)
 {
     AtomicDict_Node current = *to_insert;
+    current.distance = 0;
     AtomicDict_Node temp;
     int64_t probe = 0;
     int64_t cursor;
 
     beginning:
-    for (; probe < meta->nodes_in_zone; probe++) {
+    for (; probe < meta->size; probe++) {
+        cursor = (distance_0_ix + probe) & ((int64_t) meta->size - 1);
+
         if (probe >= meta->max_distance) {
+            while (AtomicDict_ReadRawNodeAt(cursor, meta) != 0) {
+                probe++;
+                cursor = (distance_0_ix + probe) & ((int64_t) meta->size - 1);
+            }
+
+            current.distance = meta->max_distance;
+            AtomicDict_WriteNodeAt(cursor, &current, meta);
+
             return grow;
         }
-        cursor = distance_0_ix + probe;
+
         if (AtomicDict_ReadRawNodeAt(cursor, meta) == 0) {
-            if (!AtomicDict_NodeIsReservation(&current, meta)) {
-                current.distance = probe;
-            }
+            assert(!AtomicDict_NodeIsReservation(&current, meta));
+            current.distance = probe;
+
             AtomicDict_WriteNodeAt(cursor, &current, meta);
             return ok;
         }
 
         AtomicDict_ReadNodeAt(cursor, &temp, meta);
+
         if (temp.distance < probe) {
-            if (!AtomicDict_NodeIsReservation(&current, meta)) {
-                current.distance = probe;
-                AtomicDict_ComputeRawNode(&current, meta);
-            }
+            current.distance = probe;
+            assert(!AtomicDict_NodeIsReservation(&current, meta));
+
             AtomicDict_WriteNodeAt(cursor, &current, meta);
+
             current = temp;
             distance_0_ix = cursor - temp.distance;
             probe = temp.distance;

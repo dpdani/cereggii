@@ -265,7 +265,8 @@ int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta
 int AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 void
-AtomicDict_MigrateNode(uint64_t current_size_mask, AtomicDict_Meta *new_meta, AtomicDict_Node *node, Py_hash_t hash);
+AtomicDict_MigrateNode(AtomicDict_Node *node, Py_hash_t hash, uint64_t *distance, AtomicDict_Meta *new_meta,
+                       uint64_t size_mask);
 
 int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
