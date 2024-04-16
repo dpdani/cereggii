@@ -198,8 +198,15 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (hash == -1)
                 goto fail;
 
-            self->len++;
-            int inserted = AtomicDict_UnsafeInsert(self, key, hash, value, self->len); // we want to avoid pos = 0
+            self->len++; // we want to avoid pos = 0
+            AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
+            Py_INCREF(key);
+            Py_INCREF(value);
+            entry->flags = ENTRY_FLAGS_RESERVED;
+            entry->hash = hash;
+            entry->key = key;
+            entry->value = value;
+            int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len);
             if (inserted == -1) {
                 Py_DECREF(meta);
                 log_size++;
@@ -271,6 +278,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     fail:
     Py_XDECREF(meta);
     Py_XDECREF(init_dict);
+    if (!PyErr_Occurred()) {
+        PyErr_SetString(PyExc_RuntimeError, "error during initialization.");
+    }
     return -1;
 }
 
@@ -317,17 +327,9 @@ AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
  * calls to this function don't try to insert the same key into the same AtomicDict.
  **/
 int
-AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos)
+AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
 {
-    AtomicDict_Meta *meta = NULL;
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     // pos === node_index
-    AtomicDict_Entry *entry = AtomicDict_GetEntryAt(pos, meta);
-    entry->flags = ENTRY_FLAGS_RESERVED;
-    entry->hash = hash;
-    entry->key = key;
-    entry->value = value;
-
     AtomicDict_Node temp;
     AtomicDict_Node node = {
         .index = pos,
@@ -348,18 +350,15 @@ AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObjec
             // non-atomic robin hood
             node.distance = probe;
             AtomicDict_WriteNodeAt(ix + probe, &node, meta);
+//            ix = ix + probe - temp.distance;
             ix -= temp.distance;
             probe = temp.distance;
             node = temp;
         }
     }
     // probes exhausted
-    Py_DECREF(meta);
     return -1;
     done:
-    Py_DECREF(meta);
-    Py_INCREF(key);
-    Py_INCREF(value);
     return 0;
 }
 

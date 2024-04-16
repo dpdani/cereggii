@@ -41,7 +41,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
         if (
             is_compact && (
                 (ix + probe + reservations - node.distance > ix)
-                || (probe >= meta->log_size)
+                || (probe >= meta->max_distance)
             )) {
             goto not_found;
         }
@@ -85,7 +85,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     found:
     result->error = 0;
     result->found = 1;
-    result->position = ix + probe + reservations;
+    result->position = (ix + probe + reservations) & (meta->size - 1);
     result->node = node;
 }
 
@@ -126,7 +126,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
         if (
             is_compact && (
                 (ix + probe + reservations - node.distance > ix)
-                || (probe >= meta->log_size)
+                || (probe >= meta->max_distance)
             )) {
             goto not_found;
         }
@@ -147,7 +147,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     found:
     result->error = 0;
     result->found = 1;
-    result->position = ix + probe + reservations;
+    result->position = (ix + probe + reservations) & (meta->size - 1);
     result->node = node;
 }
 

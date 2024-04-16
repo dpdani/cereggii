@@ -137,7 +137,7 @@ void AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, A
 
 AtomicDict_Block *AtomicDictBlock_New(AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
+int64_t AtomicDict_BlockOf(uint64_t entry_ix);
 
 uint64_t AtomicDict_PositionInBlockOf(uint64_t entry_ix);
 
@@ -346,7 +346,7 @@ void AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t 
 
 int AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash);
 
-int AtomicDict_UnsafeInsert(AtomicDict *self, PyObject *key, Py_hash_t hash, PyObject *value, Py_ssize_t pos);
+int AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos);
 
 PyObject *AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
                                             PyObject *expected, PyObject *desired,

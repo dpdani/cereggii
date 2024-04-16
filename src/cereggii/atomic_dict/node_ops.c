@@ -50,6 +50,7 @@ inline uint64_t
 AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
     return hash & (meta->size - 1);
+//    return Py_ABS(hash) >> (SIZEOF_PY_HASH_T * 8 - meta->log_size);
 }
 
 inline uint64_t

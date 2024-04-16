@@ -3,13 +3,35 @@
 # SPDX-License-Identifier: Apache-2.0
 import gc
 import random
+import sys
 import threading
 from collections import Counter
+from pprint import pprint
 
 import pytest
 import cereggii
 from cereggii import AtomicDict
 from pytest import raises
+
+
+# class FixedHash:
+#     def __init__(self, value: int, log_size: int = 6):
+#         self.value = value
+#         self.hash_value = (value << (64 - log_size)) & ((1 << sys.hash_info.width) - 1)
+#         self.log_size = log_size
+#
+#     def __hash__(self):
+#         return self.hash_value
+#
+#     def __eq__(self, other):
+#         return isinstance(other, self.__class__) and other.value == self.value
+#
+#     def __repr__(self):
+#         return f"<{self.__class__.__name__}({self.hash_value} <- {self.hash_value >> (64 - self.log_size)})>"
+
+
+def FixedHash(i):
+    return i
 
 
 def test_init():
@@ -61,12 +83,12 @@ def test_debug():
 
 
 def test_log_size_bumped():
-    keys = [i * 64 for i in range(10)]
+    keys = [FixedHash(i * 64) for i in range(10)]
     d = AtomicDict({k: None for k in keys})
     for k in keys:
         assert d[k] is None
 
-    keys = [i * 64 for i in range(26)]
+    keys = [FixedHash(i * 64) for i in range(26)]
     d = AtomicDict({k: None for k in keys})
     for k in keys:
         assert d[k] is None
@@ -87,117 +109,119 @@ def test_getitem():
 
 def test_getitem_confused():
     d = AtomicDict()
-    d[0] = 1
-    assert d[0] == 1
-    d[64] = 2
-    assert d[64] == 2
-    d[128] = 3
-    assert d[128] == 3
+    d[FixedHash(0)] = 1
+    assert d[FixedHash(0)] == 1
+    d[FixedHash(64)] = 2
+    assert d[FixedHash(64)] == 2
+    d[FixedHash(128)] = 3
+    assert d[FixedHash(128)] == 3
     with raises(KeyError):
-        d[256]
+        d[FixedHash(256)]
 
 
 def test_setitem_updates_a_value_set_at_init():
-    d = AtomicDict({0: 1})
-    d[0] = 3
-    assert d[0] == 3
+    d = AtomicDict({FixedHash(0): 1})
+    d[FixedHash(0)] = 3
+    assert d[FixedHash(0)] == 3
 
 
 def test_setitem_inserts_a_value():
     d = AtomicDict(min_size=64 - 1)
-    d[0] = 42
-    d[2] = 2
-    d[67108864] = 1  # 67108864 = 1 << 26 => hash(67108864) == hash(0)
-    assert d[0] == 42
-    assert d[2] == 2
-    assert d[67108864] == 1
+    d[FixedHash(0)] = 42
+    d[FixedHash(2)] = 2
+    d[FixedHash(67108864)] = 1  # 67108864 = 1 << 26 => hash(67108864) == hash(0)
+    assert d[FixedHash(0)] == 42
+    assert d[FixedHash(2)] == 2
+    assert d[FixedHash(67108864)] == 1
     d = AtomicDict(min_size=(1 << 7) - 1)
-    d[0] = 42
-    d[2] = 2
-    d[67108864] = 1
-    assert d[0] == 42
-    assert d[2] == 2
-    assert d[67108864] == 1
+    d[FixedHash(0)] = 42
+    d[FixedHash(2)] = 2
+    d[FixedHash(67108864)] = 1
+    assert d[FixedHash(0)] == 42
+    assert d[FixedHash(2)] == 2
+    assert d[FixedHash(67108864)] == 1
     d = AtomicDict(min_size=(1 << 11) - 1)
+    d[FixedHash(0)] = 42
+    d[FixedHash(2)] = 2
+    d[FixedHash(67108864)] = 1
+    assert d[FixedHash(0)] == 42
+    assert d[FixedHash(2)] == 2
+    assert d[FixedHash(67108864)] == 1
+    # breakpoint()  # 64 bit nodes not supported yet
+    d = AtomicDict(min_size=(1 << 26) - 1)
     d[0] = 42
     d[2] = 2
     d[67108864] = 1
     assert d[0] == 42
     assert d[2] == 2
     assert d[67108864] == 1
-    # breakpoint()  # 64 bit nodes not supported yet
-    # d = AtomicDict(min_size=(1 << 26) - 1)
-    # d[0] = 42
-    # d[2] = 2
-    # d[67108864] = 1
-    # assert d[0] == 42
-    # assert d[2] == 2
-    # assert d[67108864] == 1
 
 
 def test_setitem_updates_an_inserted_value():
     d = AtomicDict()
-    d[0] = 1
-    assert d[0] == 1
-    d[0] = 2
-    assert d[0] == 2
+    d[FixedHash(0)] = 1
+    assert d[FixedHash(0)] == 1
+    d[FixedHash(0)] = 2
+    assert d[FixedHash(0)] == 2
 
 
 def test_setitem_distance_1_insert():
-    d = AtomicDict({0: 1})
-    assert d[0] == 1
-    d[64] = 42
-    assert d[0] == 1
-    assert d[64] == 42
-    assert d.debug()["index"][1] == 10
+    d = AtomicDict({FixedHash(0): 1})
+    assert d[FixedHash(0)] == 1
+    d[FixedHash(64)] = 42
+    assert d[FixedHash(0)] == 1
+    assert d[FixedHash(64)] == 42
+    debug = d.debug()
+    assert debug["index"][1] == 10
     d = AtomicDict()
-    d[0] = 1
-    assert d[0] == 1
-    d[1] = 2
-    assert d[0] == 1
-    assert d[1] == 2
-    d[64] = 3
-    assert d[0] == 1
-    assert d[1] == 2
-    assert d[64] == 3
-    assert d.debug()["index"][0] == 7
-    assert d.debug()["index"][1] == 14
-    assert d.debug()["index"][2] == 10
+    d[FixedHash(0)] = 1
+    assert d[FixedHash(0)] == 1
+    d[FixedHash(1)] = 2
+    assert d[FixedHash(0)] == 1
+    assert d[FixedHash(1)] == 2
+    d[FixedHash(64)] = 3
+    assert d[FixedHash(0)] == 1
+    assert d[FixedHash(1)] == 2
+    assert d[FixedHash(64)] == 3
+    debug = d.debug()
+    assert debug["index"][0] == 7
+    assert debug["index"][1] == 14
+    assert debug["index"][2] == 10
 
 
 def test_insert_non_compact():
-    d = AtomicDict({k: None for k in range(60)})
-    d[64] = 1
+    d = AtomicDict({FixedHash(k): None for k in range(60)})
+    d[FixedHash(64)] = 1
     for k in range(60):
-        assert d[k] is None
-    assert d[64] == 1
+        assert d[FixedHash(k)] is None
+    assert d[FixedHash(64)] == 1
 
 
 def test_full_dict():
-    d = AtomicDict({k: None for k in range(63)})
+    d = AtomicDict({FixedHash(k): None for k in range(63)})
     assert len(d.debug()["index"]) == 128
 
     d = AtomicDict(min_size=64)
     for k in range(62):
-        d[k] = None
+        d[FixedHash(k)] = None
     assert len(d.debug()["index"]) == 64
 
-    d = AtomicDict({k: None for k in range((1 << 10) - 1)})
+    d = AtomicDict({FixedHash(k): None for k in range((1 << 10) - 1)})
     assert len(d.debug()["index"]) == 1 << 11
     d = AtomicDict(min_size=1 << 10)
     for k in range((1 << 10) - 2):
-        d[k] = None
+        d[FixedHash(k)] = None
     assert len(d.debug()["index"]) == 1 << 11
 
 
 @pytest.mark.skip()
 def test_full_dict_32():
     # this test is slow (allocates a lot of memory)
-    d = AtomicDict({k: None for k in range((1 << 25) - 1)})
+    d = AtomicDict({FixedHash(k): None for k in range((1 << 25) - 1)})
     assert len(d.debug()["index"]) == 1 << 25
     d = AtomicDict(min_size=1 << 25)
     for k in range((1 << 25) - 2):
-        d[k] = None
+        d[FixedHash(k)] = None
     assert len(d.debug()["index"]) == 1 << 26
 
 
@@ -213,14 +237,14 @@ def test_concurrent_insert():
     d = AtomicDict(min_size=64 * 2)
 
     def thread_1():
-        d[0] = 1
-        d[1] = 1
-        d[2] = 1
+        d[FixedHash(0)] = 1
+        d[FixedHash(1)] = 1
+        d[FixedHash(2)] = 1
 
     def thread_2():
-        d[3] = 2
-        d[4] = 2
-        d[2] = 2
+        d[FixedHash(3)] = 2
+        d[FixedHash(4)] = 2
+        d[FixedHash(2)] = 2
 
     t1 = threading.Thread(target=thread_1)
     t2 = threading.Thread(target=thread_2)
@@ -230,13 +254,13 @@ def test_concurrent_insert():
     t1.join()
     t2.join()
 
-    assert d[0] == 1
-    assert d[1] == 1
+    assert d[FixedHash(0)] == 1
+    assert d[FixedHash(1)] == 1
 
-    assert d[3] == 2
-    assert d[4] == 2
+    assert d[FixedHash(3)] == 2
+    assert d[FixedHash(4)] == 2
 
-    assert d[2] in (1, 2)
+    assert d[FixedHash(2)] in (1, 2)
 
 
 def test_get_default():
@@ -258,97 +282,97 @@ def test_delete():
     with raises(KeyError):
         del d["flower"]
 
-    d = AtomicDict({_: None for _ in range(15)})
+    d = AtomicDict({FixedHash(_): None for _ in range(15)})
     assert d.debug()["blocks"][0]["entries"][14]  # exists
-    del d[14]
+    del d[FixedHash(14)]
     with raises(KeyError):
-        d[14]
+        d[FixedHash(14)]
     debug = d.debug()
     assert debug["index"][14] == 0
     with raises(IndexError):
         debug["blocks"][0]["entries"][14]
 
-    d = AtomicDict({_: None for _ in range(16)})
-    del d[14]
+    d = AtomicDict({FixedHash(_): None for _ in range(16)})
+    del d[FixedHash(14)]
     with raises(KeyError):
-        d[14]
+        d[FixedHash(14)]
     debug = d.debug()
     assert debug["index"][14] == 0
 
-    d = AtomicDict({_: None for _ in range(15)})
-    d[64 + 14] = None
-    del d[14]
+    d = AtomicDict({FixedHash(_): None for _ in range(15)})
+    d[FixedHash(64 + 14)] = None
+    del d[FixedHash(14)]
     with raises(KeyError):
-        d[14]
+        d[FixedHash(14)]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(15)})
-    del d[7]
+    d = AtomicDict({FixedHash(_): None for _ in range(15)})
+    del d[FixedHash(7)]
     with raises(KeyError):
-        d[7]
+        d[FixedHash(7)]
     debug = d.debug()
     assert debug["index"][7] == 0
 
-    d = AtomicDict({_: None for _ in range(8)})
+    d = AtomicDict({FixedHash(_): None for _ in range(8)})
     for _ in range(63 + 8, 63 + 8 + 7):
-        d[_] = None
+        d[FixedHash(_)] = None
     debug = d.debug()
     assert debug["index"][14] != 0
-    del d[7]
+    del d[FixedHash(7)]
     with raises(KeyError):
-        d[7]
+        d[FixedHash(7)]
     debug = d.debug()
     assert debug["index"][14] == 0
 
-    d = AtomicDict({_: None for _ in range(16)})
-    del d[15]
+    d = AtomicDict({FixedHash(_): None for _ in range(16)})
+    del d[FixedHash(15)]
     with raises(KeyError):
-        d[15]
+        d[FixedHash(15)]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(17)})
-    del d[15]
+    d = AtomicDict({FixedHash(_): None for _ in range(17)})
+    del d[FixedHash(15)]
     with raises(KeyError):
-        d[15]
+        d[FixedHash(15)]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({16: None})
-    del d[16]
+    d = AtomicDict({FixedHash(16): None})
+    del d[FixedHash(16)]
     with raises(KeyError):
-        d[16]
+        d[FixedHash(16)]
     debug = d.debug()
     assert debug["index"][16] == 0
 
-    d = AtomicDict({16: None, 17: None})
-    del d[16]
+    d = AtomicDict({FixedHash(16): None, FixedHash(17): None})
+    del d[FixedHash(16)]
     with raises(KeyError):
-        d[16]
+        d[FixedHash(16)]
     debug = d.debug()
     assert debug["index"][16] == 0
 
-    d = AtomicDict({15: None, 16: None})
-    del d[16]
+    d = AtomicDict({FixedHash(15): None, FixedHash(16): None})
+    del d[FixedHash(16)]
     with raises(KeyError):
-        d[16]
+        d[FixedHash(16)]
     debug = d.debug()
     assert debug["index"][16] == 0
 
-    d = AtomicDict({15: None, 16: None, 17: None})
-    del d[16]
+    d = AtomicDict({FixedHash(15): None, FixedHash(16): None, FixedHash(17): None})
+    del d[FixedHash(16)]
     with raises(KeyError):
-        d[16]
+        d[FixedHash(16)]
     debug = d.debug()
     assert debug["index"][16] == 0
 
 
 def test_delete_with_swap():
-    d = AtomicDict({_: None for _ in range(64)} | {_: None for _ in range(64, 128)})
-    del d[64]
+    d = AtomicDict({FixedHash(_): None for _ in range(64)} | {FixedHash(_): None for _ in range(64, 128)})
+    del d[FixedHash(64)]
     with raises(KeyError):
-        del d[64]
+        del d[FixedHash(64)]
     debug = d.debug()
     assert debug["index"][64] == 0
     assert debug["index"][0] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
@@ -417,10 +441,10 @@ def test_memory_leak():
 
 
 def test_grow():
-    d = AtomicDict({0: None, 1: None, 64: None, 65: None})
+    d = AtomicDict({FixedHash(0): None, FixedHash(1): None, FixedHash(64): None, FixedHash(65): None})
     assert d.debug()["meta"]["log_size"] == 6
     assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len({0, 1, 64, 65})
-    d[128] = None
+    d[FixedHash(128)] = None
     assert d.debug()["meta"]["log_size"] == 7
     nodes = Counter(d.debug()["index"])
     assert len(list(filter(lambda _: _ != 0, nodes.keys()))) == len({0, 1, 64, 65, 128})
@@ -428,24 +452,27 @@ def test_grow():
         if _ != 0:
             assert nodes[_] == 1
     for _ in [0, 1, 64, 65, 128]:
-        assert d[_] is None
+        assert d[FixedHash(_)] is None
 
-    d = AtomicDict({_: None for _ in range(63)})
+    d = AtomicDict({FixedHash(_): None for _ in range(63)})
     assert d.debug()["meta"]["log_size"] == 7
-    d[128] = None
+    d[FixedHash(128)] = None
     assert d.debug()["meta"]["log_size"] == 7
     for _ in [*range(63), 128]:
-        assert d[_] is None
+        assert d[FixedHash(_)] is None
 
 
 def test_compact():
-    d = AtomicDict({0: None, 1: None, 64: None, 65: None})
+    d = AtomicDict({FixedHash(0): None, FixedHash(1): None, FixedHash(64): None, FixedHash(65): None})
     for _ in range(20):
-        d[2**_] = None
+        d[FixedHash(2**_)] = None
+        assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len(
+            {0, 1, 64, 65, *[2**i for i in range(_ + 1)]}
+        ), _
     for _ in [0, 1, 64, 65]:
-        assert d[_] is None
+        assert d[FixedHash(_)] is None
     for _ in range(20):
-        assert d[2**_] is None
+        assert d[FixedHash(2**_)] is None
     debug_before = d.debug()
     assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
         {0, 1, 64, 65, *[2**_ for _ in range(20)]}
@@ -489,10 +516,15 @@ def test_compact():
     node_of_8192 = node_of_8192[0]
     assert node_of_8192 & debug_after["meta"]["distance_mask"] != 0
 
-    d = AtomicDict({0: None, 1: None})
+    d = AtomicDict({FixedHash(0): None, FixedHash(1): None})
     for _ in range(20):
-        d[2**_] = None
+        d[FixedHash(2**_)] = None
+    assert d.debug()["meta"]["log_size"] == 7
     d.compact()
+    for _ in [0, *range(20)]:
+        assert d[FixedHash(2**_)] is None
+    # assert d.debug()["meta"]["log_size"] == 9
+    assert d.debug()["meta"]["log_size"] == 19
 
     d = AtomicDict({}, min_size=2**16)
     assert len(d.debug()["index"]) == 2**16
@@ -505,21 +537,28 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 6
 
     for _ in range(2**10):
-        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
-        d[_] = None
+        debug = d.debug()
+        assert len(Counter(debug["index"]).keys()) == _ + 1, debug["meta"]["log_size"]
+        d[FixedHash(_)] = None
     assert d.debug()["meta"]["log_size"] == 11
 
     for _ in range(2**10):
-        del d[_]
+        del d[FixedHash(_)]
     assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
 
+    debug = d.debug()
+    empty = 0
+    tombstone = 448
+    assert len(Counter(debug["index"]).keys()) == len({empty, tombstone}), debug["meta"]["log_size"]
+
     for _ in range(2**20, 2**20 + 2**14):
-        d[_] = None
+        d[FixedHash(_)] = None
 
     assert d.debug()["meta"]["log_size"] == 15
+    assert len(Counter(d.debug()["index"]).keys()) == 2**14 + 1
 
     for _ in range(2**20, 2**20 + 2**14):
-        del d[_]
+        del d[FixedHash(_)]
     assert d.debug()["meta"]["log_size"] == 7
 
 
@@ -529,11 +568,11 @@ def test_large_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 6
 
     for _ in range(2**25):
-        d[_] = None
+        d[FixedHash(_)] = None
     assert d.debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
-        del d[_]
+        del d[FixedHash(_)]
     assert d.debug()["meta"]["log_size"] == 7
 
 
@@ -543,11 +582,11 @@ def test_large_pre_allocated_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
-        d[_] = None
+        d[FixedHash(_)] = None
     assert d.debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
-        del d[_]
+        del d[FixedHash(_)]
     assert d.debug()["meta"]["log_size"] == 26
 
 
@@ -566,19 +605,19 @@ def test_len_bounds():
     assert d.approx_len() == 0
 
     for _ in range(10):
-        d[_] = None
+        d[FixedHash(_)] = None
 
     assert d.len_bounds() == (10, 10)
     assert d.approx_len() == 10
 
     for _ in range(100):
-        d[_] = None
+        d[FixedHash(_)] = None
 
     assert d.len_bounds() == (100, 100)
     assert d.approx_len() == 100
 
     for _ in range(100):
-        del d[_]
+        del d[FixedHash(_)]
 
     assert d.len_bounds() == (0, 0)
     assert d.approx_len() == 0
@@ -589,9 +628,9 @@ def test_fast_iter():
 
     for p in range(4):
         for _ in range(p * 128, p * 128 + 64):
-            d[_] = 1
+            d[FixedHash(_)] = 1
         for _ in range(p * 128, p * 128 + 64):
-            d[_ + 64] = 2
+            d[FixedHash(_ + 64)] = 2
 
     def partition_1():
         n = 0
@@ -643,8 +682,8 @@ def test_compare_and_set():
 
 def test_batch_getitem():
     keys_count = 2**12
-    d = AtomicDict({_: _ for _ in range(keys_count)})
-    batch = {random.randrange(0, 2 * keys_count): None for _ in range(keys_count // 2)}  # noqa: S311
+    d = AtomicDict({FixedHash(_): _ for _ in range(keys_count)})
+    batch = {FixedHash(random.randrange(0, 2 * keys_count)): None for _ in range(keys_count // 2)}  # noqa: S311
     d.batch_getitem(batch)
 
     for k in batch:
@@ -652,21 +691,21 @@ def test_batch_getitem():
 
 
 def test_len():
-    d = AtomicDict({_: None for _ in range(10)})
+    d = AtomicDict({FixedHash(_): None for _ in range(10)})
     assert len(d) == 10
 
     for _ in range(32):
-        d[_ + 10] = None
+        d[FixedHash(_ + 10)] = None
 
     assert len(d) == 42
 
     for _ in range(32):
-        d[_ + 10] = None
+        d[FixedHash(_ + 10)] = None
 
     assert len(d) == 42  # updates don't change count
 
     for _ in range(32):
-        del d[_ + 10]
+        del d[FixedHash(_ + 10)]
 
     assert len(d) == 10
     assert len(d) == 10  # test twice for len_dirty
