@@ -59,6 +59,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
     meta->tag_mask = (Py_hash_t) (1UL << node_sizes.tag_size) - 1;
+    meta->d0_shift = SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size;
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;

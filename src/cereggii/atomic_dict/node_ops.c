@@ -46,11 +46,13 @@ AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
     return AtomicDict_RegionOf(ix, meta) & (ULONG_MAX - 1UL);
 }
 
+#define ABS(x) (((x) ^ ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1))) - ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1)))
+
 inline uint64_t
 AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
-    return hash & (meta->size - 1);
-//    return Py_ABS(hash) >> (SIZEOF_PY_HASH_T * 8 - meta->log_size);
+//    return hash & (meta->size - 1);
+    return ABS(hash) >> meta->d0_shift;
 }
 
 inline uint64_t
@@ -117,10 +119,10 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
     }
     assert(*begin_write != -1);
     *end_write = -1;
-    for (j = *begin_write + 1; j < meta->nodes_in_zone; ++j) {
+    for (j = meta->nodes_in_zone - 1; j > *begin_write; --j) {
         AtomicDict_ComputeRawNode(&temp[j], meta);
-        if (temp[j].node == read_buffer[j].node) {
-            *end_write = j;
+        if (temp[j].node != read_buffer[j].node) {
+            *end_write = j + 1;
             break;
         }
     }
