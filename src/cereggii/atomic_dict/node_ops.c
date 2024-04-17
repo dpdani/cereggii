@@ -48,11 +48,16 @@ AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
 
 #define ABS(x) (((x) ^ ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1))) - ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1)))
 
+#define UPPER_SEED 12923598712359872066ull
+#define LOWER_SEED 7467732452331123588ull
+#define REHASH(x) (uint64_t) (__builtin_ia32_crc32di((x), LOWER_SEED) | (__builtin_ia32_crc32di((x), UPPER_SEED) << 32))
+
 inline uint64_t
 AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
 //    return hash & (meta->size - 1);
-    return ABS(hash) >> meta->d0_shift;
+//    return ABS(hash) >> meta->d0_shift;
+    return REHASH(hash) >> meta->d0_shift;
 }
 
 inline uint64_t
