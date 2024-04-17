@@ -231,14 +231,16 @@ def test_dealloc():
         previous = this
 
 
-def test_concurrent_insert():
+def test_concurrent_insert(reraise):
     d = AtomicDict(min_size=64 * 2)
 
+    @reraise.wrap
     def thread_1():
         d[FixedHash(0)] = 1
         d[FixedHash(1)] = 1
         d[FixedHash(2)] = 1
 
+    @reraise.wrap
     def thread_2():
         d[FixedHash(3)] = 2
         d[FixedHash(4)] = 2
@@ -380,12 +382,13 @@ def test_delete_with_swap():
     assert debug["blocks"][1]["entries"][1] == (65, 128, 0, FixedHash(0, log_size), None)
 
 
-def test_delete_concurrent():
+def test_delete_concurrent(reraise):
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
 
     key_error_1 = False
     key_error_2 = False
 
+    @reraise.wrap
     def thread_1():
         del d["spam"]
         try:
@@ -394,6 +397,7 @@ def test_delete_concurrent():
             nonlocal key_error_1
             key_error_1 = True
 
+    @reraise.wrap
     def thread_2():
         del d["atomic"]
         try:
@@ -638,22 +642,29 @@ def test_len_bounds():
     assert d.approx_len() == 0
 
 
-def test_fast_iter():
+def test_fast_iter(reraise):
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
-    for p in range(4):
-        for _ in range(p * 128, p * 128 + 64):
-            d[FixedHash(_)] = 1
-        for _ in range(p * 128, p * 128 + 64):
-            d[FixedHash(_ + 64)] = 2
+    for _ in range(1, 64):
+        d[FixedHash(_, log_size=10)] = 1
+    for _ in range(64):
+        d[FixedHash(_ + 64, log_size=10)] = 2
 
+    for p in range(1, 4):
+        for _ in range(p * 128, p * 128 + 64):
+            d[FixedHash(_, log_size=10)] = 1
+        for _ in range(p * 128, p * 128 + 64):
+            d[FixedHash(_ + 64, log_size=10)] = 2
+
+    @reraise.wrap
     def partition_1():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=0):
             assert v == 1
             n += 1
-        assert n == 4 * 64
+        assert n == 4 * 64 - 1
 
+    @reraise.wrap
     def partition_2():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=1):
