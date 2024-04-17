@@ -72,5 +72,7 @@ int AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg);
 
 void AtomicDict_dealloc(AtomicDict *self);
 
+PyObject *AtomicDict_ReHash(AtomicDict *self, PyObject *ob);
+
 
 #endif //CEREGGII_ATOMIC_DICT_H
