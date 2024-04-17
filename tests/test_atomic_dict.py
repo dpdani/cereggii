@@ -645,7 +645,7 @@ def test_len_bounds():
 def test_fast_iter(reraise):
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
-    for _ in range(1, 64):
+    for _ in range(1, 64):  # must offset for entry number 0
         d[FixedHash(_, log_size=10)] = 1
     for _ in range(64):
         d[FixedHash(_ + 64, log_size=10)] = 2
