@@ -198,7 +198,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             if (hash == -1)
                 goto fail;
 
-            self->len++;
+            self->len++; // we want to avoid pos = 0
             AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
             Py_INCREF(key);
             Py_INCREF(value);
@@ -206,7 +206,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             entry->hash = hash;
             entry->key = key;
             entry->value = value;
-            int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len); // we want to avoid pos = 0
+            int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len);
             if (inserted == -1) {
                 Py_DECREF(meta);
                 log_size++;
@@ -278,6 +278,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     fail:
     Py_XDECREF(meta);
     Py_XDECREF(init_dict);
+    if (!PyErr_Occurred()) {
+        PyErr_SetString(PyExc_RuntimeError, "error during initialization.");
+    }
     return -1;
 }
 
@@ -347,6 +350,7 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
             // non-atomic robin hood
             node.distance = probe;
             AtomicDict_WriteNodeAt(ix + probe, &node, meta);
+//            ix = ix + probe - temp.distance;
             ix -= temp.distance;
             probe = temp.distance;
             node = temp;

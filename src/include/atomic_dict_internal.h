@@ -104,6 +104,7 @@ struct AtomicDict_Meta {
     uint64_t distance_mask;
     Py_hash_t tag_mask;
     uint64_t shift_mask;
+    uint64_t d0_shift;
 
     AtomicDict_Node tombstone;
     AtomicDict_Node zero;

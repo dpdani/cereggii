@@ -133,11 +133,11 @@ AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes, int to
         nodes[probe].distance--;
     }
 
-    if (probe + 1 < meta->nodes_in_zone && (
-        nodes[probe + 1].node == 0 || nodes[probe + 1].distance == 0
-    )) {
-        AtomicDict_ParseNodeFromRaw(0, &nodes[probe], meta);
-    }
+//    if (probe + 1 < meta->nodes_in_zone && (
+//        nodes[probe + 1].node == 0 || nodes[probe + 1].distance == 0
+//    )) {
+//        AtomicDict_ParseNodeFromRaw(0, &nodes[probe], meta);
+//    }
 
     return ok;
 }
