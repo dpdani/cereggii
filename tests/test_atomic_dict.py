@@ -359,20 +359,18 @@ def test_delete():
 
 
 def test_delete_with_swap():
-    keys = keys_for_hash_for_log_size[9]
-    pprint(keys)
-    pprint({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
+    """test the swapping mechanism for de-fragmenting the data table"""
+
+    keys = keys_for_hash_for_log_size[8]
     d = AtomicDict({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
-    pprint(d.debug())
     assert d.debug()['meta']['log_size'] == 9
     del d[keys[0][1]]
     with raises(KeyError):
         del d[keys[0][1]]
     debug = d.debug()
-    pprint(debug)
-    assert debug["index"][64] == debug["meta"]["tombstone"]
-    assert debug["index"][0] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
-    assert debug["blocks"][1]["entries"][1] == (65, 128, 0, keys[0][0], None)
+    assert debug["index"][1] == debug["meta"]["tombstone"]
+    assert debug["index"][16] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
+    assert debug["blocks"][1]["entries"][1] == (65, 128, keys[8][0], keys[8][0], None)
 
 
 def test_delete_concurrent(reraise):
