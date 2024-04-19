@@ -5,7 +5,6 @@ import gc
 import random
 import threading
 from collections import Counter
-from pprint import pprint
 
 import cereggii
 import pytest
@@ -157,7 +156,6 @@ def test_setitem_distance_1_insert():
     assert d[pos_0] == 1
     assert d[pos_0_again] == 42
     debug = d.debug()
-    pprint(debug)
     assert debug["index"][1] == 10
     d = AtomicDict()
     d[pos_0] = 1
@@ -363,7 +361,7 @@ def test_delete_with_swap():
 
     keys = keys_for_hash_for_log_size[8]
     d = AtomicDict({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
-    assert d.debug()['meta']['log_size'] == 9
+    assert d.debug()["meta"]["log_size"] == 9
     del d[keys[0][1]]
     with raises(KeyError):
         del d[keys[0][1]]

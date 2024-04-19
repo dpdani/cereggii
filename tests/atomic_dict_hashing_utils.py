@@ -1,10 +1,10 @@
-import pickle
 from pathlib import Path
 
+import yaml
 from cereggii import AtomicDict
 
 
-stored_hashes = Path(__file__).parent / "keys_for_hash_for_log_size.pickle"
+stored_hashes = Path(__file__).parent / "keys_for_hash_for_log_size.yml"
 
 if not stored_hashes.exists():
     d = AtomicDict()
@@ -23,8 +23,8 @@ if not stored_hashes.exists():
                 if h == pos:
                     keys_for_hash_for_log_size[log_size][pos].append(_)
 
-    with open(stored_hashes, 'wb') as f:
-        pickle.dump(keys_for_hash_for_log_size, f)
+    with open(stored_hashes, "w") as f:
+        yaml.dump(keys_for_hash_for_log_size, f)
 else:
-    with open(stored_hashes, 'rb') as f:
-        keys_for_hash_for_log_size = pickle.load(f)
+    with open(stored_hashes, "r") as f:
+        keys_for_hash_for_log_size = yaml.load(f, yaml.SafeLoader)
