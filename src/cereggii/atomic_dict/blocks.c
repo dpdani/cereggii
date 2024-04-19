@@ -129,10 +129,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     return -1;
 }
 
-inline uint64_t
+inline int64_t
 AtomicDict_BlockOf(uint64_t entry_ix)
 {
-    return entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+    return (int64_t) entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 }
 
 inline uint64_t

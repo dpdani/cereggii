@@ -46,10 +46,23 @@ AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
     return AtomicDict_RegionOf(ix, meta) & (ULONG_MAX - 1UL);
 }
 
+#define ABS(x) (((x) ^ ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1))) - ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1)))
+
+#define UPPER_SEED 12923598712359872066ull
+#define LOWER_SEED 7467732452331123588ull
+#define REHASH(x) (uint64_t) (__builtin_ia32_crc32di((x), LOWER_SEED) | (__builtin_ia32_crc32di((x), UPPER_SEED) << 32))
+
+PyObject *
+AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
+{
+    Py_hash_t hash = PyObject_Hash(ob);
+    return PyLong_FromUnsignedLongLong(REHASH(hash));
+}
+
 inline uint64_t
 AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
-    return hash & (meta->size - 1);
+    return REHASH(hash) >> meta->d0_shift;
 }
 
 inline uint64_t
@@ -116,10 +129,10 @@ AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buf
     }
     assert(*begin_write != -1);
     *end_write = -1;
-    for (j = *begin_write + 1; j < meta->nodes_in_zone; ++j) {
+    for (j = meta->nodes_in_zone - 1; j > *begin_write; --j) {
         AtomicDict_ComputeRawNode(&temp[j], meta);
-        if (temp[j].node == read_buffer[j].node) {
-            *end_write = j;
+        if (temp[j].node != read_buffer[j].node) {
+            *end_write = j + 1;
             break;
         }
     }

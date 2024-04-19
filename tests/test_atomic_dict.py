@@ -6,10 +6,12 @@ import random
 import threading
 from collections import Counter
 
-import pytest
 import cereggii
+import pytest
 from cereggii import AtomicDict
 from pytest import raises
+
+from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
 
 
 def test_init():
@@ -126,13 +128,13 @@ def test_setitem_inserts_a_value():
     assert d[2] == 2
     assert d[67108864] == 1
     # breakpoint()  # 64 bit nodes not supported yet
-    # d = AtomicDict(min_size=(1 << 26) - 1)
-    # d[0] = 42
-    # d[2] = 2
-    # d[67108864] = 1
-    # assert d[0] == 42
-    # assert d[2] == 2
-    # assert d[67108864] == 1
+    d = AtomicDict(min_size=(1 << 26) - 1)
+    d[0] = 42
+    d[2] = 2
+    d[67108864] = 1
+    assert d[0] == 42
+    assert d[2] == 2
+    assert d[67108864] == 1
 
 
 def test_setitem_updates_an_inserted_value():
@@ -144,25 +146,31 @@ def test_setitem_updates_an_inserted_value():
 
 
 def test_setitem_distance_1_insert():
-    d = AtomicDict({0: 1})
-    assert d[0] == 1
-    d[64] = 42
-    assert d[0] == 1
-    assert d[64] == 42
-    assert d.debug()["index"][1] == 10
+    pos_0 = keys_for_hash_for_log_size[6][0][0]
+    pos_1 = keys_for_hash_for_log_size[6][1][0]
+    pos_0_again = keys_for_hash_for_log_size[6][0][1]
+
+    d = AtomicDict({pos_0: 1})
+    assert d[pos_0] == 1
+    d[pos_0_again] = 42
+    assert d[pos_0] == 1
+    assert d[pos_0_again] == 42
+    debug = d.debug()
+    assert debug["index"][1] == 10
     d = AtomicDict()
-    d[0] = 1
-    assert d[0] == 1
-    d[1] = 2
-    assert d[0] == 1
-    assert d[1] == 2
-    d[64] = 3
-    assert d[0] == 1
-    assert d[1] == 2
-    assert d[64] == 3
-    assert d.debug()["index"][0] == 7
-    assert d.debug()["index"][1] == 14
-    assert d.debug()["index"][2] == 10
+    d[pos_0] = 1
+    assert d[pos_0] == 1
+    d[pos_1] = 2
+    assert d[pos_0] == 1
+    assert d[pos_1] == 2
+    d[pos_0_again] = 3
+    assert d[pos_0] == 1
+    assert d[pos_1] == 2
+    assert d[pos_0_again] == 3
+    debug = d.debug()
+    assert debug["index"][0] == 7
+    assert debug["index"][1] == 14
+    assert debug["index"][2] == 10
 
 
 def test_insert_non_compact():
@@ -209,14 +217,16 @@ def test_dealloc():
         previous = this
 
 
-def test_concurrent_insert():
+def test_concurrent_insert(reraise):
     d = AtomicDict(min_size=64 * 2)
 
+    @reraise.wrap
     def thread_1():
         d[0] = 1
         d[1] = 1
         d[2] = 1
 
+    @reraise.wrap
     def thread_2():
         d[3] = 2
         d[4] = 2
@@ -258,109 +268,116 @@ def test_delete():
     with raises(KeyError):
         del d["flower"]
 
-    d = AtomicDict({_: None for _ in range(15)})
+    keys = keys_for_hash_for_log_size[6]
+
+    d = AtomicDict({keys[_][0]: None for _ in range(15)})
     assert d.debug()["blocks"][0]["entries"][14]  # exists
-    del d[14]
+    del d[keys[14][0]]
     with raises(KeyError):
-        d[14]
+        d[keys[14][0]]
     debug = d.debug()
-    assert debug["index"][14] == 0
+    assert debug["index"][14] == debug["meta"]["tombstone"]
     with raises(IndexError):
         debug["blocks"][0]["entries"][14]
 
-    d = AtomicDict({_: None for _ in range(16)})
-    del d[14]
+    d = AtomicDict({keys[_][0]: None for _ in range(16)})
+    del d[keys[14][0]]
     with raises(KeyError):
-        d[14]
+        d[keys[14][0]]
     debug = d.debug()
-    assert debug["index"][14] == 0
+    assert debug["index"][14] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(15)})
-    d[64 + 14] = None
-    del d[14]
+    d = AtomicDict({keys[_][0]: None for _ in range(15)})
+    d[keys[14][1]] = None
+    del d[keys[14][0]]
     with raises(KeyError):
-        d[14]
+        d[keys[14][0]]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(15)})
-    del d[7]
+    d = AtomicDict({keys[_][0]: None for _ in range(15)})
+    del d[keys[7][0]]
     with raises(KeyError):
-        d[7]
+        d[keys[7][0]]
     debug = d.debug()
-    assert debug["index"][7] == 0
+    assert debug["index"][7] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(8)})
-    for _ in range(63 + 8, 63 + 8 + 7):
-        d[_] = None
+    d = AtomicDict({keys[_][0]: None for _ in range(8)})
+    for _ in range(7, 7 + 7):
+        d[keys[_][1]] = None
     debug = d.debug()
     assert debug["index"][14] != 0
-    del d[7]
+    del d[keys[7][0]]
     with raises(KeyError):
-        d[7]
+        d[keys[7][0]]
     debug = d.debug()
-    assert debug["index"][14] == 0
+    assert debug["index"][14] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(16)})
-    del d[15]
+    d = AtomicDict({keys[_][0]: None for _ in range(16)})
+    del d[keys[15][0]]
     with raises(KeyError):
-        d[15]
+        d[keys[15][0]]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({_: None for _ in range(17)})
-    del d[15]
+    d = AtomicDict({keys[_][0]: None for _ in range(17)})
+    del d[keys[15][0]]
     with raises(KeyError):
-        d[15]
+        d[keys[15][0]]
     debug = d.debug()
     assert debug["index"][15] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({16: None})
-    del d[16]
+    d = AtomicDict({keys[16][0]: None})
+    del d[keys[16][0]]
     with raises(KeyError):
-        d[16]
+        d[keys[16][0]]
     debug = d.debug()
-    assert debug["index"][16] == 0
+    assert debug["index"][16] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({16: None, 17: None})
-    del d[16]
+    d = AtomicDict({keys[16][0]: None, keys[17][0]: None})
+    del d[keys[16][0]]
     with raises(KeyError):
-        d[16]
+        d[keys[16][0]]
     debug = d.debug()
-    assert debug["index"][16] == 0
+    assert debug["index"][16] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({15: None, 16: None})
-    del d[16]
+    d = AtomicDict({keys[15][0]: None, keys[16][0]: None})
+    del d[keys[16][0]]
     with raises(KeyError):
-        d[16]
+        d[keys[16][0]]
     debug = d.debug()
-    assert debug["index"][16] == 0
+    assert debug["index"][16] == debug["meta"]["tombstone"]
 
-    d = AtomicDict({15: None, 16: None, 17: None})
-    del d[16]
+    d = AtomicDict({keys[15][0]: None, keys[16][0]: None, keys[17][0]: None})
+    del d[keys[16][0]]
     with raises(KeyError):
-        d[16]
+        d[keys[16][0]]
     debug = d.debug()
-    assert debug["index"][16] == 0
+    assert debug["index"][16] == debug["meta"]["tombstone"]
 
 
 def test_delete_with_swap():
-    d = AtomicDict({_: None for _ in range(64)} | {_: None for _ in range(64, 128)})
-    del d[64]
+    """test the swapping mechanism for de-fragmenting the data table"""
+
+    keys = keys_for_hash_for_log_size[8]
+    d = AtomicDict({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
+    assert d.debug()["meta"]["log_size"] == 9
+    del d[keys[0][1]]
     with raises(KeyError):
-        del d[64]
+        del d[keys[0][1]]
     debug = d.debug()
-    assert debug["index"][64] == 0
-    assert debug["index"][0] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
-    assert debug["blocks"][1]["entries"][1] == (65, 128, 0, 0, None)
+    assert debug["index"][1] == debug["meta"]["tombstone"]
+    assert debug["index"][16] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
+    assert debug["blocks"][1]["entries"][1] == (65, 128, keys[8][0], keys[8][0], None)
 
 
-def test_delete_concurrent():
+def test_delete_concurrent(reraise):
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
 
     key_error_1 = False
     key_error_2 = False
 
+    @reraise.wrap
     def thread_1():
         del d["spam"]
         try:
@@ -369,6 +386,7 @@ def test_delete_concurrent():
             nonlocal key_error_1
             key_error_1 = True
 
+    @reraise.wrap
     def thread_2():
         del d["atomic"]
         try:
@@ -417,42 +435,54 @@ def test_memory_leak():
 
 
 def test_grow():
-    d = AtomicDict({0: None, 1: None, 64: None, 65: None})
+    keys = keys_for_hash_for_log_size[6]
+    d = AtomicDict({keys[0][0]: None, keys[1][0]: None, keys[0][1]: None, keys[1][1]: None})
     assert d.debug()["meta"]["log_size"] == 6
     assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len({0, 1, 64, 65})
-    d[128] = None
+    d[keys[0][2]] = None
     assert d.debug()["meta"]["log_size"] == 7
     nodes = Counter(d.debug()["index"])
-    assert len(list(filter(lambda _: _ != 0, nodes.keys()))) == len({0, 1, 64, 65, 128})
+    assert len(list(filter(lambda _: _ != 0, nodes))) == len({0, 1, 64, 65, 128})
     for _ in nodes:
         if _ != 0:
             assert nodes[_] == 1
-    for _ in [0, 1, 64, 65, 128]:
+    for _ in [keys[0][0], keys[1][0], keys[0][1], keys[1][1], keys[0][2]]:
         assert d[_] is None
 
-    d = AtomicDict({_: None for _ in range(63)})
+    d = AtomicDict({keys[_][0]: None for _ in range(63)})
     assert d.debug()["meta"]["log_size"] == 7
-    d[128] = None
+    d[keys[0][1]] = None
     assert d.debug()["meta"]["log_size"] == 7
-    for _ in [*range(63), 128]:
+    for _ in [*[keys[k][0] for k in range(63)], keys[0][1]]:
         assert d[_] is None
 
 
 def test_compact():
-    d = AtomicDict({0: None, 1: None, 64: None, 65: None})
+    keys = keys_for_hash_for_log_size[6]
+    d = AtomicDict(
+        {
+            keys[0][0]: None,
+            keys[1][0]: None,
+            keys[0][1]: None,
+            keys[1][1]: None,
+        }
+    )
     for _ in range(20):
-        d[2**_] = None
-    for _ in [0, 1, 64, 65]:
+        d[keys[0][_]] = None
+        assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len(
+            {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][i] for i in range(_ + 1)]}
+        ), _
+    for _ in [keys[0][0], keys[1][0], keys[0][1], keys[1][1]]:
         assert d[_] is None
     for _ in range(20):
-        assert d[2**_] is None
+        assert d[keys[0][_]] is None
     debug_before = d.debug()
     assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
-        {0, 1, 64, 65, *[2**_ for _ in range(20)]}
+        {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
     )
     assert not debug_before["meta"]["is_compact"]
     # 8192 == 2 ** 13 will be in a reservation
-    entry_of_8192 = list(filter(lambda _: _[3] == 8192, debug_before["blocks"][0]["entries"]))
+    entry_of_8192 = list(filter(lambda _: _[3] == keys[0][13], debug_before["blocks"][0]["entries"]))
     assert len(entry_of_8192) == 1
     entry_of_8192 = entry_of_8192[0]
     non_empty_nodes = len(list(filter(lambda _: _ != 0, debug_before["index"])))
@@ -471,10 +501,10 @@ def test_compact():
     debug_after = d.debug()
     assert len(list(filter(lambda _: _ != 0, debug_after["index"]))) == non_empty_nodes
     assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
-        {0, 1, 64, 65, *[2**_ for _ in range(20)]}
+        {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
     )
     assert debug_after["meta"]["is_compact"]
-    entry_of_8192 = list(filter(lambda _: _[3] == 8192, debug_after["blocks"][0]["entries"]))
+    entry_of_8192 = list(filter(lambda _: _[3] == keys[0][13], debug_after["blocks"][0]["entries"]))
     assert len(entry_of_8192) == 1
     entry_of_8192 = entry_of_8192[0]
     node_of_8192 = list(
@@ -489,10 +519,15 @@ def test_compact():
     node_of_8192 = node_of_8192[0]
     assert node_of_8192 & debug_after["meta"]["distance_mask"] != 0
 
-    d = AtomicDict({0: None, 1: None})
+    d = AtomicDict({keys[0][0]: None, keys[1][0]: None})
     for _ in range(20):
-        d[2**_] = None
+        d[keys[0][_]] = None
+    assert d.debug()["meta"]["log_size"] == 7
     d.compact()
+    for _ in range(20):
+        assert d[keys[0][_]] is None
+    # assert d.debug()["meta"]["log_size"] == 9
+    assert d.debug()["meta"]["log_size"] == 11
 
     d = AtomicDict({}, min_size=2**16)
     assert len(d.debug()["index"]) == 2**16
@@ -505,7 +540,8 @@ def test_grow_then_shrink():
     assert d.debug()["meta"]["log_size"] == 6
 
     for _ in range(2**10):
-        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
+        debug = d.debug()
+        assert len(Counter(debug["index"]).keys()) == _ + 1, debug["meta"]["log_size"]
         d[_] = None
     assert d.debug()["meta"]["log_size"] == 11
 
@@ -513,10 +549,16 @@ def test_grow_then_shrink():
         del d[_]
     assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
 
+    debug = d.debug()
+    empty = 0
+    tombstone = debug["meta"]["tombstone"]
+    assert len(Counter(debug["index"]).keys()) == len({empty, tombstone}), debug["meta"]["log_size"]
+
     for _ in range(2**20, 2**20 + 2**14):
         d[_] = None
 
     assert d.debug()["meta"]["log_size"] == 15
+    assert len(Counter(d.debug()["index"]).keys()) == 2**14 + 1
 
     for _ in range(2**20, 2**20 + 2**14):
         del d[_]
@@ -584,22 +626,29 @@ def test_len_bounds():
     assert d.approx_len() == 0
 
 
-def test_fast_iter():
+def test_fast_iter(reraise):
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
-    for p in range(4):
+    for _ in range(1, 64):  # must offset for entry number 0
+        d[_] = 1
+    for _ in range(64):
+        d[_ + 64] = 2
+
+    for p in range(1, 4):
         for _ in range(p * 128, p * 128 + 64):
             d[_] = 1
         for _ in range(p * 128, p * 128 + 64):
             d[_ + 64] = 2
 
+    @reraise.wrap
     def partition_1():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=0):
             assert v == 1
             n += 1
-        assert n == 4 * 64
+        assert n == 4 * 64 - 1
 
+    @reraise.wrap
     def partition_2():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=1):
