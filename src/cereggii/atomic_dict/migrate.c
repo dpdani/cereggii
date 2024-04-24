@@ -191,10 +191,6 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         AtomicDict_EndSynchronousOperation(self);
         holding_sync_lock = 0;
     } else {
-        current_meta->hashes = PyMem_RawMalloc(current_meta->size * sizeof(Py_hash_t));
-        if (current_meta->hashes == NULL)
-            goto fail;
-
         current_meta->accessor_key = self->accessor_key;
         current_meta->accessors = self->accessors;
 

@@ -119,7 +119,6 @@ struct AtomicDict_Meta {
     int64_t node_to_migrate;
     Py_tss_t *accessor_key;
     PyObject *accessors;
-    Py_hash_t *hashes;
     AtomicEvent *new_metadata_ready;
     AtomicEvent *hashes_done;
     AtomicEvent *node_migration_done;
