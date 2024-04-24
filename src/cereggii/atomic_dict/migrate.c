@@ -548,20 +548,19 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     AtomicDict_Node node;
 
-    AtomicDict_ReadNodeAt(i, &node, current_meta);
-    if (node.node != 0 && start_of_block != 0) {
-        // a non-empty node at position 0 is always considered a probe head.
-        // conversely, a node at the last position is always considered a tail.
+    // find first empty slot
+    while (i < end_of_block) {
+        if (AtomicDict_ReadRawNodeAt(i, current_meta) == 0)
+            break;
 
-        if (AtomicDict_ReadRawNodeAt((i - 1) & current_size_mask, current_meta) != 0) {
-            AtomicDict_SeekToProbeEnd(current_meta, &i, 0, current_size_mask);
-        }
+        i++;
     }
-    if (i > end_of_block)
+
+    if (i >= end_of_block)
         return;
 
     // initialize slots in range [i, end_of_block]
-    memset(AtomicDict_IndexAddressOf(i, new_meta), 0, (end_of_block * 2 - i) * new_meta->node_size / 8);
+    memset(AtomicDict_IndexAddressOf(i * 2, new_meta), 0, (end_of_block - i) * 2 * new_meta->node_size / 8);
 
     uint64_t new_size_mask = new_meta->size - 1;
     uint64_t distance = 0;
@@ -578,14 +577,12 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     }
 
     assert(i == end_of_block);
-    if (end_of_block == current_size)
-        return;
 
-    AtomicDict_ReadNodeAt(i, &node, current_meta);
-
-    while (node.node != 0 && i < current_size) {
-//        assert(AtomicDict_ReadRawNodeAt(i & new_size_mask, new_meta) == 0);
-        AtomicDict_WriteRawNodeAt(i & new_size_mask, 0, new_meta);
+    while (node.node != 0 || i == end_of_block) {
+        memset(
+            AtomicDict_IndexAddressOf((i * 2) & new_size_mask, new_meta), 0,
+            ((i + 1) * 2 - (i * 2)) * new_meta->node_size / 8
+        );
         AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
 
         if (node.node != 0 && !AtomicDict_NodeIsTombstone(&node, current_meta)) {
@@ -605,19 +602,13 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     uint64_t to_migrate = AtomicDict_DebugLen(current_meta);
     uint64_t migrated = 0;
 
-    int64_t node_to_migrate;
-    do {
-        node_to_migrate = current_meta->node_to_migrate;
+    int64_t node_to_migrate = CereggiiAtomic_AddInt64(&current_meta->node_to_migrate,
+                                                      ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE);
 
-        if (node_to_migrate >= current_size)
-            break;
-
-        if (!CereggiiAtomic_CompareExchangeInt64(&current_meta->node_to_migrate, node_to_migrate,
-                                                 node_to_migrate + ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE))
-            continue;
-
+    while (node_to_migrate < current_size) {
         AtomicDict_BlockWiseMigrate(current_meta, new_meta, node_to_migrate, &migrated);
-    } while (node_to_migrate < current_size);
+        node_to_migrate = CereggiiAtomic_AddInt64(&current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE);
+    }
 
     AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
     CereggiiAtomic_StoreInt(&storage->participant_in_migration, 2);
