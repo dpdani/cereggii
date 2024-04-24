@@ -202,7 +202,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
             new_meta->blocks[block]->generation = new_meta->generation;
         }
 
-        AtomicDictMeta_ClearIndex(new_meta);
+        // AtomicDictMeta_ClearIndex(new_meta);
     }
 
     // 👀
@@ -285,14 +285,6 @@ AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 void
 AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
-//    if (!AtomicEvent_IsSet(current_meta->hashes_done)) {
-//        int hashes_done = AtomicDict_PrepareHashArray(current_meta, new_meta);
-//
-//        if (hashes_done) {
-//            AtomicEvent_Set(current_meta->hashes_done);
-//        }
-//        AtomicEvent_Wait(current_meta->hashes_done);
-//    }
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
         AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
@@ -368,69 +360,6 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
 }
 
 int
-AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
-{
-    uint64_t thread_id = _Py_ThreadId();
-
-    int64_t block_i;
-    AtomicDict_Block *block;
-
-    for (block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
-        uint64_t lock = (block_i + thread_id) % (new_meta->greatest_allocated_block + 1);
-
-        block = new_meta->blocks[lock];
-        if ((void **) block == (void **) NOT_FOUND)
-            continue;
-
-        CereggiiAtomic_StorePtr((void **) &new_meta->blocks[lock], NOT_FOUND);  // soft-locking
-
-        if (new_meta->greatest_refilled_block < lock && lock <= new_meta->greatest_deleted_block)
-            goto mark_as_done;
-
-        AtomicDict_EntryLoc entry_loc;
-
-        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-            entry_loc.location = (lock << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + i;
-            entry_loc.entry = &block->entries[i];
-
-            if (entry_loc.entry->key == NULL || entry_loc.entry->value == NULL ||
-                entry_loc.entry->flags & ENTRY_FLAGS_TOMBSTONE || entry_loc.entry->flags & ENTRY_FLAGS_SWAPPED)
-                continue;
-
-            AtomicDict_SearchResult sr;
-            AtomicDict_LookupEntry(current_meta, entry_loc.location, entry_loc.entry->hash, &sr);
-
-            if (sr.found) {
-                assert(&current_meta->hashes[sr.position] < current_meta->hashes + current_meta->size);
-                current_meta->hashes[sr.position] = entry_loc.entry->hash;
-            }
-        }
-
-        mark_as_done:
-        block->generation = new_meta->generation;
-        CereggiiAtomic_StorePtr((void **) &new_meta->blocks[lock], block);
-    }
-
-    int done = 1;
-
-    for (block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
-        AtomicDict_Block *b = new_meta->blocks[block_i];
-
-        if ((void *) b == (void *) NOT_FOUND) {
-            done = 0;
-            break;
-        }
-
-        if (b->generation != new_meta->generation) {
-            done = 0;
-            break;
-        }
-    }
-
-    return done;
-}
-
-int
 AtomicDict_IndexNotFound(uint64_t index, AtomicDict_Meta *meta)
 {
     AtomicDict_Node node;
@@ -466,7 +395,7 @@ void
 AtomicDict_MigrateNode(AtomicDict_Node *node, uint64_t *distance_0, uint64_t *distance, AtomicDict_Meta *new_meta,
                        uint64_t size_mask)
 {
-    assert(AtomicDict_IndexNotFound(node->index, new_meta));
+    // assert(AtomicDict_IndexNotFound(node->index, new_meta));
     Py_hash_t hash = AtomicDict_GetEntryAt(node->index, new_meta)->hash;
     uint64_t ix;
     uint64_t d0 = AtomicDict_Distance0Of(hash, new_meta);
@@ -529,8 +458,8 @@ AtomicDict_SeekToProbeEnd(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displac
     } while (node != 0);
 }
 
-//#define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 4096
-#define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 64
+#define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 4096
+//#define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 64
 
 void
 AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, int64_t start_of_block,

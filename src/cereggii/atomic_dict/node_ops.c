@@ -46,8 +46,6 @@ AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
     return AtomicDict_RegionOf(ix, meta) & (ULONG_MAX - 1UL);
 }
 
-#define ABS(x) (((x) ^ ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1))) - ((x) >> (SIZEOF_PY_HASH_T * CHAR_BIT - 1)))
-
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
 #define REHASH(x) (uint64_t) (__builtin_ia32_crc32di((x), LOWER_SEED) | (__builtin_ia32_crc32di((x), UPPER_SEED) << 32))
@@ -123,7 +121,7 @@ AtomicDict_CopyNodeBuffers(AtomicDict_Node *from_buffer, AtomicDict_Node *to_buf
     }
 }
 
-void
+inline void
 AtomicDict_ComputeBeginEndWrite(AtomicDict_Meta *meta, AtomicDict_Node *read_buffer, AtomicDict_Node *temp,
                                 int *begin_write, int *end_write)
 {
@@ -184,11 +182,11 @@ AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
     AtomicDict_ParseNodeFromRegion(ix, node_region, node, meta);
 }
 
-int64_t
+inline int64_t
 AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
 {
     uint64_t node_region = meta->index[AtomicDict_RegionOf(ix, meta)];
-    AtomicDict_ParseRawNodeFromRegion(ix, node_region, meta);
+    return (int64_t) AtomicDict_ParseRawNodeFromRegion(ix, node_region, meta);
 }
 
 /**
@@ -397,7 +395,7 @@ AtomicDict_MustWriteBytes(int n, AtomicDict_Meta *meta)
     return 16;
 }
 
-int
+inline int
 AtomicDict_AtomicWriteNodesAt(uint64_t ix, int n, AtomicDict_Node *expected, AtomicDict_Node *desired,
                               AtomicDict_Meta *meta)
 {

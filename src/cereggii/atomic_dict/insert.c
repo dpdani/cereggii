@@ -179,15 +179,8 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     int done, expectation;
     *must_grow = 0;
 
-    beginning:
-    done = 0;
-    expectation = 1;
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
-//     uint64_t distance = distance_0 % meta->nodes_in_zone; // shorter distances handled by the fast-path
-    uint64_t distance = 0;
-    PyObject *current = NULL;
-    uint8_t is_compact = meta->is_compact;
-    AtomicDict_Node to_insert, node;
+    AtomicDict_Node node;
 
     if (expected == NOT_FOUND || expected == ANY) {
         // insert fast-path
@@ -203,6 +196,15 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             }
         }
     }
+
+    beginning:
+    done = 0;
+    expectation = 1;
+//     uint64_t distance = distance_0 % meta->nodes_in_zone; // shorter distances handled by the fast-path
+    uint64_t distance = 0;
+    PyObject *current = NULL;
+    uint8_t is_compact = meta->is_compact;
+    AtomicDict_Node to_insert;
 
     if (AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(meta, key, hash, expected, desired, &current, entry_loc,
                                                           must_grow, &done, &expectation, &to_insert,
