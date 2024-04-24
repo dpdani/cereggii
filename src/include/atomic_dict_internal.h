@@ -116,6 +116,7 @@ struct AtomicDict_Meta {
     // migration
     AtomicDict_Meta *new_gen_metadata;
     uintptr_t migration_leader;
+    int64_t node_to_migrate;
     Py_tss_t *accessor_key;
     PyObject *accessors;
     Py_hash_t *hashes;
@@ -266,7 +267,7 @@ int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta
 int AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 void
-AtomicDict_MigrateNode(AtomicDict_Node *node, Py_hash_t hash, uint64_t *distance, AtomicDict_Meta *new_meta,
+AtomicDict_MigrateNode(AtomicDict_Node *node, uint64_t *distance_0, uint64_t *distance, AtomicDict_Meta *new_meta,
                        uint64_t size_mask);
 
 int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);

@@ -526,8 +526,7 @@ def test_compact():
     d.compact()
     for _ in range(20):
         assert d[keys[0][_]] is None
-    # assert d.debug()["meta"]["log_size"] == 9
-    assert d.debug()["meta"]["log_size"] == 11
+    assert d.debug()["meta"]["log_size"] == 9
 
     d = AtomicDict({}, min_size=2**16)
     assert len(d.debug()["index"]) == 2**16

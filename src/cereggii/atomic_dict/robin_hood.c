@@ -82,6 +82,7 @@ AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert,
             }
 
             current.distance = meta->max_distance;
+            assert(AtomicDict_ReadRawNodeAt(cursor, meta) == 0);
             AtomicDict_WriteNodeAt(cursor, &current, meta);
 
             return grow;
@@ -91,6 +92,7 @@ AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert,
             assert(!AtomicDict_NodeIsReservation(&current, meta));
             current.distance = probe;
 
+            assert(AtomicDict_ReadRawNodeAt(cursor, meta) == 0);
             AtomicDict_WriteNodeAt(cursor, &current, meta);
             return ok;
         }

@@ -95,6 +95,7 @@ AtomicDictMeta_New(uint8_t log_size)
 
     meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;
+    meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
     meta->accessors = NULL;
     meta->hashes = NULL;
