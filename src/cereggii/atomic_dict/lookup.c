@@ -93,6 +93,8 @@ void
 AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
                        AtomicDict_SearchResult *result)
 {
+    // index-only search
+
     uint64_t ix = AtomicDict_Distance0Of(hash, meta);
     uint8_t is_compact;
     uint64_t probe, reservations;

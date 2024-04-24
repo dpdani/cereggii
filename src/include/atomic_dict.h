@@ -25,7 +25,7 @@ typedef struct AtomicDict {
     Py_ssize_t len;
     uint8_t len_dirty;
 
-    Py_tss_t *tss_key;
+    Py_tss_t *accessor_key;
     PyMutex accessors_lock;
     PyObject *accessors; // PyListObject
 } AtomicDict;
@@ -57,6 +57,8 @@ PyObject *AtomicDict_LenBounds(AtomicDict *self);
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);
 
 Py_ssize_t AtomicDict_Len(AtomicDict *self);
+
+Py_ssize_t AtomicDict_Len_impl(AtomicDict *self);
 
 PyObject *AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs);
 

@@ -30,7 +30,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         if (PyThread_tss_create(tss_key))
             goto fail;
         assert(PyThread_tss_is_created(tss_key) != 0);
-        self->tss_key = tss_key;
+        self->accessor_key = tss_key;
 
         self->accessors = NULL;
         self->accessors = Py_BuildValue("[]");
@@ -216,7 +216,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         meta->inserting_block = self->len >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 
         if (self->len > 0) {
-            storage = AtomicDict_GetAccessorStorage(self);
+            storage = AtomicDict_GetOrCreateAccessorStorage(self);
             if (storage == NULL)
                 goto fail;
 
@@ -246,7 +246,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     self->accessors_lock.v = 0;  // https://github.com/colesbury/nogil/blob/043f29ab2afab9cef5edd07875816d3354cb9d2c/Objects/dictobject.c#L334
 
     if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
-        storage = AtomicDict_GetAccessorStorage(self);
+        storage = AtomicDict_GetOrCreateAccessorStorage(self);
         if (storage == NULL)
             goto fail;
 
@@ -303,8 +303,8 @@ AtomicDict_dealloc(AtomicDict *self)
     Py_CLEAR(self->accessors);
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them anyway
-    PyThread_tss_delete(self->tss_key);
-    PyThread_tss_free(self->tss_key);
+    PyThread_tss_delete(self->accessor_key);
+    PyThread_tss_free(self->accessor_key);
 
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
@@ -490,16 +490,13 @@ AtomicDict_ApproxLen(AtomicDict *self)
 }
 
 Py_ssize_t
-AtomicDict_Len(AtomicDict *self)
+AtomicDict_Len_impl(AtomicDict *self)
 {
     PyObject *len = NULL, *local_len = NULL;
     Py_ssize_t int_len;
 
-    AtomicDict_BeginSynchronousOperation(self);
-
     if (!self->len_dirty) {
         int_len = self->len;
-        AtomicDict_EndSynchronousOperation(self);
         return int_len;
     }
 
@@ -528,14 +525,22 @@ AtomicDict_Len(AtomicDict *self)
     self->len = int_len;
     self->len_dirty = 0;
 
-    AtomicDict_EndSynchronousOperation(self);
-
     Py_DECREF(len);
     return int_len;
     fail:
     Py_XDECREF(len);
-    AtomicDict_EndSynchronousOperation(self);
     return -1;
+}
+
+Py_ssize_t
+AtomicDict_Len(AtomicDict *self)
+{
+    Py_ssize_t len;
+    AtomicDict_BeginSynchronousOperation(self);
+    len = AtomicDict_Len_impl(self);
+    AtomicDict_EndSynchronousOperation(self);
+
+    return len;
 }
 
 PyObject *

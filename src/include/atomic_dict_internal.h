@@ -116,7 +116,9 @@ struct AtomicDict_Meta {
     // migration
     AtomicDict_Meta *new_gen_metadata;
     uintptr_t migration_leader;
-    uint8_t *copy_nodes_locks;
+    int64_t node_to_migrate;
+    Py_tss_t *accessor_key;
+    PyObject *accessors;
     AtomicEvent *new_metadata_ready;
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
@@ -158,6 +160,8 @@ void AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
 void AtomicDict_ParseNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Node *node,
                                     AtomicDict_Meta *meta);
 
+uint64_t AtomicDict_ParseRawNodeFromRegion(uint64_t ix, uint64_t region, AtomicDict_Meta *meta);
+
 uint64_t AtomicDict_RegionOf(uint64_t ix, AtomicDict_Meta *meta);
 
 uint64_t AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta);
@@ -171,6 +175,8 @@ uint8_t *AtomicDict_IndexAddressOf(uint64_t ix, AtomicDict_Meta *meta);
 int AtomicDict_IndexAddressIsAligned(uint64_t ix, int alignment, AtomicDict_Meta *meta);
 
 void AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
+
+int64_t AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta);
 
 void AtomicDict_Read1NodeAt(uint64_t ix, AtomicDict_Node *nodes, AtomicDict_Meta *meta);
 
@@ -250,7 +256,26 @@ void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta);
 
 void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
+void AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+void AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+int AtomicDict_PrepareHashArray(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+void
+AtomicDict_MigrateNode(AtomicDict_Node *node, uint64_t *distance_0, uint64_t *distance, AtomicDict_Meta *new_meta,
+                       uint64_t size_mask);
+
+int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+
+void
+AtomicDict_SeekToProbeStart(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask);
+
+void AtomicDict_SeekToProbeEnd(AtomicDict_Meta *meta, uint64_t *pos, uint64_t displacement, uint64_t current_size_mask);
+
+int AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta);
 
 
 /// reservation buffer (see ./reservation_buffer.c)
@@ -280,12 +305,16 @@ typedef struct AtomicDict_AccessorStorage {
 
     int32_t local_len;
 
+    int participant_in_migration;
+
     AtomicDict_ReservationBuffer reservation_buffer;
 } AtomicDict_AccessorStorage;
 
 extern PyTypeObject AtomicDictAccessorStorage_Type;
 
-AtomicDict_AccessorStorage *AtomicDict_GetAccessorStorage(AtomicDict *self);
+AtomicDict_AccessorStorage *AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self);
+
+AtomicDict_AccessorStorage *AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key);
 
 void AtomicDict_BeginSynchronousOperation(AtomicDict *self);
 
@@ -303,6 +332,9 @@ typedef enum AtomicDict_RobinHoodResult {
 
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       AtomicDict_Node *to_insert, int distance_0_ix);
+
+AtomicDict_RobinHoodResult AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert,
+                                                         int64_t distance_0_ix);
 
 AtomicDict_RobinHoodResult AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes,
                                                       int to_delete);
