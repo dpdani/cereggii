@@ -102,9 +102,6 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
         goto fail;
-    meta->hashes_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
-    if (meta->hashes_done == NULL)
-        goto fail;
     meta->node_migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->node_migration_done == NULL)
         goto fail;
@@ -257,7 +254,6 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
     Py_CLEAR(self->generation);
     Py_CLEAR(self->new_gen_metadata);
     Py_CLEAR(self->new_metadata_ready);
-    Py_CLEAR(self->hashes_done);
     Py_CLEAR(self->node_migration_done);
     Py_CLEAR(self->migration_done);
     Py_TYPE(self)->tp_free((PyObject *) self);

@@ -200,7 +200,6 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     beginning:
     done = 0;
     expectation = 1;
-//     uint64_t distance = distance_0 % meta->nodes_in_zone; // shorter distances handled by the fast-path
     uint64_t distance = 0;
     PyObject *current = NULL;
     uint8_t is_compact = meta->is_compact;

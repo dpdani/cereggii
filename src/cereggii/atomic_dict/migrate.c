@@ -238,7 +238,6 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
     // don't block other threads indefinitely
     AtomicEvent_Set(current_meta->migration_done);
-    AtomicEvent_Set(current_meta->hashes_done);
     AtomicEvent_Set(current_meta->node_migration_done);
     AtomicEvent_Set(current_meta->new_metadata_ready);
     return -1;
