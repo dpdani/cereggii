@@ -63,6 +63,58 @@ AtomicDict_RobinHoodInsert(AtomicDict_Meta *meta, AtomicDict_Node *nodes, Atomic
 }
 
 AtomicDict_RobinHoodResult
+AtomicDict_RobinHoodInsertRaw(AtomicDict_Meta *meta, AtomicDict_Node *to_insert, int64_t distance_0_ix)
+{
+    AtomicDict_Node current = *to_insert;
+    current.distance = 0;
+    AtomicDict_Node temp;
+    int64_t probe = 0;
+    int64_t cursor;
+
+    beginning:
+    for (; probe < meta->size; probe++) {
+        cursor = (distance_0_ix + probe) & ((int64_t) meta->size - 1);
+
+        if (probe >= meta->max_distance) {
+            while (AtomicDict_ReadRawNodeAt(cursor, meta) != 0) {
+                probe++;
+                cursor = (distance_0_ix + probe) & ((int64_t) meta->size - 1);
+            }
+
+            current.distance = meta->max_distance;
+            assert(AtomicDict_ReadRawNodeAt(cursor, meta) == 0);
+            AtomicDict_WriteNodeAt(cursor, &current, meta);
+
+            return grow;
+        }
+
+        if (AtomicDict_ReadRawNodeAt(cursor, meta) == 0) {
+            assert(!AtomicDict_NodeIsReservation(&current, meta));
+            current.distance = probe;
+
+            assert(AtomicDict_ReadRawNodeAt(cursor, meta) == 0);
+            AtomicDict_WriteNodeAt(cursor, &current, meta);
+            return ok;
+        }
+
+        AtomicDict_ReadNodeAt(cursor, &temp, meta);
+
+        if (temp.distance < probe) {
+            current.distance = probe;
+            assert(!AtomicDict_NodeIsReservation(&current, meta));
+
+            AtomicDict_WriteNodeAt(cursor, &current, meta);
+
+            current = temp;
+            distance_0_ix = cursor - temp.distance;
+            probe = temp.distance;
+            goto beginning;
+        }
+    }
+    return failed;
+}
+
+AtomicDict_RobinHoodResult
 AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes, int to_delete)
 {
     assert(to_delete >= 0);
@@ -83,11 +135,11 @@ AtomicDict_RobinHoodDelete(AtomicDict_Meta *meta, AtomicDict_Node *nodes, int to
         nodes[probe].distance--;
     }
 
-    if (probe + 1 < meta->nodes_in_zone && (
-        nodes[probe + 1].node == 0 || nodes[probe + 1].distance == 0
-    )) {
-        AtomicDict_ParseNodeFromRaw(0, &nodes[probe], meta);
-    }
+//    if (probe + 1 < meta->nodes_in_zone && (
+//        nodes[probe + 1].node == 0 || nodes[probe + 1].distance == 0
+//    )) {
+//        AtomicDict_ParseNodeFromRaw(0, &nodes[probe], meta);
+//    }
 
     return ok;
 }

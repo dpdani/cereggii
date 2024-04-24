@@ -59,6 +59,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
     meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
     meta->tag_mask = (Py_hash_t) (1UL << node_sizes.tag_size) - 1;
+    meta->d0_shift = SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size;
     switch (node_sizes.node_size) {
         case 8:
             meta->shift_mask = 8 - 1;
@@ -94,7 +95,9 @@ AtomicDictMeta_New(uint8_t log_size)
 
     meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;
-    meta->copy_nodes_locks = NULL;
+    meta->node_to_migrate = 0;
+    meta->accessor_key = NULL;
+    meta->accessors = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
@@ -252,12 +255,6 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
         }
 
         PyMem_RawFree(self->blocks);
-    }
-
-    uint8_t *copy_nodes_locks = self->copy_nodes_locks;
-    if (copy_nodes_locks != NULL) {
-        self->copy_nodes_locks = NULL;
-        PyMem_RawFree(copy_nodes_locks);
     }
 
     Py_CLEAR(self->generation);

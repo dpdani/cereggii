@@ -7,10 +7,10 @@
 
 
 AtomicDict_AccessorStorage *
-AtomicDict_GetAccessorStorage(AtomicDict *self)
+AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
 {
-    assert(self->tss_key != NULL);
-    AtomicDict_AccessorStorage *storage = PyThread_tss_get(self->tss_key);
+    assert(self->accessor_key != NULL);
+    AtomicDict_AccessorStorage *storage = PyThread_tss_get(self->accessor_key);
 
     if (storage == NULL) {
         storage = PyObject_New(AtomicDict_AccessorStorage, &AtomicDictAccessorStorage_Type);
@@ -19,12 +19,13 @@ AtomicDict_GetAccessorStorage(AtomicDict *self)
 
         storage->self_mutex.v = 0;
         storage->local_len = 0;
+        storage->participant_in_migration = 0;
         storage->reservation_buffer.head = 0;
         storage->reservation_buffer.tail = 0;
         storage->reservation_buffer.count = 0;
         memset(storage->reservation_buffer.reservations, 0, sizeof(AtomicDict_EntryLoc) * RESERVATION_BUFFER_SIZE);
 
-        int set = PyThread_tss_set(self->tss_key, storage);
+        int set = PyThread_tss_set(self->accessor_key, storage);
         if (set != 0)
             goto fail;
 
@@ -43,6 +44,15 @@ AtomicDict_GetAccessorStorage(AtomicDict *self)
     assert(storage != NULL);
     Py_DECREF(storage);
     return NULL;
+}
+
+AtomicDict_AccessorStorage *
+AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
+{
+    assert(accessor_key != NULL);
+    AtomicDict_AccessorStorage *storage = PyThread_tss_get(accessor_key);
+    assert(storage != NULL);
+    return storage;
 }
 
 void
