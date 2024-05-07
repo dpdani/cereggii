@@ -174,6 +174,24 @@ The usage of `AtomicInt` provides correctness, regardless of the hashmap impleme
 But using `AtomicDict` instead of `dict` improves performance, even without using handles: writes to distinct keys do
 not generate contention.
 
+### Pre-sized dictionary, with partitioned iterations
+
+`AtomicDict` provides some more features compared to Python's `dict`, in
+the [partitioned iteration example](./examples/atomic_dict/partitioned_iter.py) two of them are shown:
+
+1. pre-sizing, which allows for the expensive dynamic resizing of a hash table to be avoided, and
+2. partitioned iterations, which allows to split number of elements among threads.
+
+```text
+Insertion into builtin dict took 36.81s
+Builtin dict iter took 17.56s with 1 thread.
+----------
+Insertion took 17.17s
+Partitioned iter took 8.80s with 1 threads.
+Partitioned iter took 5.03s with 2 threads.
+Partitioned iter took 3.92s with 3 threads.
+```
+
 ## AtomicRef
 
 You can use an `AtomicRef` when you have a shared variable that points to an object, and you need to change the
