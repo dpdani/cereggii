@@ -180,7 +180,7 @@ not generate contention.
 the [partitioned iteration example](./examples/atomic_dict/partitioned_iter.py) two of them are shown:
 
 1. pre-sizing, which allows for the expensive dynamic resizing of a hash table to be avoided, and
-2. partitioned iterations, which allows to split number of elements among threads.
+2. partitioned iterations, which allows to split the number of elements among threads.
 
 ```text
 Insertion into builtin dict took 36.81s
