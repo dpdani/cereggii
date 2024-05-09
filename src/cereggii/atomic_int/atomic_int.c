@@ -4,6 +4,7 @@
 
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
+#include "atomic_ops.h"
 
 #include "pyhash.h"
 
@@ -115,7 +116,7 @@ AtomicInt_DivOrSetException(int64_t current, int64_t to_div, int64_t *result)
 
 
 PyObject *
-AtomicInt_new(PyTypeObject *type, PyObject *args, PyObject *kwargs)
+AtomicInt_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
     AtomicInt *self;
     self = (AtomicInt *) type->tp_alloc(type, 0);
@@ -173,7 +174,7 @@ AtomicInt_Set(AtomicInt *self, int64_t updated)
 {
     int64_t current = self->integer;
 
-    while (!_Py_atomic_compare_exchange_int64(&self->integer, current, updated)) {
+    while (!CereggiiAtomic_CompareExchangeInt64(&self->integer, current, updated)) {
         current = self->integer;
     }
 }
@@ -198,7 +199,7 @@ AtomicInt_Set_callable(AtomicInt *self, PyObject *py_integer)
 inline int
 AtomicInt_CompareAndSet(AtomicInt *self, int64_t expected, int64_t updated)
 {
-    return _Py_atomic_compare_exchange_int64(&self->integer, expected, updated);
+    return CereggiiAtomic_CompareExchangeInt64(&self->integer, expected, updated);
 }
 
 PyObject *
@@ -229,7 +230,7 @@ AtomicInt_CompareAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwar
 inline int64_t
 AtomicInt_GetAndSet(AtomicInt *self, int64_t updated)
 {
-    return _Py_atomic_exchange_int64(&self->integer, updated);
+    return CereggiiAtomic_ExchangeInt64(&self->integer, updated);
 }
 
 PyObject *
@@ -542,7 +543,7 @@ AtomicInt_GetHandle(AtomicInt *self)
 Py_hash_t
 AtomicInt_Hash(AtomicInt *self)
 {
-    return _Py_HashPointer(self);
+    return _Py_HashPointer(self); // this will be public in 3.13
 }
 
 inline PyObject *

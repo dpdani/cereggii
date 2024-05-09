@@ -4,9 +4,12 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include "constants.h"
+#include "atomic_event.h"
 #include "atomic_int.h"
 #include "atomic_ref.h"
 #include "atomic_dict.h"
+#include "atomic_dict_internal.h"
 
 
 static PyMethodDef AtomicInt_methods[] = {
@@ -210,13 +213,20 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"debug", (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"get",   (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"debug",           (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"rehash",          (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
+    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
+    {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
+    {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
+    {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
+    {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
+    {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
 static PyMappingMethods AtomicDict_mapping_methods = {
-    .mp_length = (lenfunc) NULL, // atomic_dict_imprecise_length / atomic_dict_precise_length
+    .mp_length = (lenfunc) AtomicDict_Len,
     .mp_subscript = (binaryfunc) AtomicDict_GetItem,
     .mp_ass_subscript = (objobjargproc) AtomicDict_SetItem,
 };
@@ -236,6 +246,87 @@ static PyTypeObject AtomicDict_Type = {
     .tp_as_mapping = &AtomicDict_mapping_methods,
 };
 
+PyTypeObject AtomicDictMeta_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictMeta",
+    .tp_basicsize = sizeof(AtomicDict_Meta),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
+};
+
+PyTypeObject AtomicDictBlock_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictBlock",
+    .tp_basicsize = sizeof(AtomicDict_Block),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
+};
+
+PyTypeObject AtomicDictAccessorStorage_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictAccessorStorage",
+    .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
+};
+
+PyTypeObject AtomicDictFastIterator_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii._AtomicDictFastIterator",
+    .tp_basicsize = sizeof(AtomicDict_FastIterator),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+    .tp_dealloc = (destructor) AtomicDictFastIterator_dealloc,
+    .tp_iter = (getiterfunc) AtomicDictFastIterator_GetIter,
+    .tp_iternext = (iternextfunc) AtomicDictFastIterator_Next,
+};
+
+
+static PyMethodDef AtomicEvent_methods[] = {
+    {"wait",   (PyCFunction) AtomicEvent_Wait_callable,  METH_NOARGS, NULL},
+    {"set",    (PyCFunction) AtomicEvent_Set_callable,   METH_NOARGS, NULL},
+    {"is_set", (PyCFunction) AtomicEvent_IsSet_callable, METH_NOARGS, NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicEvent_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicEvent",
+    .tp_doc = PyDoc_STR("An atomic event based on pthread's condition locks."),
+    .tp_basicsize = sizeof(AtomicEvent),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = AtomicEvent_new,
+    .tp_dealloc = (destructor) AtomicEvent_dealloc,
+    .tp_init = (initproc) AtomicEvent_init,
+    .tp_methods = AtomicEvent_methods,
+};
+
+
+// see constants.h
+PyObject *NOT_FOUND = NULL;
+PyObject *ANY = NULL;
+PyObject *EXPECTATION_FAILED = NULL;
+PyObject *Cereggii_ExpectationFailed = NULL;
+
+PyTypeObject CereggiiConstant_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.Constant",
+    .tp_doc = PyDoc_STR("A constant value."),
+    .tp_basicsize = sizeof(CereggiiConstant),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = NULL,
+    .tp_repr = (reprfunc) CereggiiConstant_Repr,
+};
+
 
 static PyModuleDef cereggii_module = {
     PyModuleDef_HEAD_INIT,
@@ -249,7 +340,19 @@ PyInit__cereggii(void)
 {
     PyObject *m;
 
+    if (PyType_Ready(&CereggiiConstant_Type) < 0)
+        return NULL;
     if (PyType_Ready(&AtomicDict_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
@@ -262,9 +365,48 @@ PyInit__cereggii(void)
     if (m == NULL)
         return NULL;
 
+    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
+    if (NOT_FOUND == NULL)
+        goto fail;
+    if (PyModule_AddObject(m, "NOT_FOUND", NOT_FOUND) < 0) {
+        Py_DECREF(NOT_FOUND);
+        goto fail;
+    }
+
+    ANY = CereggiiConstant_New("ANY");
+    if (ANY == NULL)
+        goto fail;
+    if (PyModule_AddObject(m, "ANY", ANY) < 0) {
+        Py_DECREF(ANY);
+        goto fail;
+    }
+
+    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
+    if (EXPECTATION_FAILED == NULL)
+        goto fail;
+    if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
+        Py_DECREF(EXPECTATION_FAILED);
+        goto fail;
+    }
+
+    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+    if (Cereggii_ExpectationFailed == NULL)
+        goto fail;
+    Py_INCREF(Cereggii_ExpectationFailed);
+    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
+        Py_DECREF(Cereggii_ExpectationFailed);
+        goto fail;
+    }
+
     Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
         Py_DECREF(&AtomicDict_Type);
+        goto fail;
+    }
+
+    Py_INCREF(&AtomicEvent_Type);
+    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
+        Py_DECREF(&AtomicEvent_Type);
         goto fail;
     }
 
@@ -289,5 +431,8 @@ PyInit__cereggii(void)
     return m;
     fail:
     Py_DECREF(m);
+    Py_XDECREF(NOT_FOUND);
+    Py_XDECREF(ANY);
+    Py_XDECREF(EXPECTATION_FAILED);
     return NULL;
 }

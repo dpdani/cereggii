@@ -1,15 +1,23 @@
+from collections.abc import Iterator
 from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
-Value = NewType("Value", object)
+Value = NewType("Value", object | None)
 Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
+NOT_FOUND: object
+ANY: object
+EXPECTATION_FAILED: object
+ExpectationFailed: Exception
+
 class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
-    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, **kwargs):
+    def __init__(
+        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int | None = None, **kwargs
+    ):
         """Constructor method
 
         :param iterable: an iterable to initialize this dictionary with. For now,
@@ -29,11 +37,11 @@ class AtomicDict:
             mapping ``initial_size`` to 123, but an empty one.
         """
     # def __contains__(self, item: Key) -> bool: ...
-    # def __delitem__(self, item: Key) -> None: ...
+    def __delitem__(self, item: Key) -> None: ...
     def __getitem__(self, item: Key) -> object: ...
     # def __ior__(self, other) -> None: ...
     # def __iter__(self) -> Iterable[Key, Value]: ...
-    # def __len__(self) -> int: ...
+    def __len__(self) -> int: ...
     # def __eq__(self, other) -> bool: ...
     # def __or__(self, other) -> AtomicDict: ...
     # def __ror__(self, other) -> AtomicDict: ...
@@ -43,37 +51,6 @@ class AtomicDict:
     # def __sizeof__(self) -> int: ...
     # def __str__(self) -> str: ...
     # def __subclasshook__(self): ...
-    # def batch_lookup(self, batch: dict) -> dict:
-    #     """Batch many lookups together for efficient memory access.
-    #
-    #     Whatever the values provided in :param:`batch`, they will be substituted with
-    #     the found values, or ``KeyError``. Notice no exception is thrown: the
-    #     ``KeyError`` object instead is the returned value for a non-found key. If you
-    #     have ``KeyError`` values in your :class:`AtomicDict`, you may have trouble
-    #     distinguishing between a ``KeyError`` that implies a lookup failure,
-    #     and a ``KeyError`` that was indeed found.
-    #
-    #     The values themselves, provided in :param:`batch`, will always be substituted.
-    #
-    #     An example call::
-    #
-    #         foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
-    #         foo.batch_lookup({
-    #             'a': None,
-    #             'b': None,
-    #             'f': None,
-    #         })
-    #
-    #     which will return::
-    #
-    #         {
-    #            'a': 1,
-    #            'b': 2,
-    #            'f': KeyError,
-    #         }
-    #
-    #     :returns: the input :param:`batch` dictionary, with substituted values.
-    #     """
     # def clear(self) -> None: ...
     # def copy(self) -> AtomicDict: ...
     # @classmethod
@@ -125,7 +102,67 @@ class AtomicDict:
     #     :returns: None
     #     """
     # def values(self) -> Iterable[Value]: ...
+    def compare_and_set(self, key: Key, expected: Value, desired: Value) -> None: ...
+    def len_bounds(self) -> tuple[int, int]: ...
+    def approx_len(self) -> int: ...
+    def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]: ...
+    def batch_getitem(self, batch: dict, chunk_size: int = 128) -> dict:
+        """Batch many lookups together for efficient memory access.
+
+        Whatever the values provided in :param:`batch`, they will be substituted with
+        the found values, or ``cereggii.NOT_FOUND``.
+        Notice no exception is thrown: the ``cereggii.NOT_FOUND`` object instead
+        is the returned value for a non-found key.
+        Also notice that the ``cereggii.NOT_FOUND`` object can never be inserted
+        into an ``AtomicDict``.
+
+        The values themselves, provided in :param:`batch`, will always be substituted.
+
+        An example call::
+
+            foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
+            foo.batch_getitem({
+                'a': None,
+                'b': None,
+                'f': None,
+            })
+
+        which will return::
+
+            {
+               'a': 1,
+               'b': 2,
+               'f': <cereggii.NOT_FOUND>,
+            }
+
+        :returns: the input :param:`batch` dictionary, with substituted values.
+        """
+    # def aggregate(self, iterator: Iterator[tuple[Key, Value]], aggregation: Callable[[Key, Value, Value], Value])
+    # -> None:
+    #     """
+    #     Aggregate the values in this dictionary with those found in ``iterator``, as computed by ``aggregation``.
+    #
+    #     The ``aggregation`` parameter expects a function that takes as input a key, the value currently stored
+    #     in the dictionary, and the new value from ``iterator``, and then returns the aggregated value.
+    #
+    #     For instance, to aggregate counts::
+    #
+    #         d = AtomicDict()
+    #
+    #         it = [
+    #             ("red", 1),
+    #             ("green", 3),
+    #             ("blue", 40),
+    #             ("red", 1),
+    #         ]
+    #
+    #         d.aggregate(it, lambda key, current, new:
+    #             new if current is cereggii.NOT_FOUND else current + new
+    #         )
+    #     """
+    def compact(self) -> None: ...
     def debug(self) -> dict: ...
+    def rehash(self, o: object) -> int: ...
 
 class AtomicRef:
     """An object reference that may be updated atomically."""

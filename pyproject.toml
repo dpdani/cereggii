@@ -31,6 +31,7 @@ dependencies = []
 dev = [
   "build==1.0.3",
   "pytest==7.4.2",
+  "pytest-reraise==2.1.2",
   "black==23.9.1",
   "ruff==0.0.292",
 ]
@@ -49,8 +50,9 @@ include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
 
 [tool.py-build-cmake.cmake]
 minimum_version = "3.18"
-build_type = "Debug"
+build_type = "RelWithDebInfo"
 source_path = "src"
+args = ["-L"]
 build_args = ["-j"]
 install_components = ["python_modules"]
 
