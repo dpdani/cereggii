@@ -15,8 +15,8 @@ def large_grow(dict_factory, num_threads):
         d = dict_factory()
 
         def thread(i, keys):
-            for _ in range(i, keys_count, n):
-                d[keys[_]] = None
+            for _ in range(i, keys_count, n):  # noqa: B023
+                d[keys[_]] = None  # noqa: B023
 
         threads = []
         for i in range(n):
