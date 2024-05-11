@@ -5,9 +5,15 @@ import numpy as np
 from cereggii import AtomicDict
 
 
-keys_count = 10_000_000
+keys_count = 2 ** 25
 keys = np.random.default_rng(seed=0).choice(2**5 * keys_count, size=keys_count, replace=False)  # distinct
 keys = keys.tolist()
+
+# import random
+# keys = set()
+# while len(keys) < keys_count:
+#     keys.add(random.randrange(2**5 * keys_count))
+# keys = list(keys)
 
 
 def large_grow(dict_factory, num_threads):
