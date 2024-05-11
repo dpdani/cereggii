@@ -5,7 +5,7 @@ import numpy as np
 from cereggii import AtomicDict
 
 
-keys_count = 2 ** 25
+keys_count = 2**25
 keys = np.random.default_rng(seed=0).choice(2**5 * keys_count, size=keys_count, replace=False)  # distinct
 keys = keys.tolist()
 
