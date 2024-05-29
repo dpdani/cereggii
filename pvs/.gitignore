@@ -1,0 +1,41 @@
+# Taken from https://github.com/nasa/pvslib/
+
+# Ignore binary files
+bin/
+lib/
+back/
+*.bin
+*.tptp
+*.pyc
+*.elc
+*.sdb
+*.conf
+*.orig
+.vscode-pvs
+.vscode
+prev-version
+.pvscontext
+# Ignore orphaned and old proofs
+orphaned-proofs.prf
+*~
+*.bak
+.DS_Store
+# Ignore compiled Lisp files
+*fasl
+# Ignore PVS dump files
+*.dmp
+# Ignore PVS log files
+*.log
+# ADT and CODT data types, which are automatically generated
+*_adt.p??
+*_codt.p??
+*-tc
+nasalib-*.*
+*.old
+*.tmp
+tmp/
+*.html
+*.tccs
+*.jprf
+*.out
+summary*.md
