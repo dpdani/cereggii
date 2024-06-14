@@ -186,6 +186,17 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         Py_INCREF(new_meta->blocks[block_i]);
     }
 
+    if (self->greedy_allocate) {
+        for (uint64_t i = new_meta->greatest_allocated_block + 1;
+             i < new_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK; ++i) {
+            AtomicDict_Block *block = AtomicDictBlock_New(new_meta);
+            if (block == NULL)
+                goto fail;
+            new_meta->blocks[i] = block;
+            new_meta->greatest_allocated_block++;
+        }
+    }
+
     if (from_log_size >= to_log_size) {
         AtomicDictMeta_ClearIndex(new_meta);
         AtomicDict_EndSynchronousOperation(self);
@@ -200,6 +211,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
         // AtomicDictMeta_ClearIndex(new_meta);
     }
+
+    AtomicDictMeta_ClearIndex(new_meta);
 
     // 👀
     Py_INCREF(new_meta);

@@ -22,31 +22,11 @@ def test_init():
             3: 4,
         }
     )
-    AtomicDict(spam=42, cheese=True)
-    AtomicDict(
-        {
-            "bird": "norwegian blue",
-        },
-        bird="spam",
-    )
     AtomicDict(min_size=120)
 
 
-def test_weird_init():
-    # this may be confusing: the iterable is the input parameter for initializing
-    # the dictionary, but it is a positional-only parameter. thus, when passing it
-    # as a keyword parameter, it is considered to be one key in itself.
-    d = AtomicDict(min_size=64, iterable={1: 0})
-    with raises(KeyError):
-        assert d[1] == 0
-    assert d["iterable"] == {1: 0}
-
-    with raises(TypeError):
-        AtomicDict(None)
-
-
 def test_debug():
-    d = AtomicDict({"key": "value"}, min_size=64, iterable={1: 0})
+    d = AtomicDict({"key": "value"}, min_size=64)
     dbg = d.debug()
     assert type(dbg) is dict  # noqa: E721
     assert "meta" in dbg
@@ -83,8 +63,6 @@ def test_key_error():
 def test_getitem():
     d = AtomicDict({"spam": 42})
     assert d["spam"] == 42
-    c = AtomicDict({"spam": 42}, spam=43)
-    assert c["spam"] == 43
 
 
 def test_getitem_confused():
@@ -718,3 +696,26 @@ def test_len():
 
     assert len(d) == 10
     assert len(d) == 10  # test twice for len_dirty
+
+
+def test_greedy_grow_then_shrink():
+    d = AtomicDict(greedy=True)
+    assert d.debug()["meta"]["log_size"] == 6
+
+    for _ in range(2**10):
+        assert len(Counter(d.debug()["index"]).keys()) == _ + 1
+        d[_] = None
+    assert d.debug()["meta"]["log_size"] == 11
+
+    for _ in range(2**10):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
+
+    for _ in range(2**20, 2**20 + 2**14):
+        d[_] = None
+
+    assert d.debug()["meta"]["log_size"] == 15
+
+    for _ in range(2**20, 2**20 + 2**14):
+        del d[_]
+    assert d.debug()["meta"]["log_size"] == 7

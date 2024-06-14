@@ -7,11 +7,11 @@
 
 
 inline int
-AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t gab, int64_t gdb)
+AtomicDict_IncrementGreatestDeletedBlock(AtomicDict_Meta *meta, int64_t inb, int64_t gdb)
 {
     CereggiiAtomic_CompareExchangeInt64(&meta->greatest_deleted_block, gdb, gdb + 1);
 
-    if ((gab - gdb + meta->greatest_refilled_block) * ATOMIC_DICT_ENTRIES_IN_BLOCK <= meta->size * 1 / 3) {
+    if ((inb - gdb + meta->greatest_refilled_block) * ATOMIC_DICT_ENTRIES_IN_BLOCK <= meta->size * 1 / 3) {
         return 1;
     }
 
@@ -76,16 +76,17 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
                                             &reader.buffer[begin_write], &temp[begin_write], meta));
 
     uint64_t block_num;
-    int64_t gab, gdb;
+    int64_t gab, gdb, inb;
     AtomicDict_EntryLoc swap_loc;
     AtomicDict_Entry swap;
 
     recycle_entry:
     block_num = AtomicDict_BlockOf(entry_ix);
+    inb = meta->inserting_block;
     gab = meta->greatest_allocated_block;
     gdb = meta->greatest_deleted_block;
 
-    if (gdb > gab)
+    if (gdb > gab || inb > gab)
         goto recycle_entry;
 
     if (block_num == gdb + 1) {
@@ -106,7 +107,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
         }
 
         if (all_deleted) {
-            should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+            should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, inb, gdb);
         }
     }
 
@@ -121,7 +122,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
                 goto swap_found;
         }
 
-        should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+        should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, inb, gdb);
         goto recycle_entry; // don't handle failure
 
         swap_found:

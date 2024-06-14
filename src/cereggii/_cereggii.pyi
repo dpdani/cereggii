@@ -16,12 +16,17 @@ class AtomicDict:
     """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
 
     def __init__(
-        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int | None = None, **kwargs
+        self,
+        init_dict: dict | None = None,
+        /,
+        *,
+        min_size: int | None = None,
+        buffer_size: int | None = None,
+        greedy: bool = True,
     ):
         """Constructor method
 
-        :param iterable: an iterable to initialize this dictionary with. For now,
-            only `dict` can be supplied to this parameter.
+        :param init_dict: a built-in dict to initialize this dictionary with.
 
         :param min_size: the size initially allocated. Using this
             parameter possibly avoids re-allocations and migrations during inserts.
@@ -29,12 +34,9 @@ class AtomicDict:
             re-allocations. Usage of this parameter is especially useful when the
             maximal required size is known.
 
-        :param kwargs: key-value pairs with which to initialize the dictionary.
-            This follows the behavior of built-in dictionary, but slightly differs:
-            keys that are already parameters to this ``__init__`` method will not be
-            considered, because of Python's ``**kwargs`` behavior.
-            E.g. ``AtomicDict(initial_size=123)`` will not create a dictionary
-            mapping ``initial_size`` to 123, but an empty one.
+        :param buffer_size: size of the reservations buffer.
+
+        :param greedy: use a greedy memory allocation strategy.
         """
     # def __contains__(self, item: Key) -> bool: ...
     def __delitem__(self, item: Key) -> None: ...

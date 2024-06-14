@@ -19,6 +19,7 @@ typedef struct AtomicDict {
 
     uint8_t min_log_size;
     uint8_t reservation_buffer_size;
+    uint8_t greedy_allocate;
 
     PyMutex sync_op;
 
