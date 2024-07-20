@@ -46,8 +46,8 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
             goto not_found;
         }
 
+        check_entry:
         if (node.tag == (hash & meta->tag_mask)) {
-            check_entry:
             result->entry_p = AtomicDict_GetEntryAt(node.index, meta);
             AtomicDict_ReadEntry(result->entry_p, &result->entry);
 

@@ -186,19 +186,17 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         Py_INCREF(new_meta->blocks[block_i]);
     }
 
-    if (from_log_size >= to_log_size) {
-        AtomicDictMeta_ClearIndex(new_meta);
-        AtomicDict_EndSynchronousOperation(self);
-        holding_sync_lock = 0;
-    } else {
+    if (from_log_size < to_log_size) {
         current_meta->accessor_key = self->accessor_key;
         current_meta->accessors = self->accessors;
 
         for (int64_t block = 0; block <= new_meta->greatest_allocated_block; ++block) {
             new_meta->blocks[block]->generation = new_meta->generation;
         }
-
-        // AtomicDictMeta_ClearIndex(new_meta);
+    } else {
+        AtomicDictMeta_ClearIndex(new_meta);
+        AtomicDict_EndSynchronousOperation(self);
+        holding_sync_lock = 0;
     }
 
     // 👀
@@ -213,7 +211,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
     assert(set);
 
-    if (holding_sync_lock) {
+    if (from_log_size < to_log_size) {
+        assert(holding_sync_lock);
         for (int i = 0; i < PyList_Size(self->accessors); ++i) {
             AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
             accessor->participant_in_migration = 0;
@@ -322,20 +321,15 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
                 entry_loc.entry->flags & ENTRY_FLAGS_TOMBSTONE || entry_loc.entry->flags & ENTRY_FLAGS_SWAPPED)
                 continue;
 
-            AtomicDict_SearchResult sr;
-            AtomicDict_Lookup(current_meta, entry_loc.entry->key, entry_loc.entry->hash, &sr);
-
-            if (sr.found) {
-                int must_grow;
-                PyObject *result = AtomicDict_ExpectedInsertOrUpdate(new_meta,
-                                                                     entry_loc.entry->key, entry_loc.entry->hash,
-                                                                     NOT_FOUND, entry_loc.entry->value,
-                                                                     &entry_loc, &must_grow, 1);
-                assert(result != EXPECTATION_FAILED);
-                assert(!must_grow);
-                assert(result != NULL);
-                assert(result == NOT_FOUND);
-            }
+            int must_grow;
+            PyObject *result = AtomicDict_ExpectedInsertOrUpdate(new_meta,
+                                                                 entry_loc.entry->key, entry_loc.entry->hash,
+                                                                 NOT_FOUND, entry_loc.entry->value,
+                                                                 &entry_loc, &must_grow, 1);
+            assert(result != EXPECTATION_FAILED);
+            assert(!must_grow);
+            assert(result != NULL);
+            assert(result == NOT_FOUND);
         }
 
         mark_as_done:

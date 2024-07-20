@@ -46,21 +46,21 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
             //   already been reached, thus we can proceed visiting
             //   the probe.
         } else {
-            // expected != NOT_FOUND, value may be NULL
-            if (entry.value != expected && expected != ANY) {
-                *done = 1;
-                *expectation = 0;
-                return 1;
-            }
-
+            // expected != NOT_FOUND
             do {
+                if (entry.value != expected && expected != ANY) {
+                    *done = 1;
+                    *expectation = 0;
+                    return 1;
+                }
+
                 *current = entry.value;
-                *done = CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, entry.value, desired);
+                *done = CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, *current, desired);
 
                 if (!*done) {
                     AtomicDict_ReadEntry(entry_p, &entry);
 
-                    if (entry.value == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+                    if (*current == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
                         return 0;
                 }
             } while (!*done);
@@ -100,6 +100,10 @@ AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta, PyObjec
             goto empty_slot;
 
         if (!skip_entry_check) {
+            if (reader.buffer[i].tag != (hash & meta->tag_mask)) {
+                continue;
+            }
+
             int updated = AtomicDict_ExpectedUpdateEntry(meta, reader.buffer[i].index, key, hash, expected, desired,
                                                          current, done, expectation);
             if (updated < 0)
@@ -391,7 +395,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     }
 
     if (result == NOT_FOUND && entry_loc.location != 0) {
-        storage->local_len++;
+        storage->local_len++; // TODO: overflow
         self->len_dirty = 1;
     }
     _PyMutex_unlock(&storage->self_mutex);
@@ -406,8 +410,10 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         if (migrated < 0)
             goto fail;
 
-        Py_DECREF(meta);
-        goto beginning;
+        if (must_grow) {  // insertion didn't happen
+            Py_DECREF(meta);
+            goto beginning;
+        }
     }
 
     Py_DECREF(meta);
