@@ -350,8 +350,7 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
             // non-atomic robin hood
             node.distance = probe;
             AtomicDict_WriteNodeAt(ix + probe, &node, meta);
-//            ix = ix + probe - temp.distance;
-            ix -= temp.distance;
+            ix = ix + probe - temp.distance;
             probe = temp.distance;
             node = temp;
         }
