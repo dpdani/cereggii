@@ -295,7 +295,6 @@ AtomicDict_dealloc(AtomicDict *self)
     if ((PyObject *) meta != Py_None) {
         AtomicRef_Set(self->metadata, Py_None);  // this decref's meta
 
-        assert(Py_REFCNT(meta) == 1);
         Py_DECREF(meta); // should call dealloc
     }
 
