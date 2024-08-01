@@ -546,27 +546,34 @@ PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
     AtomicDict_Meta *meta = NULL;
+    PyObject *metadata = NULL;
+    PyObject *index_nodes = NULL;
+    PyObject *blocks = NULL;
+    PyObject *entries = NULL;
+    PyObject *entry_tuple = NULL;
+    PyObject *block_info = NULL;
+
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-    PyObject *metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsO}",
-                                       "log_size\0", Py_BuildValue("B", meta->log_size),
-                                       "generation\0", Py_BuildValue("O", meta->generation),
-                                       "node_size\0", Py_BuildValue("B", meta->node_size),
-                                       "distance_size\0", Py_BuildValue("B", meta->distance_size),
-                                       "tag_size\0", Py_BuildValue("B", meta->tag_size),
-                                       "node_mask\0", Py_BuildValue("k", meta->node_mask),
-                                       "index_mask\0", Py_BuildValue("k", meta->index_mask),
-                                       "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
-                                       "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
-                                       "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
-                                       "is_compact\0", Py_BuildValue("B", meta->is_compact),
-                                       "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
-                                       "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
-                                       "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
-                                       "greatest_refilled_block\0", Py_BuildValue("l", meta->greatest_refilled_block));
+    metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsOsOsO}",
+                             "log_size\0", Py_BuildValue("B", meta->log_size),
+                             "generation\0", Py_BuildValue("O", meta->generation),
+                             "node_size\0", Py_BuildValue("B", meta->node_size),
+                             "distance_size\0", Py_BuildValue("B", meta->distance_size),
+                             "tag_size\0", Py_BuildValue("B", meta->tag_size),
+                             "node_mask\0", Py_BuildValue("k", meta->node_mask),
+                             "index_mask\0", Py_BuildValue("k", meta->index_mask),
+                             "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
+                             "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
+                             "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
+                             "is_compact\0", Py_BuildValue("B", meta->is_compact),
+                             "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
+                             "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
+                             "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
+                             "greatest_refilled_block\0", Py_BuildValue("l", meta->greatest_refilled_block));
     if (metadata == NULL)
         goto fail;
 
-    PyObject *index_nodes = Py_BuildValue("[]");
+    index_nodes = Py_BuildValue("[]");
     if (index_nodes == NULL)
         goto fail;
 
@@ -580,14 +587,14 @@ AtomicDict_Debug(AtomicDict *self)
         Py_DECREF(n);
     }
 
-    PyObject *blocks = Py_BuildValue("[]");
+    blocks = Py_BuildValue("[]");
     if (blocks == NULL)
         goto fail;
 
     AtomicDict_Block *block;
-    PyObject *entries = NULL;
-    PyObject *entry_tuple = NULL;
-    PyObject *block_info = NULL;
+    entries = NULL;
+    entry_tuple = NULL;
+    block_info = NULL;
     for (uint64_t i = 0; i <= meta->greatest_allocated_block; i++) {
         block = meta->blocks[i];
         entries = Py_BuildValue("[]");

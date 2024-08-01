@@ -44,49 +44,49 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     Py_DECREF(result.entry.value);
     result.entry.value = NULL;
 
-    do {
-        if (CereggiiAtomic_CompareExchangeUInt8(
-            &result.entry_p->flags,
-            result.entry.flags,
-            result.entry.flags | ENTRY_FLAGS_TOMBSTONE
-        )) {
-            result.entry.flags |= ENTRY_FLAGS_TOMBSTONE;
-        } else {
-            // what if swapped?
-            AtomicDict_ReadEntry(result.entry_p, &result.entry);
-        }
-    } while (!(result.entry.flags & ENTRY_FLAGS_TOMBSTONE));
-
-    uint64_t entry_ix = result.node.index;
-    AtomicDict_BufferedNodeReader reader;
-    AtomicDict_Node temp[16];
-    int begin_write, end_write;
-
-    do {
-        AtomicDict_LookupEntry(meta, entry_ix, hash, &result);
-        assert(!result.error);
-        assert(result.found);
-        reader.zone = -1;
-        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, &reader, meta);
-        AtomicDict_CopyNodeBuffers(reader.buffer, temp);
-        AtomicDict_RobinHoodDelete(meta, temp, reader.idx_in_buffer);
-        AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write);
-    } while (!AtomicDict_AtomicWriteNodesAt(result.position - reader.idx_in_buffer + begin_write,
-                                            end_write - begin_write,
-                                            &reader.buffer[begin_write], &temp[begin_write], meta));
-
+//    do {
+//        if (CereggiiAtomic_CompareExchangeUInt8(
+//            &result.entry_p->flags,
+//            result.entry.flags,
+//            result.entry.flags | ENTRY_FLAGS_TOMBSTONE
+//        )) {
+//            result.entry.flags |= ENTRY_FLAGS_TOMBSTONE;
+//        } else {
+//            // what if swapped?
+//            AtomicDict_ReadEntry(result.entry_p, &result.entry);
+//        }
+//    } while (!(result.entry.flags & ENTRY_FLAGS_TOMBSTONE));
+//
+//    uint64_t entry_ix = result.node.index;
+//    AtomicDict_BufferedNodeReader reader;
+//    AtomicDict_Node temp[16];
+//    int begin_write, end_write;
+//
+//    do {
+//        AtomicDict_LookupEntry(meta, entry_ix, hash, &result);
+//        assert(!result.error);
+//        assert(result.found);
+//        reader.zone = -1;
+//        AtomicDict_ReadNodesFromZoneStartIntoBuffer(result.position, &reader, meta);
+//        AtomicDict_CopyNodeBuffers(reader.buffer, temp);
+//        AtomicDict_RobinHoodDelete(meta, temp, reader.idx_in_buffer);
+//        AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write);
+//    } while (!AtomicDict_AtomicWriteNodesAt(result.position - reader.idx_in_buffer + begin_write,
+//                                            end_write - begin_write,
+//                                            &reader.buffer[begin_write], &temp[begin_write], meta));
+//
     uint64_t block_num;
     int64_t gab, gdb;
     AtomicDict_EntryLoc swap_loc;
     AtomicDict_Entry swap;
-
-    recycle_entry:
-    block_num = AtomicDict_BlockOf(entry_ix);
+//
+//    recycle_entry:
+    block_num = AtomicDict_BlockOf(result.node.index);
     gab = meta->greatest_allocated_block;
     gdb = meta->greatest_deleted_block;
-
-    if (gdb > gab)
-        goto recycle_entry;
+//
+//    if (gdb > gab)
+//        goto recycle_entry;
 
     if (block_num == gdb + 1) {
         int all_deleted = 1;
@@ -111,49 +111,49 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
     }
 
     if (block_num > gdb + 1) {
-        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-            swap_loc.location = ((gdb + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
-                                ((i + hash) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
-            swap_loc.entry = AtomicDict_GetEntryAt(swap_loc.location, meta);
-            AtomicDict_ReadEntry(swap_loc.entry, &swap);
+//        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+//            swap_loc.location = ((gdb + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
+//                                ((i + hash) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
+//            swap_loc.entry = AtomicDict_GetEntryAt(swap_loc.location, meta);
+//            AtomicDict_ReadEntry(swap_loc.entry, &swap);
+//
+//            if (!(swap.value == NULL || swap.flags & ENTRY_FLAGS_TOMBSTONE || swap.flags & ENTRY_FLAGS_SWAPPED))
+//                goto swap_found;
+//        }
 
-            if (!(swap.value == NULL || swap.flags & ENTRY_FLAGS_TOMBSTONE || swap.flags & ENTRY_FLAGS_SWAPPED))
-                goto swap_found;
-        }
+//        should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
+//        goto recycle_entry; // don't handle failure
 
-        should_shrink = AtomicDict_IncrementGreatestDeletedBlock(meta, gab, gdb);
-        goto recycle_entry; // don't handle failure
-
-        swap_found:
-        result.entry_p->key = swap.key;
-        result.entry_p->value = swap.value; // todo: what if value was updated? => use AtomicRef
-        result.entry_p->hash = swap.hash;
-        if (!CereggiiAtomic_CompareExchangeUInt8(
-            &swap_loc.entry->flags,
-            swap.flags,
-            swap.flags | ENTRY_FLAGS_SWAPPED
-        )) {
-            AtomicDict_ReadEntry(swap_loc.entry, &swap);
-            if (swap.value == NULL || swap.flags & ENTRY_FLAGS_TOMBSTONE || swap.flags & ENTRY_FLAGS_SWAPPED)
-                goto recycle_entry;
-        }
-
-        CereggiiAtomic_StoreUInt8(&result.entry_p->flags, result.entry.flags & ~ENTRY_FLAGS_TOMBSTONE);
-
-        AtomicDict_SearchResult swap_search;
-        do_swap:
-        AtomicDict_LookupEntry(meta, swap_loc.location, swap.hash, &swap_search);
-        AtomicDict_Node swapped = {
-            .tag = swap_search.node.tag,
-            .distance = swap_search.node.distance,
-            .index = entry_ix,
-        };
-
-        if (!AtomicDict_AtomicWriteNodesAt(swap_search.position, 1, &swap_search.node, &swapped, meta)) {
-            goto do_swap;
-        }
-        swap_loc.entry->key = NULL;
-        swap_loc.entry->value = NULL;
+//        swap_found:
+//        result.entry_p->key = swap.key;
+//        result.entry_p->value = swap.value; // todo: what if value was updated? => use AtomicRef
+//        result.entry_p->hash = swap.hash;
+//        if (!CereggiiAtomic_CompareExchangeUInt8(
+//            &swap_loc.entry->flags,
+//            swap.flags,
+//            swap.flags | ENTRY_FLAGS_SWAPPED
+//        )) {
+//            AtomicDict_ReadEntry(swap_loc.entry, &swap);
+//            if (swap.value == NULL || swap.flags & ENTRY_FLAGS_TOMBSTONE || swap.flags & ENTRY_FLAGS_SWAPPED)
+//                goto recycle_entry;
+//        }
+//
+//        CereggiiAtomic_StoreUInt8(&result.entry_p->flags, result.entry.flags & ~ENTRY_FLAGS_TOMBSTONE);
+//
+//        AtomicDict_SearchResult swap_search;
+//        do_swap:
+//        AtomicDict_LookupEntry(meta, swap_loc.location, swap.hash, &swap_search);
+//        AtomicDict_Node swapped = {
+//            .tag = swap_search.node.tag,
+//            .distance = swap_search.node.distance,
+//            .index = entry_ix,
+//        };
+//
+//        if (!AtomicDict_AtomicWriteNodesAt(swap_search.position, 1, &swap_search.node, &swapped, meta)) {
+//            goto do_swap;
+//        }
+//        swap_loc.entry->key = NULL;
+//        swap_loc.entry->value = NULL;
     }
 
     if (should_shrink)

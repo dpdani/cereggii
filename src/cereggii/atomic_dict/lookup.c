@@ -157,12 +157,12 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 PyObject *
 AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)
 {
+    AtomicDict_Meta *meta = NULL;
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
 
     AtomicDict_SearchResult result;
-    AtomicDict_Meta *meta = NULL;
     retry:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
