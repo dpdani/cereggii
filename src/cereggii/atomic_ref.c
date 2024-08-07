@@ -6,6 +6,47 @@
 #include "atomic_ops.h"
 
 
+static inline int
+_Py_TryIncRefShared(PyObject *op)
+{
+    // I know, I know
+
+    // https://github.com/python/cpython/blob/9e551f9b351440ebae79e07a02d0e4a1b61d139e/Include/internal/pycore_object.h#L499
+    Py_ssize_t shared = op->ob_ref_shared;
+    for (;;) {
+        // If the shared refcount is zero and the object is either merged
+        // or may not have weak references, then we cannot incref it.
+        if (shared == 0 || shared == 0x3) {
+            return 0;
+        }
+
+        if (CereggiiAtomic_CompareExchangeSsize(
+            (Py_ssize_t *) &op->ob_ref_shared,
+                shared,
+                shared + (1 << _Py_REF_SHARED_SHIFT))) {
+            return 1;
+        }
+    }
+}
+
+static inline void
+_PyObject_SetMaybeWeakref(PyObject *op)
+{
+    // https://github.com/python/cpython/blob/9e551f9b351440ebae79e07a02d0e4a1b61d139e/Include/internal/pycore_object.h#L608
+    for (;;) {
+        Py_ssize_t shared = op->ob_ref_shared;
+        if ((shared & 0x3) != 0) {
+            // Nothing to do if it's in WEAKREFS, QUEUED, or MERGED states.
+            return;
+        }
+        if (CereggiiAtomic_CompareExchangeSsize(
+            (Py_ssize_t *) &op->ob_ref_shared, shared, shared | 0x1)) {
+            return;
+        }
+    }
+}
+
+
 PyObject *
 AtomicRef_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
@@ -13,6 +54,7 @@ AtomicRef_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED
     self = (AtomicRef *) type->tp_alloc(type, 0);
     if (self != NULL) {
         self->reference = Py_None;
+        _PyObject_SetMaybeWeakref(self->reference);
     }
     if (!PyObject_GC_IsTracked((PyObject *) self)) {
         PyObject_GC_Track(self);
@@ -31,6 +73,7 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 
     if (reference != NULL) {
         Py_INCREF(reference);
+        _PyObject_SetMaybeWeakref(reference);
         // decref'ed in destructor
         self->reference = reference;
     }
@@ -60,7 +103,7 @@ PyObject *AtomicRef_Get(AtomicRef *self)
 {
     PyObject *reference;
     reference = self->reference;
-    while (!_Py_TRY_INCREF(reference)) {
+    while (!_Py_TryIncRefShared(reference)) {
         reference = self->reference;
     }
     return reference;
@@ -71,9 +114,10 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
 {
     assert(reference != NULL);
 
+    Py_INCREF(reference);
+    _PyObject_SetMaybeWeakref(reference);
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    Py_INCREF(reference);
     while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, reference)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
@@ -90,6 +134,7 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
     assert(new != NULL);
 
     Py_INCREF(new);
+    _PyObject_SetMaybeWeakref(new);
     int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, new);
     if (retval) {
         Py_DECREF(expected);
@@ -122,6 +167,7 @@ PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new)
     assert(new != NULL);
 
     Py_INCREF(new);
+    _PyObject_SetMaybeWeakref(new);
     PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, new);
     // don't decref current_reference: passing it to python
     return current_reference;

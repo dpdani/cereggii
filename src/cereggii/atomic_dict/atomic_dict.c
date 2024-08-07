@@ -184,7 +184,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     meta->inserting_block = 0;
     AtomicDict_AccessorStorage *storage;
     AtomicDict_EntryLoc entry_loc;
-    self->sync_op.v = 0;
+    self->sync_op = (PyMutex) {0};
     self->len = 0;
     self->len_dirty = 0;
 
@@ -243,7 +243,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
     }
 
-    self->accessors_lock.v = 0;  // https://github.com/colesbury/nogil/blob/043f29ab2afab9cef5edd07875816d3354cb9d2c/Objects/dictobject.c#L334
+    self->accessors_lock = (PyMutex) {0};
 
     if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
         storage = AtomicDict_GetOrCreateAccessorStorage(self);

@@ -348,7 +348,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (meta == NULL)
         goto fail;
 
-    _PyMutex_lock(&storage->self_mutex);
+    PyMutex_Lock(&storage->self_mutex);
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
@@ -364,12 +364,12 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (expected == NOT_FOUND || expected == ANY) {
         int got_entry = AtomicDict_GetEmptyEntry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
         if (entry_loc.entry == NULL || got_entry == -1) {
-            _PyMutex_unlock(&storage->self_mutex);
+            PyMutex_Unlock(&storage->self_mutex);
             goto fail;
         }
 
         if (got_entry == 0) {  // => must grow
-            _PyMutex_unlock(&storage->self_mutex);
+            PyMutex_Unlock(&storage->self_mutex);
             migrated = AtomicDict_Grow(self);
 
             if (migrated < 0)
@@ -400,7 +400,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         storage->local_len++; // TODO: overflow
         self->len_dirty = 1;
     }
-    _PyMutex_unlock(&storage->self_mutex);
+    PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;

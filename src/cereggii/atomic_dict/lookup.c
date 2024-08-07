@@ -7,6 +7,9 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "constants.h"
+#define Py_BUILD_CORE
+#include "internal/pycore_dict.h"
+#undef Py_BUILD_CORE
 
 
 void

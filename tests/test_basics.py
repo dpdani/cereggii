@@ -6,7 +6,7 @@
 def test_nogil():
     import sys
 
-    assert getattr(sys.flags, "nogil", False)
+    assert not sys._is_gil_enabled()
 
 
 def test_import():

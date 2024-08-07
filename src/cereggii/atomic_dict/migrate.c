@@ -113,7 +113,7 @@ AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
         return 0;
     }
 
-    _PyMutex_unlock(self_mutex);
+    PyMutex_Unlock(self_mutex);
     AtomicDict_FollowerMigrate(current_meta);
     return 1;
 }
