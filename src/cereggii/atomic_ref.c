@@ -26,6 +26,7 @@ _Py_TryIncRefShared(PyObject *op)
                 shared + (1 << _Py_REF_SHARED_SHIFT))) {
             return 1;
         }
+        return 0;  // are they actually using some other function?
     }
 }
 
@@ -34,7 +35,7 @@ _PyObject_SetMaybeWeakref(PyObject *op)
 {
     // https://github.com/python/cpython/blob/9e551f9b351440ebae79e07a02d0e4a1b61d139e/Include/internal/pycore_object.h#L608
     for (;;) {
-        Py_ssize_t shared = op->ob_ref_shared;
+        Py_ssize_t shared = CereggiiAtomic_LoadSsize((const Py_ssize_t *) &op->ob_ref_shared);
         if ((shared & 0x3) != 0) {
             // Nothing to do if it's in WEAKREFS, QUEUED, or MERGED states.
             return;

@@ -30,6 +30,7 @@ AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(
         goto fail;
 
     self->integer = (AtomicInt *) integer;
+//    CereggiiAtomic_StorePtr((void **) &self->integer, integer);
 
     return 0;
 
@@ -43,6 +44,17 @@ AtomicIntHandle_dealloc(AtomicIntHandle *self)
 {
     Py_XDECREF(self->integer);
     Py_TYPE(self)->tp_free((PyObject *) self);
+
+//    CereggiiAtomic_FenceRelease();
+//    PyObject *integer = NULL;
+//    integer = CereggiiAtomic_LoadPtr((const void **) &self->integer);
+//    if (integer != NULL) {
+//        CereggiiAtomic_StorePtr((void **) &self->integer, NULL);
+//        Py_DECREF(integer);
+//    }
+//    CereggiiAtomic_FenceRelease();
+//    Py_TYPE(self)->tp_free((PyObject *) self);
+//    CereggiiAtomic_FenceRelease();
 }
 
 __attribute__((unused)) inline int64_t
