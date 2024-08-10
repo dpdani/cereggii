@@ -268,7 +268,7 @@ def test_delete():
     with raises(KeyError):
         del d["flower"]
 
-    keys = keys_for_hash_for_log_size[6]
+    keys = keys_for_hash_for_log_size[6]  # noqa: F841
 
     # d = AtomicDict({keys[_][0]: None for _ in range(15)})
     # assert d.debug()["blocks"][0]["entries"][14]  # exists
