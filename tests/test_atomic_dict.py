@@ -731,7 +731,7 @@ def test_reduce():
         ("red", 5),
     ]
 
-    def count(key, current, new):
+    def count(key, current, new):  # noqa: ARG001
         if current is cereggii.NOT_FOUND:
             return new
         return current + new
