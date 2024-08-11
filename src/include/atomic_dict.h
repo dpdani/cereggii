@@ -48,6 +48,10 @@ PyObject *AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *ex
 
 PyObject *AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
+int AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int chunk_size);
+
+PyObject *AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 int AtomicDict_Compact(AtomicDict *self);
 
 PyObject *AtomicDict_Compact_callable(AtomicDict *self);

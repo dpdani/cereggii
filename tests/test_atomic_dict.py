@@ -719,3 +719,25 @@ def test_len():
 
     assert len(d) == 10
     assert len(d) == 10  # test twice for len_dirty
+
+
+def test_reduce():
+    d = AtomicDict()
+
+    data = [
+        ("red", 1),
+        ("green", 42),
+        ("blue", 3),
+        ("red", 5),
+    ]
+
+    def count(key, current, new):  # noqa: ARG001
+        if current is cereggii.NOT_FOUND:
+            return new
+        return current + new
+
+    d.reduce(data, count)
+
+    assert d["red"] == 6
+    assert d["green"] == 42
+    assert d["blue"] == 3
