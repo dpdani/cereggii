@@ -513,12 +513,12 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     if (desired == NULL)
         goto fail;
 
+    Py_ssize_t pos = 0;
+
     get_meta:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     if (meta == NULL)
         goto fail;
-
-    Py_ssize_t pos = 0;
 
     for (;;) {
         int num_items = 0;
@@ -553,29 +553,32 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
         }
 
         for (int i = 0; i < num_items; ++i) {
-            PyObject *success = AtomicDict_CompareAndSet(self, keys[i], expected[i], desired[i]);
+            PyObject *result = NULL;
+            PyObject *new = desired[i];
 
-            if (success == NULL)
+            retry:
+            result = AtomicDict_CompareAndSet(self, keys[i], expected[i], new);
+
+            if (result == NULL)
                 goto fail;
 
-            if (success == EXPECTATION_FAILED) {
-                AtomicDict_SearchResult result;
-                AtomicDict_Lookup(meta, keys[i], PyObject_Hash(keys[i]), &result);
-                if (result.error)
+            if (result == EXPECTATION_FAILED) {
+                PyObject *current = AtomicDict_GetItemOrDefault(self, keys[i], NOT_FOUND);
+                if (current == NULL)
                     goto fail;
 
-                expected[i] = result.entry.value;
-                desired[i] = PyObject_CallFunctionObjArgs(aggregate, keys[i], expected[i], desired[i], NULL);
-                if (desired[i] == NULL)
+                expected[i] = current;
+                new = PyObject_CallFunctionObjArgs(aggregate, keys[i], expected[i], desired[i], NULL);
+                if (new == NULL)
                     goto fail;
 
-                i--;  // retry
+                goto retry;
             }
         }
 
-        if (done) {
+        if (done)
             break;
-        }
+
 
         if (meta->new_gen_metadata != NULL)
             goto get_meta;
@@ -584,6 +587,7 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     PyMem_RawFree(keys);
     PyMem_RawFree(expected);
     PyMem_RawFree(desired);
+    Py_DECREF(meta);
     return 0;
 
     fail:
@@ -596,6 +600,7 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     if (desired != NULL) {
         PyMem_RawFree(desired);
     }
+    Py_XDECREF(meta);
     return -1;
 }
 
@@ -651,7 +656,7 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int
             expected = PyTuple_GetItem(current, 0);
             current = PyTuple_GetItem(current, 1);
         } else {
-            expected = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
+            expected = NOT_FOUND;
             current = expected;
         }
 

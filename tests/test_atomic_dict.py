@@ -736,7 +736,6 @@ def test_reduce():
             return new
         return current + new
 
-    breakpoint()
     d.reduce(data, count)
 
     assert d["red"] == 6
