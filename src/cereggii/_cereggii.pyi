@@ -1,8 +1,8 @@
 from collections.abc import Iterator
-from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
+from typing import Callable, Iterable, NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
-Value = NewType("Value", object | None)
+Value = NewType("Value", object)
 Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
@@ -137,29 +137,36 @@ class AtomicDict:
 
         :returns: the input :param:`batch` dictionary, with substituted values.
         """
-    # def aggregate(self, iterator: Iterator[tuple[Key, Value]], aggregation: Callable[[Key, Value, Value], Value])
-    # -> None:
-    #     """
-    #     Aggregate the values in this dictionary with those found in ``iterator``, as computed by ``aggregation``.
-    #
-    #     The ``aggregation`` parameter expects a function that takes as input a key, the value currently stored
-    #     in the dictionary, and the new value from ``iterator``, and then returns the aggregated value.
-    #
-    #     For instance, to aggregate counts::
-    #
-    #         d = AtomicDict()
-    #
-    #         it = [
-    #             ("red", 1),
-    #             ("green", 3),
-    #             ("blue", 40),
-    #             ("red", 1),
-    #         ]
-    #
-    #         d.aggregate(it, lambda key, current, new:
-    #             new if current is cereggii.NOT_FOUND else current + new
-    #         )
-    #     """
+    def reduce(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+        aggregate: Callable[[Key, Value, Value], Value],
+        chunk_size: int = 0,
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in ``iterable``, as computed by ``aggregate``.
+
+        The ``aggregate`` function takes as input a key, the value currently stored in the dictionary,
+        and the new value from ``iterator``. It returns the aggregated value.
+
+        For instance, to aggregate some simple counts::
+
+            d = AtomicDict()
+
+            data = [
+                ("red", 1),
+                ("green", 42),
+                ("blue", 3),
+                ("red", 5),
+            ]
+
+            def count(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return new
+                return current + new
+
+            d.reduce(data, count)
+        """
     def compact(self) -> None: ...
     def debug(self) -> dict: ...
     def rehash(self, o: object) -> int: ...
