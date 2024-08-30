@@ -3,12 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-def test_nogil():
-    import sys
-
-    assert not sys._is_gil_enabled()
-
-
 def test_import():
     import cereggii
 

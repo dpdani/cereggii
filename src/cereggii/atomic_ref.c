@@ -30,6 +30,7 @@ _Py_TryIncRefShared(PyObject *op)
     }
 #else
     Py_INCREF(op);
+    return 1;
 #endif
 }
 
