@@ -7,7 +7,7 @@ build-backend = "py_build_cmake.build"
 name = "cereggii"
 dynamic = ["version", "description"]
 readme = "README.md"
-requires-python = "~=3.9"
+requires-python = ">=3.13"
 license = { file = "LICENSE" }
 authors = [
   { name = "dpdani", email = "git@danieleparmeggiani.me" },
@@ -16,11 +16,11 @@ keywords = [
   "multithreading",
 ]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Operating System :: OS Independent",
   "Natural Language :: English",
@@ -63,7 +63,7 @@ line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py313"
 line-length = 120
 select = [
   "A",
