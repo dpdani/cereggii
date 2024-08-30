@@ -10,7 +10,7 @@ static inline int
 _Py_TryIncRefShared(PyObject *op)
 {
     // I know, I know
-
+#ifdef Py_GIL_DISABLED
     // https://github.com/python/cpython/blob/9e551f9b351440ebae79e07a02d0e4a1b61d139e/Include/internal/pycore_object.h#L499
     Py_ssize_t shared = op->ob_ref_shared;
     for (;;) {
@@ -28,11 +28,15 @@ _Py_TryIncRefShared(PyObject *op)
         }
         return 0;  // are they actually using some other function?
     }
+#else
+    Py_INCREF(op);
+#endif
 }
 
 static inline void
 _PyObject_SetMaybeWeakref(PyObject *op)
 {
+#ifdef Py_GIL_DISABLED
     // https://github.com/python/cpython/blob/9e551f9b351440ebae79e07a02d0e4a1b61d139e/Include/internal/pycore_object.h#L608
     for (;;) {
         Py_ssize_t shared = CereggiiAtomic_LoadSsize((const Py_ssize_t *) &op->ob_ref_shared);
@@ -45,6 +49,7 @@ _PyObject_SetMaybeWeakref(PyObject *op)
             return;
         }
     }
+#endif
 }
 
 

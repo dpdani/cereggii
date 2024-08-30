@@ -9,6 +9,7 @@
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "constants.h"
+#include "thread_id.h"
 
 
 int
@@ -129,7 +130,7 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
     if (current_meta->migration_leader == 0) {
         int i_am_leader = CereggiiAtomic_CompareExchangeUIntPtr(
             &current_meta->migration_leader,
-            0, _Py_GetThreadLocal_Addr());
+            0, _Py_ThreadId());
         if (i_am_leader) {
             return AtomicDict_LeaderMigrate(self, current_meta, from_log_size, to_log_size);
         }
@@ -296,7 +297,7 @@ AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
 int
 AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
-    uint64_t thread_id = _Py_GetThreadLocal_Addr();
+    uint64_t thread_id = _Py_ThreadId();
 
     int64_t copy_lock;
 
