@@ -488,3 +488,227 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     fail:
     return -1;
 }
+
+
+#define REDUCE_FLUSH_CHUNK_SIZE 64
+
+
+static inline int
+reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
+{
+    AtomicDict_Meta *meta = NULL;
+    PyObject **keys = NULL;
+    PyObject **expected = NULL;
+    PyObject **desired = NULL;
+
+    keys = PyMem_RawMalloc(REDUCE_FLUSH_CHUNK_SIZE * sizeof(PyObject *));
+    if (keys == NULL)
+        goto fail;
+
+    expected = PyMem_RawMalloc(REDUCE_FLUSH_CHUNK_SIZE * sizeof(PyObject *));
+    if (expected == NULL)
+        goto fail;
+
+    desired = PyMem_RawMalloc(REDUCE_FLUSH_CHUNK_SIZE * sizeof(PyObject *));
+    if (desired == NULL)
+        goto fail;
+
+    Py_ssize_t pos = 0;
+
+    get_meta:
+    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    if (meta == NULL)
+        goto fail;
+
+    for (;;) {
+        int num_items = 0;
+        int done = 0;
+
+        for (int i = 0; i < REDUCE_FLUSH_CHUNK_SIZE; ++i) {
+            PyObject *values;
+            if (PyDict_Next(local_buffer, &pos, &keys[num_items], &values)) {
+                expected[num_items] = PyTuple_GetItem(values, 0);
+                desired[num_items] = PyTuple_GetItem(values, 1);
+
+                if (expected[num_items] == NULL || desired[num_items] == NULL)
+                    goto fail;
+
+                num_items++;
+            } else {
+                done = 1;
+                break;
+            }
+        }
+
+        for (int i = 0; i < num_items; ++i) {
+            // prefetch index
+            Py_hash_t hash = PyObject_Hash(keys[i]);
+            if (hash == -1)
+                goto fail;
+
+            __builtin_prefetch(AtomicDict_IndexAddressOf(
+                AtomicDict_Distance0Of(hash, meta),
+                meta
+            ));
+        }
+
+        for (int i = 0; i < num_items; ++i) {
+            PyObject *result = NULL;
+            PyObject *new = desired[i];
+
+            retry:
+            result = AtomicDict_CompareAndSet(self, keys[i], expected[i], new);
+
+            if (result == NULL)
+                goto fail;
+
+            if (result == EXPECTATION_FAILED) {
+                PyObject *current = AtomicDict_GetItemOrDefault(self, keys[i], NOT_FOUND);
+                if (current == NULL)
+                    goto fail;
+
+                expected[i] = current;
+                new = PyObject_CallFunctionObjArgs(aggregate, keys[i], expected[i], desired[i], NULL);
+                if (new == NULL)
+                    goto fail;
+
+                goto retry;
+            }
+        }
+
+        if (done)
+            break;
+
+
+        if (meta->new_gen_metadata != NULL)
+            goto get_meta;
+    }
+
+    PyMem_RawFree(keys);
+    PyMem_RawFree(expected);
+    PyMem_RawFree(desired);
+    Py_DECREF(meta);
+    return 0;
+
+    fail:
+    if (keys != NULL) {
+        PyMem_RawFree(keys);
+    }
+    if (expected != NULL) {
+        PyMem_RawFree(expected);
+    }
+    if (desired != NULL) {
+        PyMem_RawFree(desired);
+    }
+    Py_XDECREF(meta);
+    return -1;
+}
+
+
+int
+AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int chunk_size)
+{
+    PyObject *local_buffer = NULL;
+    PyObject *item = NULL;
+
+    if (!PyCallable_Check(aggregate)) {
+        PyErr_Format(PyExc_TypeError, "%R is not callable.", aggregate);
+        goto fail;
+    }
+
+    if (chunk_size != 0) {
+        PyErr_SetString(PyExc_ValueError, "only supporting chunk_size=0 at the moment.");
+        goto fail;
+    }
+
+    local_buffer = PyDict_New();
+    if (local_buffer == NULL)
+        goto fail;
+
+    PyObject *iterator = PyObject_GetIter(iterable);
+
+    if (iterator == NULL) {
+        PyErr_Format(PyExc_TypeError, "%R is not iterable.", iterable);
+        goto fail;
+    }
+
+    while ((item = PyIter_Next(iterator))) {
+        PyObject *key = NULL;
+        PyObject *value = NULL;
+        PyObject *current = NULL;
+        PyObject *expected = NULL;
+        PyObject *desired = NULL;
+
+        if (!PyTuple_CheckExact(item)) {
+            PyErr_Format(PyExc_TypeError, "type(%R) != tuple", item);
+            goto fail;
+        }
+
+        if (PyTuple_Size(item) != 2) {
+            PyErr_Format(PyExc_TypeError, "len(%R) != 2", item);
+            goto fail;
+        }
+
+        key = PyTuple_GetItem(item, 0);
+        value = PyTuple_GetItem(item, 1);
+        if (PyDict_Contains(local_buffer, key)) {
+            current = PyDict_GetItem(local_buffer, key);
+            expected = PyTuple_GetItem(current, 0);
+            current = PyTuple_GetItem(current, 1);
+        } else {
+            expected = NOT_FOUND;
+            current = expected;
+        }
+
+        desired = PyObject_CallFunctionObjArgs(aggregate, key, current, value, NULL);
+        if (desired == NULL)
+            goto fail;
+
+        PyObject *tuple = PyTuple_Pack(2, expected, desired);
+        if (tuple == NULL)
+            goto fail;
+
+        if (PyDict_SetItem(local_buffer, key, tuple) < 0)
+            goto fail;
+
+        Py_DECREF(item);
+    }
+
+    Py_DECREF(iterator);
+
+    if (PyErr_Occurred()) {
+        goto fail;
+    }
+
+    reduce_flush(self, local_buffer, aggregate);
+
+    Py_DECREF(local_buffer);
+    return 0;
+
+    fail:
+    Py_XDECREF(local_buffer);
+    Py_XDECREF(item);
+    return -1;
+}
+
+PyObject *
+AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+    PyObject *aggregate = NULL;
+    int chunk_size = 0;
+
+    char *kw_list[] = {"iterable", "aggregate", "chunk_size", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|i", kw_list, &iterable, &aggregate, &chunk_size))
+        goto fail;
+
+    int res = AtomicDict_Reduce(self, iterable, aggregate, chunk_size);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}

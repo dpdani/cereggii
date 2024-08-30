@@ -222,6 +222,7 @@ static PyMethodDef AtomicDict_methods[] = {
     {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
     {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
     {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
     {NULL}
 };
 
