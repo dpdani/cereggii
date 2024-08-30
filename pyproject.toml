@@ -58,12 +58,12 @@ install_components = ["python_modules"]
 
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py312"]  # no support for 3.13 yet
 line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py312"  # no support for 3.13 yet
 line-length = 120
 select = [
   "A",

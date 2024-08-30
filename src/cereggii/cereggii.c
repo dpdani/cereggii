@@ -84,7 +84,7 @@ static PyNumberMethods AtomicInt_as_number = {
 };
 
 PyTypeObject AtomicInt_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicInt",
     .tp_doc = PyDoc_STR("An int that may be updated atomically."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -172,7 +172,7 @@ static PyNumberMethods AtomicIntHandle_as_number = {
 };
 
 PyTypeObject AtomicIntHandle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicIntHandle",
     .tp_doc = PyDoc_STR("An immutable handle for referencing an AtomicInt."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -198,7 +198,7 @@ static PyMethodDef AtomicRef_methods[] = {
 };
 
 PyTypeObject AtomicRef_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicRef",
     .tp_doc = PyDoc_STR("An object reference that may be updated atomically."),
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
@@ -233,7 +233,7 @@ static PyMappingMethods AtomicDict_mapping_methods = {
 };
 
 static PyTypeObject AtomicDict_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicDict",
     .tp_doc = PyDoc_STR("A thread-safe dictionary (hashmap), that's almost-lock-free™."),
     .tp_basicsize = sizeof(AtomicDict),
@@ -248,7 +248,7 @@ static PyTypeObject AtomicDict_Type = {
 };
 
 PyTypeObject AtomicDictMeta_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictMeta",
     .tp_basicsize = sizeof(AtomicDict_Meta),
     .tp_itemsize = 0,
@@ -258,7 +258,7 @@ PyTypeObject AtomicDictMeta_Type = {
 };
 
 PyTypeObject AtomicDictBlock_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictBlock",
     .tp_basicsize = sizeof(AtomicDict_Block),
     .tp_itemsize = 0,
@@ -268,7 +268,7 @@ PyTypeObject AtomicDictBlock_Type = {
 };
 
 PyTypeObject AtomicDictAccessorStorage_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictAccessorStorage",
     .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
     .tp_itemsize = 0,
@@ -278,7 +278,7 @@ PyTypeObject AtomicDictAccessorStorage_Type = {
 };
 
 PyTypeObject AtomicDictFastIterator_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictFastIterator",
     .tp_basicsize = sizeof(AtomicDict_FastIterator),
     .tp_itemsize = 0,
@@ -298,7 +298,7 @@ static PyMethodDef AtomicEvent_methods[] = {
 };
 
 PyTypeObject AtomicEvent_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicEvent",
     .tp_doc = PyDoc_STR("An atomic event based on pthread's condition locks."),
     .tp_basicsize = sizeof(AtomicEvent),
@@ -318,7 +318,7 @@ PyObject *EXPECTATION_FAILED = NULL;
 PyObject *Cereggii_ExpectationFailed = NULL;
 
 PyTypeObject CereggiiConstant_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.Constant",
     .tp_doc = PyDoc_STR("A constant value."),
     .tp_basicsize = sizeof(CereggiiConstant),
@@ -330,7 +330,7 @@ PyTypeObject CereggiiConstant_Type = {
 
 
 static PyModuleDef cereggii_module = {
-    PyModuleDef_HEAD_INIT,
+    .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
     .m_doc = NULL,
     .m_size = -1,

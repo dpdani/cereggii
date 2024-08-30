@@ -8,7 +8,7 @@
 #include "Python.h"
 
 #ifndef Py_GIL_DISABLED
-#define _Py_ThreadId PyThreadState_GET
+#define _Py_ThreadId (uintptr_t) PyThreadState_GET
 #endif
 
 #endif //CEREGGII_THREAD_ID_H
