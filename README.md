@@ -1,6 +1,6 @@
 # cereggii
 
-![supports free-threading](https://github.com/dpdani/free-threading-badges/raw/main/supported.svg)
+[![supports free-threading](https://github.com/dpdani/free-threading-badges/raw/main/supported.svg)](https://py-free-threading.github.io/)
 
 Thread synchronization utilities for free-threaded Python.
 
