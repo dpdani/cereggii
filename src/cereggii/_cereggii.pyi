@@ -28,16 +28,16 @@ class AtomicDict:
     1. you don't need an external lock to synchronize changes (mutations) to the dictionary:
 
         1. you don't have to manually guard your code against deadlocks (reentrancy-caused deadlocks can still be an
-        issue: the `self_mutex` is not reentrant)
-        2. if the OS decides to interrupt or terminate a thread which was accessing an AtomicDict, all remaining threads
-        will continue to make progress (unless there's an undergoing migration and the interrupted/terminated thread was
-        participating in the migration; if you correctly configure `min_size`, migrations just don't happen)
+        issue)
+        2. when `AtomicDict` is correctly configured (setting `min_size` so that no resizing occurs), even if the OS
+        decides to interrupt or terminate a thread which was accessing an `AtomicDict`, all remaining threads will
+        continue to make progress
 
     2. mutations are atomic and can be aborted or retried under contention
     3. scalability:
 
         1. TODO
-        2. for some workloads, scalability is already quite good: see
+        2. for some workloads scalability is already quite good: see
         [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
 
 
@@ -76,16 +76,16 @@ class AtomicDict:
             mapping ``initial_size`` to 123, but an empty one.
         """
     # def __contains__(self, item: Key) -> bool: ...
-    def __delitem__(self, item: Key) -> None:
+    def __delitem__(self, key: Key) -> None:
         """
         Atomically delete an item:
         ```python
         del my_atomic_dict[key]
         ```
         """
-    def __getitem__(self, item: Key) -> object:
+    def __getitem__(self, key: Key) -> object:
         """
-        Atomically retrieve the value associated with key `item`:
+        Atomically retrieve the value associated with `key`:
         ```python
         my_atomic_dict[key]
         ```
@@ -126,7 +126,7 @@ class AtomicDict:
             instead.
 
             When an item is inserted or updated with this usual Python idiom, it is
-            not possible to know the value currently associated with `key` is the
+            not possible to know that the value currently associated with `key` is the
             one being expected -- it may be mutated by another thread before this
             mutation is applied.
             Use this method only when no other thread may be writing to `key`.
@@ -209,6 +209,15 @@ class AtomicDict:
         then replace it with `desired`.
         Else, raise an exception.
 
+        ```python
+        expected = my_atomic_dict.get(key, default=0)
+        try:
+            my_atomic_dict.compare_and_set(key, expected, desired=expected + 1)
+        except cereggii.ExpectationFailed:
+            # d[key] was concurrently mutated
+            pass
+        ```
+
         The expected value can be [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND], in
         which case the call will succeed only when the item is inserted, and
         not updated:
@@ -217,11 +226,11 @@ class AtomicDict:
         my_atomic_dict.compare_and_set(key="spam", expected=cereggii.NOT_FOUND, desired=42)
         ```
 
-        Also see [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
-
         !!! tip
 
             This family of methods is the recommended way to mutate an `AtomicDict`.
+            Though, you should probably want to use a higher-level method than `compare_and_set`, like
+            [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
 
 
         :raises ExpectationFailed: If the found value was not `expected`.
