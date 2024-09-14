@@ -8,28 +8,67 @@ Cancel = NewType("Cancel", object)
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
 NOT_FOUND: object
+""" A singleton object.
+ Used in `AtomicDict` to return that a key was not found. """
 ANY: object
+""" A singleton object.
+ Used in `AtomicDict` as input for an unconditional update (upsert). """
 EXPECTATION_FAILED: object
+""" A singleton object.
+ Used in `AtomicDict` to return that an operation was aborted due to a 
+ failed expectation. """
 ExpectationFailed: Exception
 
 class AtomicDict:
-    """A thread-safe dictionary (hashmap), that's almost-lock-free™."""
+    """
+    A concurrent dictionary (hash table).
+
+    Features of AtomicDict:
+
+    1. you don't need an external lock to synchronize changes (mutations) to the dictionary:
+
+        1. you don't have to manually guard your code against deadlocks (reentrancy-caused deadlocks can still be an
+        issue: the `self_mutex` is not reentrant)
+        2. if the OS decides to interrupt or terminate a thread which was accessing an AtomicDict, all remaining threads
+        will continue to make progress (unless there's an undergoing migration and the interrupted/terminated thread was
+        participating in the migration; if you correctly configure `min_size`, migrations just don't happen)
+
+    2. mutations are atomic and can be aborted or retried under contention
+    3. scalability:
+
+        1. TODO
+        2. for some workloads, scalability is already quite good: see
+        [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
+
+
+    !!! note
+
+        The special
+        [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND],
+        [`cereggii.ANY`][cereggii.ANY], and
+        [`cereggii.EXPECTATION_FAILED`][cereggii.EXPECTATION_FAILED]
+        objects cannot be used as keys nor values.
+    """
 
     def __init__(
-        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int | None = None, **kwargs
+        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int = 4, **kwargs
     ):
-        """Constructor method
-
-        :param iterable: an iterable to initialize this dictionary with. For now,
+        """
+        :param iterable: An iterable to initialize this dictionary with. For now,
             only `dict` can be supplied to this parameter.
 
-        :param min_size: the size initially allocated. Using this
-            parameter possibly avoids re-allocations and migrations during inserts.
-            Inserts that spill over this size, will not fail, but may require
-            re-allocations. Usage of this parameter is especially useful when the
-            maximal required size is known.
+        :param min_size: The size initially allocated. Configuring this
+            parameter correctly avoids resizing.
+            Inserts that spill over this size will not fail, but may require
+            resizing, which prevents concurrent mutations during its process.
 
-        :param kwargs: key-value pairs with which to initialize the dictionary.
+        :param buffer_size: The amount of entries that a thread reserves for future
+            insertions. A larger value can help reducing contention, but may lead to
+            increased fragmentation. Min: 1, max: 64.
+
+        :param kwargs: **Deprecated:** use `iterable` instead.
+            <br/>
+            Key-value pairs with which to initialize the dictionary.
             This follows the behavior of built-in dictionary, but slightly differs:
             keys that are already parameters to this ``__init__`` method will not be
             considered, because of Python's ``**kwargs`` behavior.
@@ -37,17 +76,61 @@ class AtomicDict:
             mapping ``initial_size`` to 123, but an empty one.
         """
     # def __contains__(self, item: Key) -> bool: ...
-    def __delitem__(self, item: Key) -> None: ...
-    def __getitem__(self, item: Key) -> object: ...
+    def __delitem__(self, item: Key) -> None:
+        """
+        Atomically delete an item:
+        ```python
+        del my_atomic_dict[key]
+        ```
+        """
+    def __getitem__(self, item: Key) -> object:
+        """
+        Atomically retrieve the value associated with key `item`:
+        ```python
+        my_atomic_dict[key]
+        ```
+
+        Also see [`get`][cereggii._cereggii.AtomicDict.get].
+        """
     # def __ior__(self, other) -> None: ...
     # def __iter__(self) -> Iterable[Key, Value]: ...
-    def __len__(self) -> int: ...
+    def __len__(self) -> int:
+        """
+        Get the number of items in this `AtomicDict`:
+        ```python
+        len(my_atomic_dict)
+        ```
+
+        This method is sequentially consistent.
+        When invoked, it temporarily locks the `AtomicDict` instance to compute
+        the result.
+        If you need to invoke this method frequently while the dictionary is
+        being mutated, consider using
+        [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len] instead.
+        """
     # def __eq__(self, other) -> bool: ...
     # def __or__(self, other) -> AtomicDict: ...
     # def __ror__(self, other) -> AtomicDict: ...
     def __repr__(self) -> str: ...
     # def __reversed__(self) -> AtomicDict: ...
-    def __setitem__(self, key: Key, value: Value) -> None: ...
+    def __setitem__(self, key: Key, value: Value) -> None:
+        """
+        Unconditionally set the value associated with `key` to `value`:
+        ```python
+        my_atomic_dict[key] = value
+        ```
+
+        !!! warning
+
+            Use [`compare_and_set`][cereggii._cereggii.AtomicDict.compare_and_set]
+            instead.
+
+            When an item is inserted or updated with this usual Python idiom, it is
+            not possible to know the value currently associated with `key` is the
+            one being expected -- it may be mutated by another thread before this
+            mutation is applied.
+            Use this method only when no other thread may be writing to `key`.
+        """
     # def __sizeof__(self) -> int: ...
     # def __str__(self) -> str: ...
     # def __subclasshook__(self): ...
@@ -55,7 +138,25 @@ class AtomicDict:
     # def copy(self) -> AtomicDict: ...
     # @classmethod
     # def fromkeys(cls, iterable: Iterable[Key], value=None) -> AtomicDict: ...
-    def get(self, key: Key, default: Value | None = None): ...
+    def get(self, key: Key, default: Value | None = None):
+        """
+        Just like Python's `dict.get`:
+        ```python
+        my_atomic_dict.get(key, default=cereggii.NOT_FOUND)
+        ```
+
+        !!! tip
+
+            The special [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND] object
+            can never be inserted into an `AtomicDict`, so when it is returned,
+            you are ensured that the key was not in the dictionary.
+
+            Conversely, `None` can both be a key and a value.
+
+        :param key: The key to be looked up.
+        :param default: The value to return when the key is not found.
+        :return: The value associated with `key`, or `default`.
+        """
     # def items(self) -> Iterable[Key, Value]: ...
     # def keys(self) -> Iterable[Key]: ...
     # def pop(self, key: Key, default: Value = None) -> Value: ...
@@ -102,40 +203,115 @@ class AtomicDict:
     #     :returns: None
     #     """
     # def values(self) -> Iterable[Value]: ...
-    def compare_and_set(self, key: Key, expected: Value, desired: Value) -> None: ...
-    def len_bounds(self) -> tuple[int, int]: ...
-    def approx_len(self) -> int: ...
-    def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]: ...
+    def compare_and_set(self, key: Key, expected: Value, desired: Value) -> None:
+        """
+        Atomically read the value associated with `key` and if it is `expected`,
+        then replace it with `desired`.
+        Else, raise an exception.
+
+        The expected value can be [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND], in
+        which case the call will succeed only when the item is inserted, and
+        not updated:
+
+        ```python
+        my_atomic_dict.compare_and_set(key="spam", expected=cereggii.NOT_FOUND, desired=42)
+        ```
+
+        Also see [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
+
+        !!! tip
+
+            This family of methods is the recommended way to mutate an `AtomicDict`.
+
+
+        :raises ExpectationFailed: If the found value was not `expected`.
+        """
+    def len_bounds(self) -> tuple[int, int]:
+        """
+        Get a lower and an upper-bound for the number of items stored in this `AtomicDict`.
+
+        Also see [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len].
+        """
+    def approx_len(self) -> int:
+        """
+        Retrieve the approximate length of this `AtomicDict`.
+        Calling this method does not prevent other threads from mutating the
+        dictionary.
+
+        !!! note
+
+            Differently from [`AtomicDict.__len__`][cereggii._cereggii.AtomicDict.__len__],
+            this method does not return a sequentially consistent result.
+
+            This is not so bad!
+
+            Suppose you call [`AtomicDict.__len__`][cereggii._cereggii.AtomicDict.__len__]
+            instead. You would get a result that was correct in between the invocation of
+            `len()`. But, at the very next line, the result might get invalidated by another
+            thread inserting or deleting an item.
+
+            If you need to know the size of an `AtomicDict` while other threads are
+            mutating it, calling `approx_len` should be more performant and still
+            return a fairly good approximation.
+        """
+    def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]:
+        """
+        A fast, not sequentially consistent iterator.
+
+        Calling this method does not prevent other threads from mutating this
+        `AtomicDict`.
+
+        !!! danger
+
+            This method can return sequentially-inconsistent results.
+
+            Only use `fast_iter` when you know that no other thread is mutating
+            this `AtomicDict`.
+
+            For instance:
+
+            - it can return the same key multiple times (with the same or different values)
+            - an update 1, that happened strictly before another update 2, is not seen,
+              but update 2 is seen.
+
+        :param partitions: The number of partitions to split this iterator with.
+            It should be equal to the number of threads that participate in the
+            iteration.
+        :param this_partition: This thread's assigned partition.
+            Valid values are from 0 to `partitions`-1.
+        """
     def batch_getitem(self, batch: dict, chunk_size: int = 128) -> dict:
         """Batch many lookups together for efficient memory access.
 
-        Whatever the values provided in :param:`batch`, they will be substituted with
-        the found values, or ``cereggii.NOT_FOUND``.
-        Notice no exception is thrown: the ``cereggii.NOT_FOUND`` object instead
+        The values provided in `batch` will be substituted with the values found
+        in the `AtomicDict` instance, or with `cereggii.NOT_FOUND`.
+        Notice no exception is thrown: the `cereggii.NOT_FOUND` object instead
         is the returned value for a non-found key.
-        Also notice that the ``cereggii.NOT_FOUND`` object can never be inserted
-        into an ``AtomicDict``.
+        Also notice that the `cereggii.NOT_FOUND` object can never be inserted
+        into an `AtomicDict`.
 
-        The values themselves, provided in :param:`batch`, will always be substituted.
+        The values themselves, provided in `batch`, will always be substituted.
 
-        An example call::
+        An example call:
+        ```python
+        foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
+        foo.batch_getitem({
+            'a': None,
+            'b': None,
+            'f': None,
+        })
+        ```
 
-            foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
-            foo.batch_getitem({
-                'a': None,
-                'b': None,
-                'f': None,
-            })
+        which will return:
+        ```python
+        {
+           'a': 1,
+           'b': 2,
+           'f': <cereggii.NOT_FOUND>,
+        }
+        ```
 
-        which will return::
-
-            {
-               'a': 1,
-               'b': 2,
-               'f': <cereggii.NOT_FOUND>,
-            }
-
-        :returns: the input :param:`batch` dictionary, with substituted values.
+        :returns: the input `batch` dictionary, with substituted values.
         """
     def reduce(
         self,
@@ -144,32 +320,60 @@ class AtomicDict:
         chunk_size: int = 0,
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in ``iterable``, as computed by ``aggregate``.
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `aggregate`.
 
-        The ``aggregate`` function takes as input a key, the value currently stored in the dictionary,
-        and the new value from ``iterator``. It returns the aggregated value.
+        The `aggregate` function takes as input a key, the value currently stored
+        in the dictionary,
+        and the new value from `iterator`. It returns the aggregated value.
 
-        For instance, to aggregate some simple counts::
+        !!! note
 
-            d = AtomicDict()
+            The `aggregate` function **must** be:
 
-            data = [
-                ("red", 1),
-                ("green", 42),
-                ("blue", 3),
-                ("red", 5),
-            ]
+            - **total** &mdash; it should handle both the case in which the key is present and in which it is not
+            - **state-less** &mdash; you should not rely on the number of times this function is called (it will be
+            called at least once for each item in `iterable`, but there is no upper bound)
 
-            def count(key, current, new):
-                if current is cereggii.NOT_FOUND:
-                    return new
-                return current + new
+        For instance, to aggregate some simple counts:
 
-            d.reduce(data, count)
+        ```python
+        d = AtomicDict()
+
+        data = [
+            ("red", 1),
+            ("green", 42),
+            ("blue", 3),
+            ("red", 5),
+        ]
+
+        def count(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return current + new
+
+        d.reduce(data, count)
+        ```
+
+        !!! tip
+
+            This method exploits the skewness in the data.
+            First, an intermediate result is aggregated into a thread-local dictionary, and then applied to the shared
+            `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
         """
     def compact(self) -> None: ...
-    def debug(self) -> dict: ...
-    def rehash(self, o: object) -> int: ...
+    def _debug(self) -> dict:
+        """
+        Provide some debugging information.
+        For internal usage only.
+        This method is subject to change without a deprecation notice.
+        """
+    def _rehash(self, o: object) -> int:
+        """
+        Rehash object `o` with `AtomicDict`'s internal hashing function.
+        For internal usage only.
+        This method is subject to change without a deprecation notice.
+        """
 
 class AtomicRef:
     """An object reference that may be updated atomically."""
@@ -181,7 +385,36 @@ class AtomicRef:
     def set(self, updated: object): ...  # noqa: A003
 
 class AtomicInt(int):
-    """An int that may be updated atomically."""
+    """An `int` that may be updated atomically.
+
+    !!! warning
+
+        This class will be renamed to `AtomicInt64` in a future release.
+
+    `AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it
+    should feel familiar to use, if you're coming to Python from Java.
+    It also implements most numeric magic methods, so that it should feel
+    comfortable to use for Pythonistas.
+
+    It tries to mimic Python's `int` as close as possible, with some caveats:
+
+    - it is bound to 64-bit signed integers, so you may encounter `OverflowError`s;
+    - hashing is based on the `AtomicInt`'s address in memory, so two distinct `AtomicInt`s will have distinct hashes,
+    even when they hold the same value (bonus feature: an `AtomicIntHandle` has the same hash of its corresponding
+    `AtomicInt`);
+    - the following operations are supported by `int`, but not `AtomicInt`:
+
+        - `__itruediv__` (e.g. `my_atomic_int /= 3.14` &mdash; an `AtomicInt` cannot be used to store floats)
+        - `as_integer_ratio`
+        - `bit_length`
+        - `conjugate`
+        - `from_bytes`
+        - `to_bytes`
+        - `denominator`
+        - `numerator`
+        - `imag`
+        - `real`
+    """
 
     def __init__(self, initial_value: int | None = None): ...
     def compare_and_set(self, expected: int, updated: int) -> bool: ...
@@ -222,4 +455,13 @@ class AtomicInt(int):
         raise NotImplementedError
 
 class AtomicIntHandle(AtomicInt):
-    pass
+    """
+    A thread-local handle for an [`AtomicInt`][cereggii._cereggii.AtomicInt].
+    It behaves exactly like `AtomicInt`, but provides some performance benefits.
+
+    You cannot instantiate an `AtomicIntHandle` directly.
+    Create it by calling [`AtomicInt.get_handle`][cereggii._cereggii.AtomicInt.get_handle]:
+    ```python
+    my_handle = my_atomic_int.get_handle()
+    ```
+    """
