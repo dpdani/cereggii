@@ -103,3 +103,39 @@ while the "Fast" program takes ~0.5s.
 
 Why?
 
+## Five rules of thumb
+
+There are five very practical rules that can help you improve the performance of
+your program. These are drawn from the excellent book "The Art of Multiprocessor
+Programming" by M. Herlihy and N. Shavit.
+
+> - Objects or fields that are accessed independently should be aligned and
+    padded so that they end up on different cache lines.
+
+asd
+
+> - Keep read-only data separate from data that is modified frequently. For
+    example, consider a list whose structure is constant, but whose elements' value
+    fields change frequently. To ensure that modifications do not slow down list
+    traversals, one could align and pad the value fields so that each one fills up a
+    cache line.
+
+asd
+
+> - When possible, split an object into thread-local pieces. For example, a
+    counter used for statistics could be split up into an array of counters, one per
+    thread, each one residing on a different cache line. While a shared counter
+    would cause invalidation traffic, the split counter allows each thread to update
+    its own replica without causing coherence traffic.
+
+asd
+
+> - If a lock protects data that is frequently modified, then keep the lock and
+    the data on distinct cache lines, so that threads trying to acquire the lock do
+    not interfere with the lock holder's access to the data.
+
+asd
+
+> - If a lock protects data that is frequently uncontended, then try to keep the
+    lock and the data on the same cache lines, so that acquiring the lock will also
+    load some of the data into the cache.

@@ -15,6 +15,9 @@ nav:
       - 'concurrency-101/safety.md'
       - 'concurrency-101/progress-guarantees.md'
       - 'concurrency-101/performance.md'
+#      - 'Recreating PyMutex':
+#          - 'Introduction': 'concurrency-101/pymutex/index.md'
+#          - 'concurrency-101/pymutex/test-and-set.md'
   - 'News':
       - 'blog/index.md'
 
@@ -61,7 +64,11 @@ markdown_extensions:
       generic: true
   - footnotes
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.mark
