@@ -18,13 +18,13 @@ typedef struct atomic_ref {
 
 PyObject *AtomicRef_Get(AtomicRef *self);
 
-PyObject *AtomicRef_Set(AtomicRef *self, PyObject *reference);
+PyObject *AtomicRef_Set(AtomicRef *self, PyObject *desired);
 
-int AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new);
+int AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired);
 
 PyObject *AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwargs);
 
-PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new);
+PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired);
 
 
 PyObject *AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
