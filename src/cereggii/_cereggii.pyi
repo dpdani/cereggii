@@ -15,7 +15,7 @@ ANY: object
  Used in `AtomicDict` as input for an unconditional update (upsert). """
 EXPECTATION_FAILED: object
 """ A singleton object.
- Used in `AtomicDict` to return that an operation was aborted due to a 
+ Used in `AtomicDict` to return that an operation was aborted due to a
  failed expectation. """
 ExpectationFailed: Exception
 
