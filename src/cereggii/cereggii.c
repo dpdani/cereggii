@@ -190,10 +190,10 @@ PyTypeObject AtomicIntHandle_Type = {
 
 
 static PyMethodDef AtomicRef_methods[] = {
-    {"get",             (PyCFunction) AtomicRef_Get,                    METH_NOARGS,  NULL},
-    {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,       NULL},
-    {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS, NULL},
-    {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,       NULL},
+    {"get",             (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
+    {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
+    {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
     {NULL}
 };
 
@@ -213,8 +213,8 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"_debug",           (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"_rehash",          (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
+    {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
     {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},

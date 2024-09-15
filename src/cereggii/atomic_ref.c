@@ -101,12 +101,14 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
 }
 
 PyObject *
-AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *expected;
-    PyObject *desired;
+    PyObject *expected = NULL;
+    PyObject *desired = NULL;
 
-    if (!PyArg_ParseTuple(args, "OO", &expected, &desired)) {
+    char *kw_list[] = {"expected", "desired", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kw_list, &expected, &desired)) {
         return NULL;
     }
 
