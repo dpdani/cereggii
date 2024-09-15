@@ -50,9 +50,7 @@ class AtomicDict:
         objects cannot be used as keys nor values.
     """
 
-    def __init__(
-        self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int = 4, **kwargs
-    ):
+    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int = 4, **kwargs):
         """
         :param iterable: An iterable to initialize this dictionary with. For now,
             only `dict` can be supplied to this parameter.
@@ -374,12 +372,14 @@ class AtomicDict:
     def _debug(self) -> dict:
         """
         Provide some debugging information.
+
         For internal usage only.
         This method is subject to change without a deprecation notice.
         """
     def _rehash(self, o: object) -> int:
         """
         Rehash object `o` with `AtomicDict`'s internal hashing function.
+
         For internal usage only.
         This method is subject to change without a deprecation notice.
         """
