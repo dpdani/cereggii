@@ -81,7 +81,7 @@ class AtomicDict:
         del my_atomic_dict[key]
         ```
         """
-    def __getitem__(self, key: Key) -> object:
+    def __getitem__(self, key: Key) -> Value:
         """
         Atomically retrieve the value associated with `key`:
         ```python
@@ -136,7 +136,7 @@ class AtomicDict:
     # def copy(self) -> AtomicDict: ...
     # @classmethod
     # def fromkeys(cls, iterable: Iterable[Key], value=None) -> AtomicDict: ...
-    def get(self, key: Key, default: Value | None = None):
+    def get(self, key: Key, default: Value | None = None) -> Value:
         """
         Just like Python's `dict.get`:
         ```python
@@ -398,6 +398,11 @@ class AtomicInt(int):
 
     !!! warning
 
+        AtomicInt is bound to 64-bit signed integers: each of its methods may
+        raise `OverflowError`.
+
+    !!! warning
+
         This class will be renamed to `AtomicInt64` in a future release.
 
     `AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it
@@ -405,13 +410,23 @@ class AtomicInt(int):
     It also implements most numeric magic methods, so that it should feel
     comfortable to use for Pythonistas.
 
-    It tries to mimic Python's `int` as close as possible, with some caveats:
+    !!! note
 
-    - it is bound to 64-bit signed integers, so you may encounter `OverflowError`s;
-    - hashing is based on the `AtomicInt`'s address in memory, so two distinct `AtomicInt`s will have distinct hashes,
-    even when they hold the same value (bonus feature: an `AtomicIntHandle` has the same hash of its corresponding
-    `AtomicInt`);
-    - the following operations are supported by `int`, but not `AtomicInt`:
+        The hash of an `AtomicInt` is independent of its value.
+        Two `AtomicInt`s may have the same hash, but hold different values.
+        They may also have different hashes, but hold the same values.
+
+        If you need to get the hash of the currently stored `int` value, you
+        should do this:
+        ```py
+        hash(my_atomic_int.get())
+        ```
+
+        An `AtomicInt` and its associated `AtomicIntHandle`s share the same hash value.
+
+    !!! note
+
+        The following operations are supported by `int`, but not `AtomicInt`:
 
         - `__itruediv__` (e.g. `my_atomic_int /= 3.14` &mdash; an `AtomicInt` cannot be used to store floats)
         - `as_integer_ratio`
@@ -425,18 +440,91 @@ class AtomicInt(int):
         - `real`
     """
 
-    def __init__(self, initial_value: int | None = None): ...
-    def compare_and_set(self, expected: int, desired: int) -> bool: ...
-    def get(self) -> int: ...
-    def get_and_set(self, desired: int) -> int: ...
-    def set(self, desired: int) -> None: ...  # noqa: A003
-    def increment_and_get(self, amount: int | None = None) -> int: ...
-    def get_and_increment(self, amount: int | None = None) -> int: ...
-    def decrement_and_get(self, amount: int | None = None) -> int: ...
-    def get_and_decrement(self, amount: int | None = None) -> int: ...
-    def update_and_get(self, other: Callable[[int], int]) -> int: ...
-    def get_and_update(self, other: Callable[[int], int]) -> int: ...
-    def get_handle(self) -> AtomicIntHandle: ...
+    def __init__(self, initial_value: int = 0): ...
+    def compare_and_set(self, expected: int, desired: int) -> bool:
+        """
+        Atomically read the current value of this `AtomicInt` and if it is `expected`,
+        then replace it with `desired` and return `True`. Else, return `False`.
+        """
+    def get(self) -> int:
+        """
+        Atomically read the current value of this `AtomicInt`.
+        """
+    def set(self, desired: int) -> None:  # noqa: A003
+        """
+        Unconditionally set the value of this `AtomicInt` to `desired`.
+
+        !!! warning
+
+            Use [`compare_and_set`][cereggii._cereggii.AtomicInt.compare_and_set]
+            instead.
+
+            When using this method, it is not possible to know that the value currently
+            stored is the one being expected -- it may be mutated by another thread before
+            this mutation is applied. Use this method only when no other thread may be
+            writing to this `AtomicInt`.
+        """
+    def get_and_set(self, desired: int) -> int:
+        """
+        Atomically swap the value of this `AtomicInt` to `desired` and return
+        the previously stored value.
+        """
+    def increment_and_get(self, /, amount: int = 1) -> int:
+        """
+        Atomically increment this `AtomicInt` by `amount` and return the
+        incremented value.
+        """
+    def get_and_increment(self, /, amount: int = 1) -> int:
+        """
+        Atomically increment this `AtomicInt` by `amount` and return the
+        previously stored value.
+        """
+    def decrement_and_get(self, /, amount: int = 1) -> int:
+        """
+        Atomically decrement this `AtomicInt` by `amount` and return the
+        decremented value.
+        """
+    def get_and_decrement(self, /, amount: int = 1) -> int:
+        """
+        Atomically decrement this `AtomicInt` by `amount` and return the
+        previously stored value.
+        """
+    def update_and_get(self, /, callable: Callable[[int], int]) -> int:
+        """
+        Atomically update the value currently stored in this `AtomicInt` by applying
+        `callable` and return the updated value.
+
+        `callable` should be a function that takes one `int` parameter and
+        returns an `int`.
+
+        !!! warning
+
+            The `callable` function must be **stateless**: it will be called at least
+            once but there is no upper bound to the number of times it will be
+            called within one invocation of this method.
+        """
+    def get_and_update(self, /, callable: Callable[[int], int]) -> int:
+        """
+        Atomically update the value currently stored in this `AtomicInt` by applying
+        `callable` and return the previously stored value.
+
+        `callable` should be a function that takes one `int` parameter and
+        returns an `int`.
+
+        !!! warning
+
+            The `callable` function must be **stateless**: it will be called at least
+            once but there is no upper bound to the number of times it will be
+            called within one invocation of this method.
+        """
+    def get_handle(self) -> AtomicIntHandle:
+        """
+        Get a thread-local handle for this `AtomicInt`.
+
+        When using a thread-local handle, you can improve the performance of
+        your application (by reducing the number of times the reference counting
+        slow path is taken).
+        """
     def __itruediv__(self, other):
         raise NotImplementedError
     def as_integer_ratio(self):
