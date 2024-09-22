@@ -67,14 +67,14 @@ PyObject *AtomicRef_Get(AtomicRef *self)
 }
 
 PyObject *
-AtomicRef_Set(AtomicRef *self, PyObject *reference)
+AtomicRef_Set(AtomicRef *self, PyObject *desired)
 {
-    assert(reference != NULL);
+    assert(desired != NULL);
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    Py_INCREF(reference);
-    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, reference)) {
+    Py_INCREF(desired);
+    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, desired)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
@@ -84,45 +84,47 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
 }
 
 int
-AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
+AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
 {
     assert(expected != NULL);
-    assert(new != NULL);
+    assert(desired != NULL);
 
-    Py_INCREF(new);
-    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, new);
+    Py_INCREF(desired);
+    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, desired);
     if (retval) {
         Py_DECREF(expected);
         return 1;
     } else {
-        Py_DECREF(new);
+        Py_DECREF(desired);
         return 0;
     }
 }
 
 PyObject *
-AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *expected;
-    PyObject *new;
+    PyObject *expected = NULL;
+    PyObject *desired = NULL;
 
-    if (!PyArg_ParseTuple(args, "OO", &expected, &new)) {
+    char *kw_list[] = {"expected", "desired", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kw_list, &expected, &desired)) {
         return NULL;
     }
 
-    if (AtomicRef_CompareAndSet(self, expected, new)) {
+    if (AtomicRef_CompareAndSet(self, expected, desired)) {
         Py_RETURN_TRUE;
     } else {
         Py_RETURN_FALSE;
     }
 }
 
-PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new)
+PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
 {
-    assert(new != NULL);
+    assert(desired != NULL);
 
-    Py_INCREF(new);
-    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, new);
+    Py_INCREF(desired);
+    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
     // don't decref current_reference: passing it to python
     return current_reference;
 }
