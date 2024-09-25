@@ -1,5 +1,6 @@
 #include "Python.h"
 
+#ifdef Py_GIL_DISABLED
 
 // The shared reference count uses the two least-significant bits to store
 // flags. The remaining bits are used to store the reference count.
@@ -166,6 +167,8 @@ _PyObject_SetMaybeWeakref(PyObject *op)
         }
     }
 }
+
+#endif
 
 /* Tries to incref op and returns 1 if successful or 0 otherwise. */
 static inline int
