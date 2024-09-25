@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import gc
 import threading
-from typing import Union
 
 from cereggii import AtomicRef
 

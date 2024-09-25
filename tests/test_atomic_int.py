@@ -5,7 +5,6 @@
 import gc
 import threading
 from fractions import Fraction
-from typing import Union
 
 import cereggii
 from cereggii import AtomicInt
