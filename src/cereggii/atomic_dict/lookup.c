@@ -7,9 +7,6 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "constants.h"
-#define Py_BUILD_CORE
-#include "internal/pycore_dict.h"
-#undef Py_BUILD_CORE
 
 
 void
@@ -316,10 +313,10 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         assert(_PyDict_GetItem_KnownHash(batch, key, hash) != NULL); // returns a borrowed reference
         if (result.found) {
-            if (_PyDict_SetItem_KnownHash(batch, key, result.entry.value, hash) < 0)
+            if (PyDict_SetItem(batch, key, result.entry.value) < 0)
                 goto fail;
         } else {
-            if (_PyDict_SetItem_KnownHash(batch, key, NOT_FOUND, hash) < 0)
+            if (PyDict_SetItem(batch, key, NOT_FOUND) < 0)
                 goto fail;
         }
     }

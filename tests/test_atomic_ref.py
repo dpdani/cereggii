@@ -55,6 +55,25 @@ def test_cas():
     assert id(obj_0) == id_0 and id(obj_1) == id_1
 
 
+def test_counter():
+    r = AtomicRef(0)
+
+    def thread():
+        for _ in range(1_000):
+            expected = r.get()
+            while not r.compare_and_set(expected, expected + 1):
+                expected = r.get()
+
+    t0 = threading.Thread(target=thread)
+    t1 = threading.Thread(target=thread)
+    t0.start()
+    t1.start()
+    t0.join()
+    t1.join()
+
+    assert r.get() == 2_000
+
+
 def test_swap():
     r = AtomicRef()
     result_0 = Result()
