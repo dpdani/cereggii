@@ -6,9 +6,6 @@
 Thread synchronization utilities for free-threaded Python.
 """
 
-import sys
-import warnings
-
 from .__about__ import __license__, __version__, __version_tuple__  # noqa: F401
 from .atomic_dict import AtomicDict  # noqa: F401
 from .atomic_int import AtomicInt, AtomicIntHandle  # noqa: F401

@@ -31,7 +31,7 @@ def test_set():
 
 class Result:
     def __init__(self):
-        self.result: Union[int, object, None] = 0
+        self.result: int | object | None = 0
 
 
 def test_cas():
