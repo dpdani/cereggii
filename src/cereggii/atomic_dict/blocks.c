@@ -6,9 +6,7 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
-#include "atomic_ref.h"
 #include "atomic_ops.h"
-#include "pythread.h"
 
 
 AtomicDict_Block *
@@ -30,8 +28,6 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
 void
 AtomicDictBlock_dealloc(AtomicDict_Block *self)
 {
-//    printf("dealloc %p ", self);
-//    fflush(stdout);
     Py_CLEAR(self->generation);
 
     AtomicDict_Entry entry;

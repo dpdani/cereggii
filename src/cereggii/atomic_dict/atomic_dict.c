@@ -395,7 +395,6 @@ AtomicDict_LenBounds(AtomicDict *self)
     int64_t gab = meta->greatest_allocated_block + 1;
     int64_t gdb = meta->greatest_deleted_block + 1;
     int64_t grb = meta->greatest_refilled_block + 1;
-    // todo: handle greedy alloc
 
     int64_t supposedly_full_blocks = (gab - gdb + grb - 1);
 
