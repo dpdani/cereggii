@@ -28,8 +28,6 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
 void
 AtomicDictBlock_dealloc(AtomicDict_Block *self)
 {
-    Py_CLEAR(self->generation);
-
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];

@@ -18,7 +18,7 @@ AtomicDictMeta_New(uint8_t log_size)
 
     AtomicDict_NodeSizeInfo node_sizes = AtomicDict_NodeSizesTable[log_size];
 
-    generation = PyObject_CallObject((PyObject *) &PyBaseObject_Type, NULL);
+    generation = PyMem_RawMalloc(1);
     if (generation == NULL)
         goto fail;
 
@@ -251,7 +251,7 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
         PyMem_RawFree(self->blocks);
     }
 
-    Py_CLEAR(self->generation);
+    PyMem_RawFree(self->generation);
     Py_CLEAR(self->new_gen_metadata);
     Py_CLEAR(self->new_metadata_ready);
     Py_CLEAR(self->node_migration_done);

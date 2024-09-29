@@ -80,7 +80,7 @@ struct AtomicDict_Meta {
     uint8_t log_size;  // = node index_size
     uint64_t size;
 
-    PyObject *generation;
+    void *generation;
 
     uint64_t *index;
 

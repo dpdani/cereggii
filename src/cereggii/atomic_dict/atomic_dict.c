@@ -554,7 +554,7 @@ AtomicDict_Debug(AtomicDict *self)
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
     metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
-                             "generation\0", Py_BuildValue("O", meta->generation),
+                             "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
                              "node_size\0", Py_BuildValue("B", meta->node_size),
                              "distance_size\0", Py_BuildValue("B", meta->distance_size),
                              "tag_size\0", Py_BuildValue("B", meta->tag_size),
@@ -622,7 +622,7 @@ AtomicDict_Debug(AtomicDict *self)
             }
         }
 
-        block_info = Py_BuildValue("{sOsO}",
+        block_info = Py_BuildValue("{snsO}",
                                    "gen\0", block->generation,
                                    "entries\0", entries);
         Py_DECREF(entries);
