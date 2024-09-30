@@ -40,18 +40,6 @@ typedef struct AtomicDict_Node {
 } AtomicDict_Node;
 
 
-typedef struct {
-    PyObject_HEAD
-} AtomicDict_Gen;
-
-static PyTypeObject AtomicDictGen = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_basicsize = sizeof(AtomicDict_Gen),
-    .tp_itemsize = 0,
-    .tp_new = PyType_GenericNew,
-};
-
-
 /// blocks
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
