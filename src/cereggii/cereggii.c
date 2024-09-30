@@ -343,24 +343,24 @@ PyInit__cereggii(void)
 
     if (PyType_Ready(&CereggiiConstant_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicDict_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicEvent_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicRef_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicInt_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicIntHandle_Type) < 0)
-        return NULL;
+//    if (PyType_Ready(&AtomicDict_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicEvent_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicRef_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicInt_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicIntHandle_Type) < 0)
+//        return NULL;
 
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
@@ -394,44 +394,44 @@ PyInit__cereggii(void)
         goto fail;
     }
 
-    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
-    if (Cereggii_ExpectationFailed == NULL)
-        goto fail;
-    Py_INCREF(Cereggii_ExpectationFailed);
-    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
-        Py_DECREF(Cereggii_ExpectationFailed);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicDict_Type);
-    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
-        Py_DECREF(&AtomicDict_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicEvent_Type);
-    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
-        Py_DECREF(&AtomicEvent_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicRef_Type);
-    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
-        Py_DECREF(&AtomicRef_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicInt_Type);
-    if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
-        Py_DECREF(&AtomicInt_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicIntHandle_Type);
-    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
-        Py_DECREF(&AtomicIntHandle_Type);
-        goto fail;
-    }
+//    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+//    if (Cereggii_ExpectationFailed == NULL)
+//        goto fail;
+//    Py_INCREF(Cereggii_ExpectationFailed);
+//    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
+//        Py_DECREF(Cereggii_ExpectationFailed);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicDict_Type);
+//    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
+//        Py_DECREF(&AtomicDict_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicEvent_Type);
+//    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
+//        Py_DECREF(&AtomicEvent_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicRef_Type);
+//    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
+//        Py_DECREF(&AtomicRef_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicInt_Type);
+//    if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
+//        Py_DECREF(&AtomicInt_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicIntHandle_Type);
+//    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
+//        Py_DECREF(&AtomicIntHandle_Type);
+//        goto fail;
+//    }
 
     return m;
     fail:
