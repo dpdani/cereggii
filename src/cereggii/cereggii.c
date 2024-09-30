@@ -359,8 +359,8 @@ PyInit__cereggii(void)
 //        return NULL;
     if (PyType_Ready(&AtomicInt_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicIntHandle_Type) < 0)
-        return NULL;
+//    if (PyType_Ready(&AtomicIntHandle_Type) < 0)
+//        return NULL;
 
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
@@ -427,11 +427,11 @@ PyInit__cereggii(void)
         goto fail;
     }
 
-    Py_INCREF(&AtomicIntHandle_Type);
-    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
-        Py_DECREF(&AtomicIntHandle_Type);
-        goto fail;
-    }
+//    Py_INCREF(&AtomicIntHandle_Type);
+//    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
+//        Py_DECREF(&AtomicIntHandle_Type);
+//        goto fail;
+//    }
 
     return m;
     fail:
