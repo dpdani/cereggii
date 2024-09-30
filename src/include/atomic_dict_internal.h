@@ -47,7 +47,7 @@ typedef struct AtomicDict_Node {
 typedef struct AtomicDict_Block {
     PyObject_HEAD
 
-    PyObject *generation;
+    void *generation;
     // PyObject *iteration;
 
     AtomicDict_Entry entries[ATOMIC_DICT_ENTRIES_IN_BLOCK];

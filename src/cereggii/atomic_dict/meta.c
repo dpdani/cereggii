@@ -12,7 +12,7 @@
 AtomicDict_Meta *
 AtomicDictMeta_New(uint8_t log_size)
 {
-    PyObject *generation = NULL;
+    void *generation = NULL;
     uint64_t *index = NULL;
     AtomicDict_Meta *meta = NULL;
 
@@ -111,7 +111,7 @@ AtomicDictMeta_New(uint8_t log_size)
 
     return meta;
     fail:
-    Py_XDECREF(generation);
+    PyMem_RawFree(generation);
     Py_XDECREF(meta);
     if (index != NULL) {
         PyMem_RawFree(index);
