@@ -341,22 +341,22 @@ PyInit__cereggii(void)
 {
     PyObject *m;
 
-    if (PyType_Ready(&CereggiiConstant_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDict_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicEvent_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicRef_Type) < 0)
-        return NULL;
+//    if (PyType_Ready(&CereggiiConstant_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDict_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictMeta_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicEvent_Type) < 0)
+//        return NULL;
+//    if (PyType_Ready(&AtomicRef_Type) < 0)
+//        return NULL;
     if (PyType_Ready(&AtomicInt_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicIntHandle_Type) < 0)
@@ -370,56 +370,56 @@ PyInit__cereggii(void)
     PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
 #endif
 
-    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
-    if (NOT_FOUND == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "NOT_FOUND", NOT_FOUND) < 0) {
-        Py_DECREF(NOT_FOUND);
-        goto fail;
-    }
-
-    ANY = CereggiiConstant_New("ANY");
-    if (ANY == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "ANY", ANY) < 0) {
-        Py_DECREF(ANY);
-        goto fail;
-    }
-
-    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
-    if (EXPECTATION_FAILED == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
-        Py_DECREF(EXPECTATION_FAILED);
-        goto fail;
-    }
-
-    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
-    if (Cereggii_ExpectationFailed == NULL)
-        goto fail;
-    Py_INCREF(Cereggii_ExpectationFailed);
-    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
-        Py_DECREF(Cereggii_ExpectationFailed);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicDict_Type);
-    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
-        Py_DECREF(&AtomicDict_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicEvent_Type);
-    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
-        Py_DECREF(&AtomicEvent_Type);
-        goto fail;
-    }
-
-    Py_INCREF(&AtomicRef_Type);
-    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
-        Py_DECREF(&AtomicRef_Type);
-        goto fail;
-    }
+//    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
+//    if (NOT_FOUND == NULL)
+//        goto fail;
+//    if (PyModule_AddObject(m, "NOT_FOUND", NOT_FOUND) < 0) {
+//        Py_DECREF(NOT_FOUND);
+//        goto fail;
+//    }
+//
+//    ANY = CereggiiConstant_New("ANY");
+//    if (ANY == NULL)
+//        goto fail;
+//    if (PyModule_AddObject(m, "ANY", ANY) < 0) {
+//        Py_DECREF(ANY);
+//        goto fail;
+//    }
+//
+//    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
+//    if (EXPECTATION_FAILED == NULL)
+//        goto fail;
+//    if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
+//        Py_DECREF(EXPECTATION_FAILED);
+//        goto fail;
+//    }
+//
+//    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+//    if (Cereggii_ExpectationFailed == NULL)
+//        goto fail;
+//    Py_INCREF(Cereggii_ExpectationFailed);
+//    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
+//        Py_DECREF(Cereggii_ExpectationFailed);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicDict_Type);
+//    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
+//        Py_DECREF(&AtomicDict_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicEvent_Type);
+//    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
+//        Py_DECREF(&AtomicEvent_Type);
+//        goto fail;
+//    }
+//
+//    Py_INCREF(&AtomicRef_Type);
+//    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
+//        Py_DECREF(&AtomicRef_Type);
+//        goto fail;
+//    }
 
     Py_INCREF(&AtomicInt_Type);
     if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
