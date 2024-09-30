@@ -18,7 +18,6 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
     if (new == NULL)
         return NULL;
 
-    Py_INCREF(meta->generation);
     new->generation = meta->generation;
     memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
 
