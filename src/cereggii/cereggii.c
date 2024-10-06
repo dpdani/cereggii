@@ -362,6 +362,22 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicIntHandle_Type) < 0)
         return NULL;
 
+    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+    if (Cereggii_ExpectationFailed == NULL)
+        return NULL;
+
+    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
+    if (NOT_FOUND == NULL)
+        return NULL;
+
+    ANY = CereggiiConstant_New("ANY");
+    if (ANY == NULL)
+        return NULL;
+
+    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
+    if (EXPECTATION_FAILED == NULL)
+        return NULL;
+
     m = PyModule_Create(&cereggii_module);
     if (m == NULL)
         return NULL;
@@ -370,33 +386,21 @@ PyInit__cereggii(void)
     PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
 #endif
 
-    NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
-    if (NOT_FOUND == NULL)
-        goto fail;
     if (PyModule_AddObjectRef(m, "NOT_FOUND", NOT_FOUND) < 0) {
         Py_DECREF(NOT_FOUND);
         goto fail;
     }
 
-    ANY = CereggiiConstant_New("ANY");
-    if (ANY == NULL)
-        goto fail;
     if (PyModule_AddObjectRef(m, "ANY", ANY) < 0) {
         Py_DECREF(ANY);
         goto fail;
     }
 
-    EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
-    if (EXPECTATION_FAILED == NULL)
-        goto fail;
     if (PyModule_AddObjectRef(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
         Py_DECREF(EXPECTATION_FAILED);
         goto fail;
     }
 
-    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
-    if (Cereggii_ExpectationFailed == NULL)
-        goto fail;
     if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
         Py_DECREF(Cereggii_ExpectationFailed);
         goto fail;
