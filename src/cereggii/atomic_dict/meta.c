@@ -31,7 +31,6 @@ AtomicDictMeta_New(uint8_t log_size)
     meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
-    PyObject_Init((PyObject *) meta, &AtomicDictMeta_Type);
 
     meta->blocks = NULL;
 
