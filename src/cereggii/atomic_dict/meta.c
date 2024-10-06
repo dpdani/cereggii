@@ -31,6 +31,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
+    PyObject_GC_Track(meta);
 
     meta->blocks = NULL;
 
@@ -232,10 +233,20 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
     }
 }
 
+
+int
+AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
+{
+    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+        Py_VISIT(self->blocks[block_i]);
+    }
+    return 0;
+}
+
 void
 AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 {
-    // not gc tracked (?)
+    PyObject_GC_UnTrack(self);
     uint64_t *index = self->index;
     if (index != NULL) {
         self->index = NULL;

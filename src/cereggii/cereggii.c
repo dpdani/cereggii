@@ -252,9 +252,10 @@ PyTypeObject AtomicDictMeta_Type = {
     .tp_name = "cereggii._AtomicDictMeta",
     .tp_basicsize = sizeof(AtomicDict_Meta),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
+    .tp_traverse = (traverseproc) AtomicDictMeta_traverse,
 };
 
 PyTypeObject AtomicDictBlock_Type = {
@@ -262,9 +263,10 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_name = "cereggii._AtomicDictBlock",
     .tp_basicsize = sizeof(AtomicDict_Block),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
+    .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
 };
 
 PyTypeObject AtomicDictAccessorStorage_Type = {

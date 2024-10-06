@@ -55,6 +55,8 @@ typedef struct AtomicDict_Block {
 
 extern PyTypeObject AtomicDictBlock_Type;
 
+int AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg);
+
 void AtomicDictBlock_dealloc(AtomicDict_Block *self);
 
 
@@ -111,6 +113,8 @@ struct AtomicDict_Meta {
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
 };
+
+int AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg);
 
 void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 

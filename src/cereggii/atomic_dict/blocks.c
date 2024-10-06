@@ -21,12 +21,33 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
     new->generation = meta->generation;
     memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
 
+    PyObject_GC_Track(new);
+
     return new;
+}
+
+int
+AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
+{
+    AtomicDict_Entry entry;
+    for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        entry = self->entries[i];
+
+        if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+            continue;
+
+        Py_VISIT(entry.key);
+        Py_VISIT(entry.value);
+    }
+
+    return 0;
 }
 
 void
 AtomicDictBlock_dealloc(AtomicDict_Block *self)
 {
+    PyObject_GC_UnTrack(self);
+
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
