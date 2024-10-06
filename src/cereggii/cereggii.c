@@ -341,24 +341,34 @@ PyInit__cereggii(void)
 {
     PyObject *m;
 
+    assert(CereggiiConstant_Type.tp_name);
     if (PyType_Ready(&CereggiiConstant_Type) < 0)
         return NULL;
+    assert(AtomicDict_Type.tp_name);
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
+    assert(AtomicDictMeta_Type.tp_name);
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
         return NULL;
+    assert(AtomicDictBlock_Type.tp_name);
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
+    assert(AtomicDictAccessorStorage_Type.tp_name);
     if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
         return NULL;
+    assert(AtomicDictFastIterator_Type.tp_name);
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
+    assert(AtomicEvent_Type.tp_name);
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
+    assert(AtomicRef_Type.tp_name);
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
+    assert(AtomicInt_Type.tp_name);
     if (PyType_Ready(&AtomicInt_Type) < 0)
         return NULL;
+    assert(AtomicIntHandle_Type.tp_name);
     if (PyType_Ready(&AtomicIntHandle_Type) < 0)
         return NULL;
 
@@ -397,37 +407,31 @@ PyInit__cereggii(void)
     Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
     if (Cereggii_ExpectationFailed == NULL)
         goto fail;
-    Py_INCREF(Cereggii_ExpectationFailed);
     if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
         Py_DECREF(Cereggii_ExpectationFailed);
         goto fail;
     }
 
-    Py_INCREF(&AtomicDict_Type);
     if (PyModule_AddObjectRef(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
         Py_DECREF(&AtomicDict_Type);
         goto fail;
     }
 
-    Py_INCREF(&AtomicEvent_Type);
     if (PyModule_AddObjectRef(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
         Py_DECREF(&AtomicEvent_Type);
         goto fail;
     }
 
-    Py_INCREF(&AtomicRef_Type);
     if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
         Py_DECREF(&AtomicRef_Type);
         goto fail;
     }
 
-    Py_INCREF(&AtomicInt_Type);
     if (PyModule_AddObjectRef(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
         Py_DECREF(&AtomicInt_Type);
         goto fail;
     }
 
-    Py_INCREF(&AtomicIntHandle_Type);
     if (PyModule_AddObjectRef(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
         Py_DECREF(&AtomicIntHandle_Type);
         goto fail;
