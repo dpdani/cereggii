@@ -341,34 +341,24 @@ PyInit__cereggii(void)
 {
     PyObject *m;
 
-    assert(CereggiiConstant_Type.tp_name);
     if (PyType_Ready(&CereggiiConstant_Type) < 0)
         return NULL;
-    assert(AtomicDict_Type.tp_name);
     if (PyType_Ready(&AtomicDict_Type) < 0)
         return NULL;
-    assert(AtomicDictMeta_Type.tp_name);
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
         return NULL;
-    assert(AtomicDictBlock_Type.tp_name);
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
-    assert(AtomicDictAccessorStorage_Type.tp_name);
     if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
         return NULL;
-    assert(AtomicDictFastIterator_Type.tp_name);
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
-    assert(AtomicEvent_Type.tp_name);
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
-    assert(AtomicRef_Type.tp_name);
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
-    assert(AtomicInt_Type.tp_name);
     if (PyType_Ready(&AtomicInt_Type) < 0)
         return NULL;
-    assert(AtomicIntHandle_Type.tp_name);
     if (PyType_Ready(&AtomicIntHandle_Type) < 0)
         return NULL;
 
@@ -436,6 +426,27 @@ PyInit__cereggii(void)
         Py_DECREF(&AtomicIntHandle_Type);
         goto fail;
     }
+
+    assert(CereggiiConstant_Type.tp_name);
+
+    assert(AtomicDict_Type.tp_name);
+
+    assert(AtomicDictMeta_Type.tp_name);
+
+    assert(AtomicDictBlock_Type.tp_name);
+
+    assert(AtomicDictAccessorStorage_Type.tp_name);
+
+    assert(AtomicDictFastIterator_Type.tp_name);
+
+    assert(AtomicEvent_Type.tp_name);
+
+    assert(AtomicRef_Type.tp_name);
+
+    assert(AtomicInt_Type.tp_name);
+
+    assert(AtomicIntHandle_Type.tp_name);
+
 
     return m;
     fail:
