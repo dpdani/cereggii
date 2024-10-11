@@ -28,12 +28,15 @@ AtomicDictMeta_New(uint8_t log_size)
     if (index == NULL)
         goto fail;
 
-    meta = PyObject_New(AtomicDict_Meta, &AtomicDictMeta_Type);
+    meta = PyObject_GC_New(AtomicDict_Meta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
-    PyObject_GC_Track(meta);
 
     meta->blocks = NULL;
+    meta->greatest_allocated_block = -1;
+    meta->greatest_deleted_block = -1;
+    meta->greatest_refilled_block = -1;
+    meta->inserting_block = -1;
 
     meta->log_size = log_size;
     meta->size = 1UL << log_size;
@@ -109,6 +112,7 @@ AtomicDictMeta_New(uint8_t log_size)
     if (meta->migration_done == NULL)
         goto fail;
 
+    PyObject_GC_Track(meta);
     return meta;
     fail:
     PyMem_RawFree(generation);
@@ -132,7 +136,7 @@ AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
     blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) * (meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
-    if (blocks < 0)
+    if (blocks == NULL)
         goto fail;
 
     blocks[0] = NULL;
@@ -233,13 +237,30 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
     }
 }
 
-
 int
 AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 {
+    if (self->blocks == NULL)
+        return 0;
+
     for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
         Py_VISIT(self->blocks[block_i]);
     }
+    return 0;
+}
+
+int
+AtomicDictMeta_clear(AtomicDict_Meta *self)
+{
+    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+        Py_CLEAR(self->blocks[block_i]);
+    }
+
+    Py_CLEAR(self->new_gen_metadata);
+    Py_CLEAR(self->new_metadata_ready);
+    Py_CLEAR(self->node_migration_done);
+    Py_CLEAR(self->migration_done);
+
     return 0;
 }
 
@@ -247,6 +268,9 @@ void
 AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 {
     PyObject_GC_UnTrack(self);
+
+    AtomicDictMeta_clear(self);
+
     uint64_t *index = self->index;
     if (index != NULL) {
         self->index = NULL;
@@ -254,17 +278,9 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
     }
 
     if (self->blocks != NULL) {
-        for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
-            Py_DECREF(self->blocks[block_i]);
-        }
-
         PyMem_RawFree(self->blocks);
     }
 
     PyMem_RawFree(self->generation);
-    Py_CLEAR(self->new_gen_metadata);
-    Py_CLEAR(self->new_metadata_ready);
-    Py_CLEAR(self->node_migration_done);
-    Py_CLEAR(self->migration_done);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }

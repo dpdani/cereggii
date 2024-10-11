@@ -5,16 +5,6 @@
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
 
-
-PyObject *
-AtomicIntHandle_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
-{
-    AtomicIntHandle *self;
-    self = (AtomicIntHandle *) type->tp_alloc(type, 0);
-
-    return (PyObject *) self;
-}
-
 int
 AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {

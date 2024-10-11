@@ -14,7 +14,7 @@ PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicDict *self = NULL;
-    self = (AtomicDict *) type->tp_alloc(type, 0);
+    self = PyObject_GC_New(AtomicDict, &AtomicDict_Type);
     if (self != NULL) {
         self->metadata = NULL;
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
@@ -36,6 +36,10 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         self->accessors = Py_BuildValue("[]");
         if (self->accessors == NULL)
             goto fail;
+
+        self->accessors_lock = (PyMutex) {0};
+
+        PyObject_GC_Track(self);
     }
     return (PyObject *) self;
 
@@ -271,41 +275,15 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
     }
 
-    Py_XDECREF(init_dict);
     Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
     assert(Py_REFCNT(meta) == 1);
     return 0;
     fail:
     Py_XDECREF(meta);
-    Py_XDECREF(init_dict);
     if (!PyErr_Occurred()) {
         PyErr_SetString(PyExc_RuntimeError, "error during initialization.");
     }
     return -1;
-}
-
-void
-AtomicDict_dealloc(AtomicDict *self)
-{
-    PyObject_GC_UnTrack(self);
-
-    AtomicDict_Meta *meta = NULL;
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-
-    if ((PyObject *) meta != Py_None) {
-        AtomicRef_Set(self->metadata, Py_None);  // this decref's meta
-
-        Py_DECREF(meta); // should call dealloc
-    }
-
-    Py_CLEAR(self->metadata);
-    Py_CLEAR(self->accessors);
-    // this should be enough to deallocate the reservation buffers themselves as well:
-    // the list should be the only reference to them anyway
-    PyThread_tss_delete(self->accessor_key);
-    PyThread_tss_free(self->accessor_key);
-
-    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 int
@@ -313,8 +291,30 @@ AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
     Py_VISIT(self->accessors);
-    // traverse this dict's elements (iter XXX)
     return 0;
+}
+
+int
+AtomicDict_clear(AtomicDict *self)
+{
+    Py_CLEAR(self->metadata);
+    Py_CLEAR(self->accessors);
+    // this should be enough to deallocate the reservation buffers themselves as well:
+    // the list should be the only reference to them anyway
+
+    PyThread_tss_delete(self->accessor_key);
+    PyThread_tss_free(self->accessor_key);
+    self->accessor_key = NULL;
+
+    return 0;
+}
+
+void
+AtomicDict_dealloc(AtomicDict *self)
+{
+    PyObject_GC_UnTrack(self);
+    AtomicDict_clear(self);
+    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 /**

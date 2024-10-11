@@ -90,7 +90,7 @@ PyTypeObject AtomicInt_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicInt),
     .tp_itemsize = 0,
-    .tp_new = AtomicInt_new,
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc) AtomicInt_init,
     .tp_dealloc = (destructor) AtomicInt_dealloc,
     .tp_methods = AtomicInt_methods,
@@ -178,7 +178,7 @@ PyTypeObject AtomicIntHandle_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicIntHandle),
     .tp_itemsize = 0,
-    .tp_new = AtomicIntHandle_new,
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc) AtomicIntHandle_init,
     .tp_dealloc = (destructor) AtomicIntHandle_dealloc,
     .tp_methods = AtomicIntHandle_methods,
@@ -206,8 +206,9 @@ PyTypeObject AtomicRef_Type = {
     .tp_itemsize = 0,
     .tp_new = AtomicRef_new,
     .tp_init = (initproc) AtomicRef_init,
-    .tp_dealloc = (destructor) AtomicRef_dealloc,
     .tp_traverse = (traverseproc) AtomicRef_traverse,
+    .tp_clear = (inquiry) AtomicRef_clear,
+    .tp_dealloc = (destructor) AtomicRef_dealloc,
     .tp_methods = AtomicRef_methods,
 };
 
@@ -232,7 +233,7 @@ static PyMappingMethods AtomicDict_mapping_methods = {
     .mp_ass_subscript = (objobjargproc) AtomicDict_SetItem,
 };
 
-static PyTypeObject AtomicDict_Type = {
+PyTypeObject AtomicDict_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicDict",
     .tp_doc = PyDoc_STR("A thread-safe dictionary (hashmap), that's almost-lock-free™."),
@@ -240,8 +241,9 @@ static PyTypeObject AtomicDict_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = AtomicDict_new,
-    .tp_dealloc = (destructor) AtomicDict_dealloc,
     .tp_traverse = (traverseproc) AtomicDict_traverse,
+    .tp_clear = (inquiry) AtomicDict_clear,
+    .tp_dealloc = (destructor) AtomicDict_dealloc,
     .tp_init = (initproc) AtomicDict_init,
     .tp_methods = AtomicDict_methods,
     .tp_as_mapping = &AtomicDict_mapping_methods,
@@ -254,8 +256,9 @@ PyTypeObject AtomicDictMeta_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
     .tp_traverse = (traverseproc) AtomicDictMeta_traverse,
+    .tp_clear = (inquiry) AtomicDictMeta_clear,
+    .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
 PyTypeObject AtomicDictBlock_Type = {
@@ -265,8 +268,9 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
     .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
+    .tp_clear = (inquiry) AtomicDictBlock_clear,
+    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
 };
 
 PyTypeObject AtomicDictAccessorStorage_Type = {
@@ -306,7 +310,7 @@ PyTypeObject AtomicEvent_Type = {
     .tp_basicsize = sizeof(AtomicEvent),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = AtomicEvent_new,
+    .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AtomicEvent_dealloc,
     .tp_init = (initproc) AtomicEvent_init,
     .tp_methods = AtomicEvent_methods,
@@ -326,7 +330,7 @@ PyTypeObject CereggiiConstant_Type = {
     .tp_basicsize = sizeof(CereggiiConstant),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = NULL,
+    .tp_new = PyType_GenericNew,
     .tp_repr = (reprfunc) CereggiiConstant_Repr,
 };
 

@@ -57,6 +57,8 @@ extern PyTypeObject AtomicDictBlock_Type;
 
 int AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg);
 
+int AtomicDictBlock_clear(AtomicDict_Block *self);
+
 void AtomicDictBlock_dealloc(AtomicDict_Block *self);
 
 
@@ -115,6 +117,8 @@ struct AtomicDict_Meta {
 };
 
 int AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg);
+
+int AtomicDictMeta_clear(AtomicDict_Meta *self);
 
 void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 

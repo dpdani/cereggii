@@ -30,6 +30,8 @@ typedef struct AtomicDict {
     PyObject *accessors; // PyListObject
 } AtomicDict;
 
+extern PyTypeObject AtomicDict_Type;
+
 struct AtomicDict_FastIterator;
 typedef struct AtomicDict_FastIterator AtomicDict_FastIterator;
 
@@ -75,6 +77,8 @@ PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 int AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
 int AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg);
+
+int AtomicDict_clear(AtomicDict *self);
 
 void AtomicDict_dealloc(AtomicDict *self);
 

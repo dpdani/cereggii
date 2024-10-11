@@ -8,19 +8,18 @@
 
 
 PyObject *
-AtomicRef_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
+AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicRef *self;
-    self = (AtomicRef *) type->tp_alloc(type, 0);
+    self = PyObject_GC_New(AtomicRef, &AtomicRef_Type);
 
     if (self == NULL)
         return NULL;
 
     self->reference = Py_None;
 
-    if (!PyObject_GC_IsTracked((PyObject *) self)) {
-        PyObject_GC_Track(self);
-    }
+    PyObject_GC_Track(self);
+
     return (PyObject *) self;
 }
 
@@ -51,18 +50,26 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
     return -1;
 }
 
-void AtomicRef_dealloc(AtomicRef *self)
-{
-    PyObject_GC_UnTrack(self);
-    Py_CLEAR(self->reference);
-    Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
 int
 AtomicRef_traverse(AtomicRef *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->reference);
     return 0;
+}
+
+int
+AtomicRef_clear(AtomicRef *self)
+{
+    Py_CLEAR(self->reference);
+
+    return 0;
+}
+
+void AtomicRef_dealloc(AtomicRef *self)
+{
+    PyObject_GC_UnTrack(self);
+    Py_CLEAR(self->reference);
+    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 

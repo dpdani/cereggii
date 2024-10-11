@@ -337,8 +337,6 @@ PyObject *AtomicIntHandle_Real_Set(AtomicIntHandle *self, PyObject *value, void 
 
 PyObject *AtomicInt_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
 
-PyObject *AtomicIntHandle_new(PyTypeObject *type, PyObject *args, PyObject *kwargs);
-
 int AtomicInt_init(AtomicInt *self, PyObject *args, PyObject *kwargs);
 
 int AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *kwargs);

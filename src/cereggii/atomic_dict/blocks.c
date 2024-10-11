@@ -13,7 +13,7 @@ AtomicDict_Block *
 AtomicDictBlock_New(AtomicDict_Meta *meta)
 {
     AtomicDict_Block *new = NULL;
-    new = PyObject_New(AtomicDict_Block, &AtomicDictBlock_Type);
+    new = PyObject_GC_New(AtomicDict_Block, &AtomicDictBlock_Type);
 
     if (new == NULL)
         return NULL;
@@ -33,7 +33,7 @@ AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
 
-        if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+        if (entry.value == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
             continue;
 
         Py_VISIT(entry.key);
@@ -43,11 +43,9 @@ AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
     return 0;
 }
 
-void
-AtomicDictBlock_dealloc(AtomicDict_Block *self)
+int
+AtomicDictBlock_clear(AtomicDict_Block *self)
 {
-    PyObject_GC_UnTrack(self);
-
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
@@ -55,10 +53,20 @@ AtomicDictBlock_dealloc(AtomicDict_Block *self)
         if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
             continue;
 
+        self->entries[i].key = NULL;
         Py_XDECREF(entry.key);
+        self->entries[i].value = NULL;
         Py_XDECREF(entry.value);
     }
 
+    return 0;
+}
+
+void
+AtomicDictBlock_dealloc(AtomicDict_Block *self)
+{
+    PyObject_GC_UnTrack(self);
+    AtomicDictBlock_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
