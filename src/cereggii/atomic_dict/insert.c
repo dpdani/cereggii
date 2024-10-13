@@ -332,8 +332,16 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
     Py_INCREF(key);
     Py_INCREF(desired);
-    _PyObject_SetMaybeWeakref(key);
-    _PyObject_SetMaybeWeakref(desired);
+#ifdef Py_GIL_DISABLED
+    if (!_Py_IsImmortal(key)) {
+        _PyObject_SetMaybeWeakref(key);
+    }
+#endif
+#ifdef Py_GIL_DISABLED
+    if (!_Py_IsImmortal(desired)) {
+        _PyObject_SetMaybeWeakref(desired);
+    }
+#endif
 
     AtomicDict_Meta *meta = NULL;
 
