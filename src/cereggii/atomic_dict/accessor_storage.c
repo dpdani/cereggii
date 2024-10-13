@@ -62,7 +62,7 @@ AtomicDict_BeginSynchronousOperation(AtomicDict *self)
     PyMutex_Lock(&self->accessors_lock);
     for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
         AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
         assert(storage != NULL);
 
         PyMutex_Lock(&storage->self_mutex);
@@ -75,7 +75,7 @@ AtomicDict_EndSynchronousOperation(AtomicDict *self)
     PyMutex_Unlock(&self->sync_op);
     for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
         AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
         assert(storage != NULL);
 
         PyMutex_Unlock(&storage->self_mutex);

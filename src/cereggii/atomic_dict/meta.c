@@ -211,7 +211,7 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
         to_meta->blocks[block_j] = from_meta->blocks[block_i];
 
         for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            AtomicDict_AccessorStorage *storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
             assert(storage != NULL);
 
             AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);

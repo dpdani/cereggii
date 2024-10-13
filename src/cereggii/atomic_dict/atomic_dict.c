@@ -75,7 +75,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (kwargs != NULL) {
         // it is unnecessary to acquire the GIL/begin a critical section:
         // this is the only reference to kwargs
-        PyObject *min_size_arg = PyDict_GetItemString(kwargs, "min_size");
+        PyObject *min_size_arg;
+        if (PyDict_GetItemStringRef(kwargs, "min_size", &min_size_arg) < 0)
+            goto fail;
         if (min_size_arg != NULL) {
             min_size = PyLong_AsLong(min_size_arg);
             PyDict_DelItemString(kwargs, "min_size");
@@ -84,7 +86,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 return -1;
             }
         }
-        PyObject *buffer_size_arg = PyDict_GetItemString(kwargs, "buffer_size");
+        PyObject *buffer_size_arg;
+        if (PyDict_GetItemStringRef(kwargs, "buffer_size", &buffer_size_arg) < 0)
+            goto fail;
         if (buffer_size_arg != NULL) {
             buffer_size = PyLong_AsLong(buffer_size_arg);
             PyDict_DelItemString(kwargs, "buffer_size");
@@ -189,6 +193,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     AtomicDict_AccessorStorage *storage;
     AtomicDict_EntryLoc entry_loc;
     self->sync_op = (PyMutex) {0};
+    self->accessors_lock = (PyMutex) {0};
     self->len = 0;
     self->len_dirty = 0;
 
@@ -246,8 +251,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             }
         }
     }
-
-    self->accessors_lock = (PyMutex) {0};
 
     if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
         storage = AtomicDict_GetOrCreateAccessorStorage(self);
@@ -415,6 +418,7 @@ AtomicDict_LenBounds(AtomicDict *self)
         found += AtomicDict_CountKeysInBlock(grb, meta);
     }
     Py_DECREF(meta);
+    meta = NULL;
 
     if (supposedly_full_blocks < 0) {
         supposedly_full_blocks = 0;
@@ -428,7 +432,7 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     AtomicDict_ReservationBuffer *rb;
     for (int i = 0; i < threads_count; ++i) {
-        rb = (AtomicDict_ReservationBuffer *) PyList_GetItem(self->accessors, i);
+        rb = (AtomicDict_ReservationBuffer *) PyList_GetItemRef(self->accessors, i);
 
         if (rb == NULL)
             goto fail;
@@ -503,7 +507,7 @@ AtomicDict_Len_impl(AtomicDict *self)
 
     for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
         AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
         assert(storage != NULL);
 
         local_len = PyLong_FromLong(storage->local_len);

@@ -652,7 +652,9 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int
         key = PyTuple_GetItem(item, 0);
         value = PyTuple_GetItem(item, 1);
         if (PyDict_Contains(local_buffer, key)) {
-            current = PyDict_GetItem(local_buffer, key);
+            if (PyDict_GetItemRef(local_buffer, key, &current) < 0)
+                goto fail;
+
             expected = PyTuple_GetItem(current, 0);
             current = PyTuple_GetItem(current, 1);
         } else {

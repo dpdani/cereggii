@@ -215,7 +215,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         for (int i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
             accessor->participant_in_migration = 0;
         }
     }
@@ -510,7 +510,7 @@ AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
 
     for (Py_ssize_t migrator = 0; migrator < PyList_Size(current_meta->accessors); ++migrator) {
         AtomicDict_AccessorStorage *storage =
-            (AtomicDict_AccessorStorage *) PyList_GetItem(current_meta->accessors, migrator);
+            (AtomicDict_AccessorStorage *) PyList_GetItemRef(current_meta->accessors, migrator);
 
         if (storage->participant_in_migration == 1) {
             done = 0;
