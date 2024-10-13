@@ -9,6 +9,7 @@
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "pythread.h"
+#include "_internal_py_core.h"
 
 
 int
@@ -331,6 +332,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
     Py_INCREF(key);
     Py_INCREF(desired);
+    _PyObject_SetMaybeWeakref(key);
+    _PyObject_SetMaybeWeakref(desired);
 
     AtomicDict_Meta *meta = NULL;
 

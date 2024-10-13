@@ -32,9 +32,9 @@ _Py_TryIncrefFast(PyObject *op) {
     if (_Py_IsOwnedByCurrentThread(op)) {
         _Py_INCREF_STAT_INC();
         _Py_atomic_store_uint32_relaxed(&op->ob_ref_local, local);
-#ifdef Py_REF_DEBUG
-        _Py_IncRefTotal(_PyThreadState_GET());
-#endif
+//#ifdef Py_REF_DEBUG
+//        _Py_IncRefTotal(_PyThreadState_GET());
+//#endif
         return 1;
     }
     return 0;
@@ -55,9 +55,9 @@ _Py_TryIncRefShared(PyObject *op)
                 &op->ob_ref_shared,
                 &shared,
                 shared + (1 << _Py_REF_SHARED_SHIFT))) {
-#ifdef Py_REF_DEBUG
-            _Py_IncRefTotal(_PyThreadState_GET());
-#endif
+//#ifdef Py_REF_DEBUG
+//            _Py_IncRefTotal(_PyThreadState_GET());
+//#endif
             _Py_INCREF_STAT_INC();
             return 1;
         }
@@ -121,9 +121,9 @@ _Py_NewRefWithLock(PyObject *op)
     if (_Py_TryIncrefFast(op)) {
         return op;
     }
-#ifdef Py_REF_DEBUG
-    _Py_IncRefTotal(_PyThreadState_GET());
-#endif
+//#ifdef Py_REF_DEBUG
+//    _Py_IncRefTotal(_PyThreadState_GET());
+//#endif
     _Py_INCREF_STAT_INC();
     for (;;) {
         Py_ssize_t shared = _Py_atomic_load_ssize_relaxed(&op->ob_ref_shared);
@@ -167,6 +167,12 @@ _PyObject_SetMaybeWeakref(PyObject *op)
         }
     }
 }
+
+#else
+
+static inline void
+_PyObject_SetMaybeWeakref(PyObject *op) {}
+
 
 #endif
 
