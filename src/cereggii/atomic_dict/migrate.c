@@ -9,6 +9,7 @@
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "constants.h"
+#include "thread_id.h"
 
 
 int
@@ -23,11 +24,11 @@ AtomicDict_Grow(AtomicDict *self)
     if (migrate < 0)
         goto fail;
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -40,7 +41,7 @@ AtomicDict_Shrink(AtomicDict *self)
         goto fail;
 
     if (meta->log_size == self->min_log_size) {
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         return 0;
     }
 
@@ -48,11 +49,11 @@ AtomicDict_Shrink(AtomicDict *self)
     if (migrate < 0)
         goto fail;
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -78,17 +79,17 @@ AtomicDict_Compact(AtomicDict *self)
         if (migrate < 0)
             goto fail;
 
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
         is_compact = meta->is_compact;
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
 
     } while (!is_compact);
 
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -113,7 +114,7 @@ AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
         return 0;
     }
 
-    _PyMutex_unlock(self_mutex);
+    PyMutex_Unlock(self_mutex);
     AtomicDict_FollowerMigrate(current_meta);
     return 1;
 }
@@ -160,7 +161,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     if (to_log_size < self->min_log_size) {
         to_log_size = self->min_log_size;
-        Py_DECREF(new_meta);
+//        Py_DECREF(new_meta);
         new_meta = NULL;
         goto beginning;
     }
@@ -214,13 +215,13 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         for (int i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
             accessor->participant_in_migration = 0;
         }
     }
 
     AtomicEvent_Set(current_meta->migration_done);
-    Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
+//    Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
     // the reason is that AtomicRef_CompareAndSet also increases new_meta's refcount,
     // which is exactly what we want. but the reference count was already 1, as it
     // was set during the initialization of new_meta. that's what we're decref'ing
@@ -509,7 +510,7 @@ AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
 
     for (Py_ssize_t migrator = 0; migrator < PyList_Size(current_meta->accessors); ++migrator) {
         AtomicDict_AccessorStorage *storage =
-            (AtomicDict_AccessorStorage *) PyList_GetItem(current_meta->accessors, migrator);
+            (AtomicDict_AccessorStorage *) PyList_GetItemRef(current_meta->accessors, migrator);
 
         if (storage->participant_in_migration == 1) {
             done = 0;

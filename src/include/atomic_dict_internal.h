@@ -40,18 +40,6 @@ typedef struct AtomicDict_Node {
 } AtomicDict_Node;
 
 
-typedef struct {
-    PyObject_HEAD
-} AtomicDict_Gen;
-
-static PyTypeObject AtomicDictGen = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_basicsize = sizeof(AtomicDict_Gen),
-    .tp_itemsize = 0,
-    .tp_new = PyType_GenericNew,
-};
-
-
 /// blocks
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
@@ -59,13 +47,17 @@ static PyTypeObject AtomicDictGen = {
 typedef struct AtomicDict_Block {
     PyObject_HEAD
 
-    PyObject *generation;
+    void *generation;
     // PyObject *iteration;
 
     AtomicDict_Entry entries[ATOMIC_DICT_ENTRIES_IN_BLOCK];
 } AtomicDict_Block;
 
 extern PyTypeObject AtomicDictBlock_Type;
+
+int AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg);
+
+int AtomicDictBlock_clear(AtomicDict_Block *self);
 
 void AtomicDictBlock_dealloc(AtomicDict_Block *self);
 
@@ -80,7 +72,7 @@ struct AtomicDict_Meta {
     uint8_t log_size;  // = node index_size
     uint64_t size;
 
-    PyObject *generation;
+    void *generation;
 
     uint64_t *index;
 
@@ -123,6 +115,10 @@ struct AtomicDict_Meta {
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
 };
+
+int AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg);
+
+int AtomicDictMeta_clear(AtomicDict_Meta *self);
 
 void AtomicDictMeta_dealloc(AtomicDict_Meta *self);
 

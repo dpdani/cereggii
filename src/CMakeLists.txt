@@ -8,9 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options("-mcx16")
 add_compile_options("-msse4.2")
 
-message("Python3_INCLUDE_DIR=" ${Python3_INCLUDE_DIR})
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
-message("Python3_INCLUDE_DIR=" ${Python3_INCLUDE_DIR})
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
 
 

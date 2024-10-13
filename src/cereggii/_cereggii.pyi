@@ -1,5 +1,5 @@
-from collections.abc import Iterable, Iterator
-from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
+from collections.abc import Iterable, Iterator, Callable
+from typing import NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)

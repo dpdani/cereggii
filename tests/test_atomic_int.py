@@ -5,7 +5,6 @@
 import gc
 import threading
 from fractions import Fraction
-from typing import Union
 
 import cereggii
 from cereggii import AtomicInt
@@ -31,7 +30,7 @@ def test_set():
 
 class Result:
     def __init__(self):
-        self.result: Union[int, object, None] = 0
+        self.result: int | object | None = 0
 
 
 def test_cas():

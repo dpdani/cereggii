@@ -119,7 +119,7 @@ PyObject *
 AtomicInt_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
     AtomicInt *self;
-    self = (AtomicInt *) type->tp_alloc(type, 0);
+    self = PyObject_New(AtomicInt, &AtomicInt_Type);
 
     return (PyObject *) self;
 }
@@ -144,7 +144,7 @@ AtomicInt_init(AtomicInt *self, PyObject *args, PyObject *kwargs)
     return 0;
 
     fail:
-    Py_XDECREF(py_integer);
+//    Py_XDECREF(py_integer);
     return -1;
 }
 
@@ -523,9 +523,9 @@ AtomicInt_UpdateAndGet_callable(AtomicInt *self, PyObject *callable)
 PyObject *
 AtomicInt_GetHandle(AtomicInt *self)
 {
-    PyObject *handle = NULL;
+    AtomicIntHandle *handle = NULL;
 
-    handle = AtomicIntHandle_new(&AtomicIntHandle_Type, NULL, NULL);
+    handle = PyObject_New(AtomicIntHandle, &AtomicIntHandle_Type);
 
     if (handle == NULL)
         goto fail;
@@ -534,7 +534,7 @@ AtomicInt_GetHandle(AtomicInt *self)
     if (AtomicIntHandle_init((AtomicIntHandle *) handle, args, NULL) < 0)
         goto fail;
 
-    return handle;
+    return (PyObject *) handle;
 
     fail:
     return NULL;
@@ -991,12 +991,12 @@ AtomicInt_InplacePower_internal(AtomicInt *self, PyObject *other, PyObject *mod,
     if (do_refcount)
         Py_XINCREF(self);
 
-    Py_DECREF(py_current);
-    Py_DECREF(py_updated);
+//    Py_DECREF(py_current);
+//    Py_DECREF(py_updated);
     return (PyObject *) self;
     fail:
-    Py_XDECREF(py_current);
-    Py_XDECREF(py_updated);
+//    Py_XDECREF(py_current);
+//    Py_XDECREF(py_updated);
     return NULL;
 }
 

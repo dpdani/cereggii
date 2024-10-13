@@ -40,8 +40,8 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
             goto not_found;
     }
 
-    Py_CLEAR(result.entry_p->key);
-    Py_DECREF(result.entry.value);
+//    Py_CLEAR(result.entry_p->key);
+//    Py_DECREF(result.entry.value);
     result.entry.value = NULL;
 
 //    do {
@@ -189,11 +189,11 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (storage == NULL)
         goto fail;
 
-    _PyMutex_lock(&storage->self_mutex);
+    PyMutex_Lock(&storage->self_mutex);
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         meta = NULL;
         goto beginning;
     }
@@ -205,7 +205,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         self->len_dirty = 1;
     }
 
-    _PyMutex_unlock(&storage->self_mutex);
+    PyMutex_Unlock(&storage->self_mutex);
 
     if (deleted < 0)
         goto fail;
@@ -221,10 +221,10 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
             goto fail;
     }
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return 0;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
