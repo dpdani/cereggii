@@ -202,6 +202,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         Py_hash_t hash;
         Py_ssize_t pos = 0;
 
+        Py_BEGIN_CRITICAL_SECTION(init_dict);
+
         while (PyDict_Next(init_dict, &pos, &key, &value)) {
             hash = PyObject_Hash(key);
             if (hash == -1)
@@ -222,6 +224,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 goto create;
             }
         }
+
+        Py_END_CRITICAL_SECTION();
+
         meta->inserting_block = self->len >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 
         if (self->len > 0) {
