@@ -437,27 +437,6 @@ PyInit__cereggii(void)
         goto fail;
     }
 
-    assert(CereggiiConstant_Type.tp_name);
-
-    assert(AtomicDict_Type.tp_name);
-
-    assert(AtomicDictMeta_Type.tp_name);
-
-    assert(AtomicDictBlock_Type.tp_name);
-
-    assert(AtomicDictAccessorStorage_Type.tp_name);
-
-    assert(AtomicDictFastIterator_Type.tp_name);
-
-    assert(AtomicEvent_Type.tp_name);
-
-    assert(AtomicRef_Type.tp_name);
-
-    assert(AtomicInt_Type.tp_name);
-
-    assert(AtomicIntHandle_Type.tp_name);
-
-
     return m;
     fail:
     Py_DECREF(m);
