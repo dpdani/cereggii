@@ -144,7 +144,7 @@ AtomicInt_init(AtomicInt *self, PyObject *args, PyObject *kwargs)
     return 0;
 
     fail:
-    Py_XDECREF(py_integer);
+//    Py_XDECREF(py_integer);
     return -1;
 }
 
@@ -991,12 +991,12 @@ AtomicInt_InplacePower_internal(AtomicInt *self, PyObject *other, PyObject *mod,
     if (do_refcount)
         Py_XINCREF(self);
 
-    Py_DECREF(py_current);
-    Py_DECREF(py_updated);
+//    Py_DECREF(py_current);
+//    Py_DECREF(py_updated);
     return (PyObject *) self;
     fail:
-    Py_XDECREF(py_current);
-    Py_XDECREF(py_updated);
+//    Py_XDECREF(py_current);
+//    Py_XDECREF(py_updated);
     return NULL;
 }
 

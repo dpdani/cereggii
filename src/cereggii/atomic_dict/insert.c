@@ -363,7 +363,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         meta = NULL;
         goto beginning;
     }
@@ -386,7 +386,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             if (migrated < 0)
                 goto fail;
 
-            Py_DECREF(meta);
+//            Py_DECREF(meta);
             meta = NULL;
             goto beginning;
         }
@@ -424,17 +424,17 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto fail;
 
         if (must_grow) {  // insertion didn't happen
-            Py_DECREF(meta);
+//            Py_DECREF(meta);
             goto beginning;
         }
     }
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return result;
     fail:
-    Py_XDECREF(meta);
-    Py_DECREF(key);
-    Py_DECREF(desired);
+//    Py_XDECREF(meta);
+//    Py_DECREF(key);
+//    Py_DECREF(desired);
     return NULL;
 }
 
@@ -492,7 +492,7 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     assert(result != EXPECTATION_FAILED);
 
     if (result != NOT_FOUND && result != ANY && result != EXPECTATION_FAILED) {
-        Py_DECREF(result);
+//        Py_DECREF(result);
     }
 
     return 0;
@@ -598,7 +598,7 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     PyMem_RawFree(keys);
     PyMem_RawFree(expected);
     PyMem_RawFree(desired);
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return 0;
 
     fail:
@@ -611,7 +611,7 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     if (desired != NULL) {
         PyMem_RawFree(desired);
     }
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -684,10 +684,10 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int
         if (PyDict_SetItem(local_buffer, key, tuple) < 0)
             goto fail;
 
-        Py_DECREF(item);
+//        Py_DECREF(item);
     }
 
-    Py_DECREF(iterator);
+//    Py_DECREF(iterator);
 
     if (PyErr_Occurred()) {
         goto fail;
@@ -695,12 +695,12 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate, int
 
     reduce_flush(self, local_buffer, aggregate);
 
-    Py_DECREF(local_buffer);
+//    Py_DECREF(local_buffer);
     return 0;
 
     fail:
-    Py_XDECREF(local_buffer);
-    Py_XDECREF(item);
+//    Py_XDECREF(local_buffer);
+//    Py_XDECREF(item);
     return -1;
 }
 

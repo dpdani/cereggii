@@ -24,11 +24,11 @@ AtomicDict_Grow(AtomicDict *self)
     if (migrate < 0)
         goto fail;
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -41,7 +41,7 @@ AtomicDict_Shrink(AtomicDict *self)
         goto fail;
 
     if (meta->log_size == self->min_log_size) {
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         return 0;
     }
 
@@ -49,11 +49,11 @@ AtomicDict_Shrink(AtomicDict *self)
     if (migrate < 0)
         goto fail;
 
-    Py_DECREF(meta);
+//    Py_DECREF(meta);
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -79,17 +79,17 @@ AtomicDict_Compact(AtomicDict *self)
         if (migrate < 0)
             goto fail;
 
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
         meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
         is_compact = meta->is_compact;
-        Py_DECREF(meta);
+//        Py_DECREF(meta);
 
     } while (!is_compact);
 
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
+//    Py_XDECREF(meta);
     return -1;
 }
 
@@ -161,7 +161,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     if (to_log_size < self->min_log_size) {
         to_log_size = self->min_log_size;
-        Py_DECREF(new_meta);
+//        Py_DECREF(new_meta);
         new_meta = NULL;
         goto beginning;
     }
@@ -221,7 +221,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
 
     AtomicEvent_Set(current_meta->migration_done);
-    Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
+//    Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
     // the reason is that AtomicRef_CompareAndSet also increases new_meta's refcount,
     // which is exactly what we want. but the reference count was already 1, as it
     // was set during the initialization of new_meta. that's what we're decref'ing

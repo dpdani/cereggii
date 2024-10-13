@@ -54,9 +54,9 @@ AtomicDictBlock_clear(AtomicDict_Block *self)
             continue;
 
         self->entries[i].key = NULL;
-        Py_XDECREF(entry.key);
+//        Py_XDECREF(entry.key);
         self->entries[i].value = NULL;
-        Py_XDECREF(entry.value);
+//        Py_XDECREF(entry.value);
     }
 
     return 0;
@@ -136,7 +136,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
-            Py_DECREF(block);
+//            Py_DECREF(block);
             goto reserve_in_inserting_block;
         }
     }
