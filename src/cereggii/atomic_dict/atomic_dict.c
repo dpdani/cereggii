@@ -308,7 +308,7 @@ AtomicDict_clear(AtomicDict *self)
     Py_CLEAR(self->metadata);
     Py_CLEAR(self->accessors);
     // this should be enough to deallocate the reservation buffers themselves as well:
-    // the list should be the only reference to them anyway
+    // the list should be the only reference to them
 
     PyThread_tss_delete(self->accessor_key);
     PyThread_tss_free(self->accessor_key);
@@ -345,18 +345,18 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
     uint64_t ix = AtomicDict_Distance0Of(hash, meta);
 
     for (int probe = 0; probe < meta->max_distance; probe++) {
-        AtomicDict_ReadNodeAt(ix + probe, &temp, meta);
+        AtomicDict_ReadNodeAt((ix + probe) % meta->size, &temp, meta);
 
         if (temp.node == 0) {
             node.distance = probe;
-            AtomicDict_WriteNodeAt(ix + probe, &node, meta);
+            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
             goto done;
         }
 
         if (temp.distance < probe) {
             // non-atomic robin hood
             node.distance = probe;
-            AtomicDict_WriteNodeAt(ix + probe, &node, meta);
+            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
             ix = ix + probe - temp.distance;
             probe = temp.distance;
             node = temp;
@@ -437,7 +437,9 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     AtomicDict_ReservationBuffer *rb;
     for (int i = 0; i < threads_count; ++i) {
-        rb = (AtomicDict_ReservationBuffer *) PyList_GetItemRef(self->accessors, i);
+        rb = &(
+            (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i)
+        )->reservation_buffer;
 
         if (rb == NULL)
             goto fail;
