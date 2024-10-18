@@ -456,7 +456,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     uint64_t new_size_mask = new_meta->size - 1;
     uint64_t distance = 0;
-    uint64_t distance_0 = ULONG_LONG_MAX;
+    uint64_t distance_0 = ULLONG_MAX;
 
     for (; i < end_of_block; i++) {
         AtomicDict_ReadNodeAt(i, &node, current_meta);
