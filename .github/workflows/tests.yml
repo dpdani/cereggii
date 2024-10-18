@@ -35,6 +35,7 @@ jobs:
           uv venv --python ${{ matrix.python-version }}
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
+          uv pip install pip
       - run: python --version --version && which python
       - name: system info
         run: |
