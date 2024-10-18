@@ -57,11 +57,17 @@ build_args = ["-j"]
 install_components = ["python_modules"]
 
 
+[tool.cibuildwheel]
+build-frontend = "build"
+free-threaded-support = true
+test-requires = ".[dev]"
+test-command = "pytest {project}"
+
 [tool.cibuildwheel.linux]
-archs = ["x86_64", "ppc64le", "s390x", "armv7l"]
+archs = ["x86_64"]
 
 [tool.cibuildwheel.macos]
-archs = ["x86_64", "universal2", "arm64"]
+archs = ["x86_64", "arm64"]
 
 
 [tool.black]
