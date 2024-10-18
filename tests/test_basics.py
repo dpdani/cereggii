@@ -3,12 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-def test_nogil():
-    import sys
-
-    assert getattr(sys.flags, "nogil", False)
-
-
 def test_import():
     import cereggii
 

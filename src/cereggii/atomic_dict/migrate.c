@@ -9,6 +9,7 @@
 #include "atomic_ref.h"
 #include "atomic_ops.h"
 #include "constants.h"
+#include "thread_id.h"
 
 
 int
@@ -113,7 +114,7 @@ AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
         return 0;
     }
 
-    _PyMutex_unlock(self_mutex);
+    PyMutex_Unlock(self_mutex);
     AtomicDict_FollowerMigrate(current_meta);
     return 1;
 }
@@ -214,7 +215,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         for (int i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
             accessor->participant_in_migration = 0;
         }
     }
@@ -455,7 +456,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     uint64_t new_size_mask = new_meta->size - 1;
     uint64_t distance = 0;
-    uint64_t distance_0 = ULONG_LONG_MAX;
+    uint64_t distance_0 = ULLONG_MAX;
 
     for (; i < end_of_block; i++) {
         AtomicDict_ReadNodeAt(i, &node, current_meta);
@@ -509,7 +510,7 @@ AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
 
     for (Py_ssize_t migrator = 0; migrator < PyList_Size(current_meta->accessors); ++migrator) {
         AtomicDict_AccessorStorage *storage =
-            (AtomicDict_AccessorStorage *) PyList_GetItem(current_meta->accessors, migrator);
+            (AtomicDict_AccessorStorage *) PyList_GetItemRef(current_meta->accessors, migrator);
 
         if (storage->participant_in_migration == 1) {
             done = 0;
