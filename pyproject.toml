@@ -57,6 +57,13 @@ build_args = ["-j"]
 install_components = ["python_modules"]
 
 
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "ppc64le", "s390x", "armv7l"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "universal2", "arm64"]
+
+
 [tool.black]
 target-version = ["py312"]  # no support for 3.13 yet
 line-length = 120
