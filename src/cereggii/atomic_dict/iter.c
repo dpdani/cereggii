@@ -47,8 +47,8 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
     return (PyObject *) iter;
 
     fail:
-//    Py_XDECREF(iter);
-//    Py_DECREF(self);
+    Py_XDECREF(iter);
+    Py_DECREF(self);
     fail_parse:
     return NULL;
 }

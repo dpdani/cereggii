@@ -415,7 +415,6 @@ def test_delete_concurrent(reraise):
     assert key_error_1 or key_error_2
 
 
-@pytest.mark.skip
 def test_memory_leak():
     import tracemalloc
 

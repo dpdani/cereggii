@@ -25,14 +25,14 @@ AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(
     return 0;
 
     fail:
-//    Py_XDECREF(integer);
+    Py_XDECREF(integer);
     return -1;
 }
 
 void
 AtomicIntHandle_dealloc(AtomicIntHandle *self)
 {
-//    Py_XDECREF(self->integer);
+    Py_XDECREF(self->integer);
     Py_TYPE(self)->tp_free((PyObject *) self);
 
 //    CereggiiAtomic_FenceRelease();

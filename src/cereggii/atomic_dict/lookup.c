@@ -172,19 +172,19 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         goto fail;
 
     if (AtomicRef_Get(self->metadata) != (PyObject *) meta) {
-//        Py_DECREF(meta);
+        Py_DECREF(meta);
         goto retry;
     }
-//    Py_DECREF(meta); // for AtomicRef_Get (if condition)
+    Py_DECREF(meta); // for AtomicRef_Get (if condition)
 
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
     }
 
-//    Py_DECREF(meta);
+    Py_DECREF(meta);
     return result.entry.value;
     fail:
-//    Py_XDECREF(meta);
+    Py_XDECREF(meta);
     return NULL;
 }
 
@@ -331,17 +331,17 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     Py_END_CRITICAL_SECTION();
 
     if (self->metadata->reference != (PyObject *) meta) {
-//        Py_DECREF(meta);
+        Py_DECREF(meta);
         goto retry;
     }
 
-//    Py_DECREF(meta);
+    Py_DECREF(meta);
     PyMem_RawFree(hashes);
     PyMem_RawFree(keys);
     Py_INCREF(batch);
     return batch;
     fail:
-//    Py_XDECREF(meta);
+    Py_XDECREF(meta);
     if (hashes != NULL) {
         PyMem_RawFree(hashes);
     }

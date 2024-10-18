@@ -36,13 +36,13 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
 
         if (appended == -1)
             goto fail;
-//        Py_DECREF(storage);
+        Py_DECREF(storage);
     }
 
     return storage;
     fail:
     assert(storage != NULL);
-//    Py_DECREF(storage);
+    Py_DECREF(storage);
     return NULL;
 }
 

@@ -44,9 +44,9 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
     return (PyObject *) self;
 
     fail:
-//    Py_XDECREF(self->metadata);
-//    Py_XDECREF(self->accessors);
-//    Py_XDECREF(self);
+    Py_XDECREF(self->metadata);
+    Py_XDECREF(self->accessors);
+    Py_XDECREF(self);
     return NULL;
 }
 
@@ -219,7 +219,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             entry->value = value;
             int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len);
             if (inserted == -1) {
-//                Py_DECREF(meta);
+                Py_DECREF(meta);
                 log_size++;
                 goto create;
             }
@@ -283,11 +283,11 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
     }
 
-//    Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
-//    assert(Py_REFCNT(meta) == 1);
+    Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
+    assert(Py_REFCNT(meta) == 1);
     return 0;
     fail:
-//    Py_XDECREF(meta);
+    Py_XDECREF(meta);
     if (!PyErr_Occurred()) {
         PyErr_SetString(PyExc_RuntimeError, "error during initialization.");
     }
@@ -422,7 +422,7 @@ AtomicDict_LenBounds(AtomicDict *self)
         // visit the grb
         found += AtomicDict_CountKeysInBlock(grb, meta);
     }
-//    Py_DECREF(meta);
+    Py_DECREF(meta);
     meta = NULL;
 
     if (supposedly_full_blocks < 0) {
@@ -453,7 +453,7 @@ AtomicDict_LenBounds(AtomicDict *self)
     return Py_BuildValue("(ll)", lower + found, upper + found);
 
     fail:
-//    Py_XDECREF(meta);
+    Py_XDECREF(meta);
     return NULL;
 }
 
@@ -482,18 +482,18 @@ AtomicDict_ApproxLen(AtomicDict *self)
     avg = PyNumber_FloorDivide(sum, PyLong_FromLong(2));
     // PyLong_FromLong(2) will not return NULL
 
-//    Py_DECREF(bounds);
-//    Py_DECREF(lower);
-//    Py_DECREF(upper);
-//    Py_DECREF(sum);
+    Py_DECREF(bounds);
+    Py_DECREF(lower);
+    Py_DECREF(upper);
+    Py_DECREF(sum);
     return avg;
 
     fail:
-//    Py_XDECREF(bounds);
-//    Py_XDECREF(lower);
-//    Py_XDECREF(upper);
-//    Py_XDECREF(sum);
-//    Py_XDECREF(avg);
+    Py_XDECREF(bounds);
+    Py_XDECREF(lower);
+    Py_XDECREF(upper);
+    Py_XDECREF(sum);
+    Py_XDECREF(avg);
     return NULL;
 }
 
@@ -522,7 +522,7 @@ AtomicDict_Len_impl(AtomicDict *self)
             goto fail;
 
         len = PyNumber_InPlaceAdd(len, local_len);
-//        Py_DECREF(local_len);
+        Py_DECREF(local_len);
         local_len = NULL;
         storage->local_len = 0;
     }
@@ -533,10 +533,10 @@ AtomicDict_Len_impl(AtomicDict *self)
     self->len = int_len;
     self->len_dirty = 0;
 
-//    Py_DECREF(len);
+    Py_DECREF(len);
     return int_len;
     fail:
-//    Py_XDECREF(len);
+    Py_XDECREF(len);
     return -1;
 }
 
@@ -593,7 +593,7 @@ AtomicDict_Debug(AtomicDict *self)
         if (n == NULL)
             goto fail;
         PyList_Append(index_nodes, n);
-//        Py_DECREF(n);
+        Py_DECREF(n);
     }
 
     blocks = Py_BuildValue("[]");
@@ -629,37 +629,37 @@ AtomicDict_Debug(AtomicDict *self)
                 Py_INCREF(key);
                 Py_INCREF(value);
                 PyList_Append(entries, entry_tuple);
-//                Py_DECREF(entry_tuple);
+                Py_DECREF(entry_tuple);
             }
         }
 
         block_info = Py_BuildValue("{snsO}",
                                    "gen\0", block->generation,
                                    "entries\0", entries);
-//        Py_DECREF(entries);
+        Py_DECREF(entries);
         if (block_info == NULL)
             goto fail;
         PyList_Append(blocks, block_info);
-//        Py_DECREF(block_info);
+        Py_DECREF(block_info);
     }
 
     PyObject *out = Py_BuildValue("{sOsOsO}", "meta\0", metadata, "blocks\0", blocks, "index\0", index_nodes);
     if (out == NULL)
         goto fail;
-//    Py_DECREF(meta);
-//    Py_DECREF(metadata);
-//    Py_DECREF(blocks);
-//    Py_DECREF(index_nodes);
+    Py_DECREF(meta);
+    Py_DECREF(metadata);
+    Py_DECREF(blocks);
+    Py_DECREF(index_nodes);
     return out;
 
     fail:
     PyErr_SetString(PyExc_RuntimeError, "unable to get debug info");
-//    Py_XDECREF(meta);
-//    Py_XDECREF(metadata);
-//    Py_XDECREF(index_nodes);
-//    Py_XDECREF(blocks);
-//    Py_XDECREF(entries);
-//    Py_XDECREF(entry_tuple);
-//    Py_XDECREF(block_info);
+    Py_XDECREF(meta);
+    Py_XDECREF(metadata);
+    Py_XDECREF(index_nodes);
+    Py_XDECREF(blocks);
+    Py_XDECREF(entries);
+    Py_XDECREF(entry_tuple);
+    Py_XDECREF(block_info);
     return NULL;
 }

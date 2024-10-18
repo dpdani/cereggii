@@ -116,7 +116,7 @@ AtomicDictMeta_New(uint8_t log_size)
     return meta;
     fail:
     PyMem_RawFree(generation);
-//    Py_XDECREF(meta);
+    Py_XDECREF(meta);
     if (index != NULL) {
         PyMem_RawFree(index);
     }

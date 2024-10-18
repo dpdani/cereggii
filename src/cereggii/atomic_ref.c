@@ -46,7 +46,7 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
     return 0;
 
     fail:
-//    Py_XDECREF(reference);
+    Py_XDECREF(reference);
     return -1;
 }
 
@@ -101,12 +101,12 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
     while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, reference)) {
-//        Py_DECREF(current_reference);
+        Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
 
-//    Py_DECREF(current_reference);  // decrement for the AtomicRef_Get
-//    Py_DECREF(current_reference);  // decrement because not holding it anymore
+    Py_DECREF(current_reference);  // decrement for the AtomicRef_Get
+    Py_DECREF(current_reference);  // decrement because not holding it anymore
     Py_RETURN_NONE;
 }
 
@@ -124,10 +124,10 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
 #endif
     int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, new);
     if (retval) {
-//        Py_DECREF(expected);
+        Py_DECREF(expected);
         return 1;
     } else {
-//        Py_DECREF(new);
+        Py_DECREF(new);
         return 0;
     }
 }
