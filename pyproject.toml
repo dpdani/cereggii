@@ -29,11 +29,11 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-  "build==1.0.3",
-  "pytest==7.4.2",
+  "build==1.2.2.post1",
+  "pytest==8.3.3",
   "pytest-reraise==2.1.2",
-  "black==23.9.1",
-  "ruff==0.0.292",
+  "black==24.10.0",
+  "ruff==0.7.0",
 ]
 
 
