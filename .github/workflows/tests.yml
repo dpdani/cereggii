@@ -17,7 +17,7 @@ jobs:
           - 3.13.0
           - 3.13t
 
-    name: test / ${{ matrix.os }} / ${{ matrix.python-version }}
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
     steps:
       - uses: actions/checkout@v4
