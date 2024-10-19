@@ -13,13 +13,11 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-13
-          - macos-14
         python-version:
           - 3.13.0
           - 3.13t
 
-    name: test on ${{ matrix.os }} ${{ matrix.python-version }}
+    name: test / ${{ matrix.os }} / ${{ matrix.python-version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -51,12 +49,9 @@ jobs:
       - name: test with pytest
         run: |
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
-        if: ${{ always() }}
       - name: upload pytest test results
         uses: actions/upload-artifact@v4
         with:
           name: pytest-results-${{ matrix.python-version }}
           path: junit/test-results-${{ matrix.python-version }}.xml
         if: ${{ always() }}
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3

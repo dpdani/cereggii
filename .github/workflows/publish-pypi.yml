@@ -5,14 +5,14 @@ on:
     types: [ published ]
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: [ "3.13.0" ]
     permissions:
-      id-token: write  # necessary for OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
+      id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
       - uses: actions/checkout@v3
@@ -26,5 +26,7 @@ jobs:
           pip install .[dev]
       - name: build package
         run: python -m build
+      - name: remove wheels  # TODO
+        run: rm dist/*.whl
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1

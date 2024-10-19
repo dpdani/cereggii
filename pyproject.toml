@@ -1,5 +1,5 @@
 [build-system]
-requires = ["py-build-cmake"]
+requires = ["py-build-cmake~=0.1.8"]
 build-backend = "py_build_cmake.build"
 
 
@@ -55,19 +55,6 @@ source_path = "src"
 args = ["-L"]
 build_args = ["-j"]
 install_components = ["python_modules"]
-
-
-[tool.cibuildwheel]
-build-frontend = "build"
-free-threaded-support = true
-test-requires = ".[dev]"
-test-command = "pytest {project}"
-
-[tool.cibuildwheel.linux]
-archs = ["x86_64"]
-
-[tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
 
 
 [tool.black]
