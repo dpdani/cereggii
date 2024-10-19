@@ -28,4 +28,4 @@ jobs:
         run: black --check .
       - name: lint
         run: |
-          ruff .
+          ruff check .

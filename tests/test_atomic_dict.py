@@ -49,7 +49,7 @@ def test_weird_init():
 def test_debug():
     d = AtomicDict({"key": "value"}, min_size=64, iterable={1: 0})
     dbg = d.debug()
-    assert type(dbg) is dict  # noqa: E721
+    assert type(dbg) is dict
     assert "meta" in dbg
     assert "index" in dbg
     assert "blocks" in dbg

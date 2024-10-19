@@ -65,6 +65,8 @@ skip-string-normalization = true
 [tool.ruff]
 target-version = "py312"  # no support for 3.13 yet
 line-length = 120
+
+[lint]
 select = [
   "A",
   "ARG",
@@ -112,11 +114,9 @@ unfixable = [
   # Don't touch unused imports
   "F401",
 ]
-
-[tool.ruff.isort]
 known-first-party = ["cereggii"]
 
-[tool.ruff.per-file-ignores]
+[lint.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 
