@@ -137,6 +137,7 @@ class AtomicDict:
 
         :returns: the input :param:`batch` dictionary, with substituted values.
         """
+
     def reduce(
         self,
         iterable: Iterable[tuple[Key, Value]],
@@ -167,6 +168,7 @@ class AtomicDict:
 
             d.reduce(data, count)
         """
+
     def compact(self) -> None: ...
     def debug(self) -> dict: ...
     def rehash(self, o: object) -> int: ...
@@ -197,26 +199,35 @@ class AtomicInt(int):
     def get_handle(self) -> AtomicIntHandle: ...
     def __itruediv__(self, other):
         raise NotImplementedError
+
     def as_integer_ratio(self):
         raise NotImplementedError
+
     def bit_length(self):
         raise NotImplementedError
+
     def conjugate(self):
         raise NotImplementedError
+
     @classmethod
     def from_bytes(cls, *args, **kwargs):
         raise NotImplementedError
+
     def to_bytes(self, *args, **kwargs):
         raise NotImplementedError
+
     @property
     def denominator(self):
         raise NotImplementedError
+
     @property
     def numerator(self):
         raise NotImplementedError
+
     @property
     def imag(self):
         raise NotImplementedError
+
     @property
     def real(self):
         raise NotImplementedError
