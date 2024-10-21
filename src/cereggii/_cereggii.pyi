@@ -81,6 +81,7 @@ class AtomicDict:
         del my_atomic_dict[key]
         ```
         """
+
     def __getitem__(self, key: Key) -> Value:
         """
         Atomically retrieve the value associated with `key`:
@@ -233,12 +234,14 @@ class AtomicDict:
 
         :raises ExpectationFailed: If the found value was not `expected`.
         """
+
     def len_bounds(self) -> tuple[int, int]:
         """
         Get a lower and an upper-bound for the number of items stored in this `AtomicDict`.
 
         Also see [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len].
         """
+
     def approx_len(self) -> int:
         """
         Retrieve the approximate length of this `AtomicDict`.
@@ -261,6 +264,7 @@ class AtomicDict:
             mutating it, calling `approx_len` should be more performant and still
             return a fairly good approximation.
         """
+
     def fast_iter(self, partitions=1, this_partition=0) -> Iterator[tuple[Key, Value]]:
         """
         A fast, not sequentially consistent iterator.
@@ -287,6 +291,7 @@ class AtomicDict:
         :param this_partition: This thread's assigned partition.
             Valid values are from 0 to `partitions`-1.
         """
+
     def batch_getitem(self, batch: dict, chunk_size: int = 128) -> dict:
         """Batch many lookups together for efficient memory access.
 
@@ -378,6 +383,7 @@ class AtomicDict:
         For internal usage only.
         This method is subject to change without a deprecation notice.
         """
+
     def _rehash(self, o: object) -> int:
         """
         Rehash object `o` with `AtomicDict`'s internal hashing function.
@@ -448,10 +454,12 @@ class AtomicInt(int):
         Atomically read the current value of this `AtomicInt` and if it is `expected`,
         then replace it with `desired` and return `True`. Else, return `False`.
         """
+
     def get(self) -> int:
         """
         Atomically read the current value of this `AtomicInt`.
         """
+
     def set(self, desired: int) -> None:  # noqa: A003
         """
         Unconditionally set the value of this `AtomicInt` to `desired`.
@@ -466,31 +474,37 @@ class AtomicInt(int):
             this mutation is applied. Use this method only when no other thread may be
             writing to this `AtomicInt`.
         """
+
     def get_and_set(self, desired: int) -> int:
         """
         Atomically swap the value of this `AtomicInt` to `desired` and return
         the previously stored value.
         """
+
     def increment_and_get(self, /, amount: int = 1) -> int:
         """
         Atomically increment this `AtomicInt` by `amount` and return the
         incremented value.
         """
+
     def get_and_increment(self, /, amount: int = 1) -> int:
         """
         Atomically increment this `AtomicInt` by `amount` and return the
         previously stored value.
         """
+
     def decrement_and_get(self, /, amount: int = 1) -> int:
         """
         Atomically decrement this `AtomicInt` by `amount` and return the
         decremented value.
         """
+
     def get_and_decrement(self, /, amount: int = 1) -> int:
         """
         Atomically decrement this `AtomicInt` by `amount` and return the
         previously stored value.
         """
+
     def update_and_get(self, /, callable: Callable[[int], int]) -> int:
         """
         Atomically update the value currently stored in this `AtomicInt` by applying
@@ -505,6 +519,7 @@ class AtomicInt(int):
             once but there is no upper bound to the number of times it will be
             called within one invocation of this method.
         """
+
     def get_and_update(self, /, callable: Callable[[int], int]) -> int:
         """
         Atomically update the value currently stored in this `AtomicInt` by applying
@@ -519,6 +534,7 @@ class AtomicInt(int):
             once but there is no upper bound to the number of times it will be
             called within one invocation of this method.
         """
+
     def get_handle(self) -> AtomicIntHandle:
         """
         Get a thread-local handle for this `AtomicInt`.
@@ -527,6 +543,7 @@ class AtomicInt(int):
         your application (by reducing the number of times the reference counting
         slow path is taken).
         """
+
     def __itruediv__(self, other):
         raise NotImplementedError
 
