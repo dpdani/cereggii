@@ -95,7 +95,7 @@ AtomicRef_Set(AtomicRef *self, PyObject *desired)
 
     Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    _PyObject_SetMaybeWeakref(reference);
+    _PyObject_SetMaybeWeakref(desired);
 #endif
 
     PyObject *current_reference;
@@ -118,8 +118,8 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
 
     Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(new)) {
-        _PyObject_SetMaybeWeakref(new);
+    if (!_Py_IsImmortal(desired)) {
+        _PyObject_SetMaybeWeakref(desired);
     }
 #endif
     int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, desired);
@@ -157,8 +157,8 @@ PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
 
     Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(new)) {
-        _PyObject_SetMaybeWeakref(new);
+    if (!_Py_IsImmortal(desired)) {
+        _PyObject_SetMaybeWeakref(desired);
     }
 #endif
     PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
