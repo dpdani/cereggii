@@ -345,7 +345,7 @@ static PyModuleDef cereggii_module = {
 __attribute__((unused)) PyMODINIT_FUNC
 PyInit__cereggii(void)
 {
-    PyObject *m;
+    PyObject *m = NULL;
 
     if (PyType_Ready(&CereggiiConstant_Type) < 0)
         return NULL;
@@ -392,54 +392,45 @@ PyInit__cereggii(void)
     PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
 #endif
 
-    if (PyModule_AddObjectRef(m, "NOT_FOUND", NOT_FOUND) < 0) {
-        Py_DECREF(NOT_FOUND);
+    if (PyModule_AddObjectRef(m, "NOT_FOUND", NOT_FOUND) < 0)
         goto fail;
-    }
+    Py_DECREF(NOT_FOUND);
 
-    if (PyModule_AddObjectRef(m, "ANY", ANY) < 0) {
-        Py_DECREF(ANY);
+    if (PyModule_AddObjectRef(m, "ANY", ANY) < 0)
         goto fail;
-    }
+    Py_DECREF(ANY);
 
-    if (PyModule_AddObjectRef(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
-        Py_DECREF(EXPECTATION_FAILED);
+    if (PyModule_AddObjectRef(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0)
         goto fail;
-    }
+    Py_DECREF(EXPECTATION_FAILED);
 
-    if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
-        Py_DECREF(Cereggii_ExpectationFailed);
+    if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0)
         goto fail;
-    }
+    Py_DECREF(Cereggii_ExpectationFailed);
 
-    if (PyModule_AddObjectRef(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
-        Py_DECREF(&AtomicDict_Type);
+    if (PyModule_AddObjectRef(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0)
         goto fail;
-    }
+    Py_DECREF(&AtomicDict_Type);
 
-    if (PyModule_AddObjectRef(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
-        Py_DECREF(&AtomicEvent_Type);
+    if (PyModule_AddObjectRef(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0)
         goto fail;
-    }
+    Py_DECREF(&AtomicEvent_Type);
 
-    if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
-        Py_DECREF(&AtomicRef_Type);
+    if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0)
         goto fail;
-    }
+    Py_DECREF(&AtomicRef_Type);
 
-    if (PyModule_AddObjectRef(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
-        Py_DECREF(&AtomicInt_Type);
+    if (PyModule_AddObjectRef(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0)
         goto fail;
-    }
+    Py_DECREF(&AtomicInt_Type);
 
-    if (PyModule_AddObjectRef(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
-        Py_DECREF(&AtomicIntHandle_Type);
+    if (PyModule_AddObjectRef(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0)
         goto fail;
-    }
+    Py_DECREF(&AtomicIntHandle_Type);
 
     return m;
     fail:
-    Py_DECREF(m);
+    Py_XDECREF(m);
     Py_XDECREF(NOT_FOUND);
     Py_XDECREF(ANY);
     Py_XDECREF(EXPECTATION_FAILED);
