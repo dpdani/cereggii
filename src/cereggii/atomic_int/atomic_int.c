@@ -114,16 +114,6 @@ AtomicInt_DivOrSetException(int64_t current, int64_t to_div, int64_t *result)
     return overflowed;
 }
 
-
-PyObject *
-AtomicInt_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
-{
-    AtomicInt *self;
-    self = PyObject_New(AtomicInt, &AtomicInt_Type);
-
-    return (PyObject *) self;
-}
-
 int
 AtomicInt_init(AtomicInt *self, PyObject *args, PyObject *kwargs)
 {
