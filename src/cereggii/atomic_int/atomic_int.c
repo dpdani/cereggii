@@ -144,7 +144,6 @@ AtomicInt_init(AtomicInt *self, PyObject *args, PyObject *kwargs)
     return 0;
 
     fail:
-    Py_XDECREF(py_integer);
     return -1;
 }
 
