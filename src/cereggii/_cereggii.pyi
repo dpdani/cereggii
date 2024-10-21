@@ -1,5 +1,5 @@
-from collections.abc import Iterable, Iterator
-from typing import Callable, NewType, SupportsComplex, SupportsFloat, SupportsInt
+from collections.abc import Iterable, Iterator, Callable
+from typing import NewType, SupportsComplex, SupportsFloat, SupportsInt
 
 Key = NewType("Key", object)
 Value = NewType("Value", object)
@@ -320,6 +320,7 @@ class AtomicDict:
 
         :returns: the input `batch` dictionary, with substituted values.
         """
+
     def reduce(
         self,
         iterable: Iterable[tuple[Key, Value]],
@@ -368,6 +369,7 @@ class AtomicDict:
             First, an intermediate result is aggregated into a thread-local dictionary, and then applied to the shared
             `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
         """
+
     def compact(self) -> None: ...
     def _debug(self) -> dict:
         """
@@ -527,26 +529,35 @@ class AtomicInt(int):
         """
     def __itruediv__(self, other):
         raise NotImplementedError
+
     def as_integer_ratio(self):
         raise NotImplementedError
+
     def bit_length(self):
         raise NotImplementedError
+
     def conjugate(self):
         raise NotImplementedError
+
     @classmethod
     def from_bytes(cls, *args, **kwargs):
         raise NotImplementedError
+
     def to_bytes(self, *args, **kwargs):
         raise NotImplementedError
+
     @property
     def denominator(self):
         raise NotImplementedError
+
     @property
     def numerator(self):
         raise NotImplementedError
+
     @property
     def imag(self):
         raise NotImplementedError
+
     @property
     def real(self):
         raise NotImplementedError

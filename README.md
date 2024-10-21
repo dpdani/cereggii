@@ -1,5 +1,7 @@
 # cereggii
 
+[![supports free-threading](https://github.com/dpdani/free-threading-badges/raw/main/supported.svg)](https://py-free-threading.github.io/)
+
 Thread synchronization utilities for free-threaded Python.
 
 This library provides some atomic data types which, in a multithreaded context, are generally more performant compared

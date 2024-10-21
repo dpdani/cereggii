@@ -5,14 +5,14 @@ on:
     types: [ published ]
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "nogil-3.9" ]
+        python-version: [ "3.13.0" ]
     permissions:
-      id-token: write  # necessary for OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
+      id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
       - uses: actions/checkout@v3
@@ -20,16 +20,13 @@ jobs:
         uses: dpdani/setup-python@nogil
         with:
           python-version: ${{ matrix.python-version }}
-      - name: check nogil
-        run: |
-          python -c "import sys; print(sys.flags.nogil);"
       - name: install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install .[dev]
       - name: build package
         run: python -m build
-      - name: remove wheels  # cannot yet publish wheels for free-threaded python
+      - name: remove wheels  # TODO
         run: rm dist/*.whl
       - name: publish package
         uses: pypa/gh-action-pypi-publish@release/v1

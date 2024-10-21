@@ -17,7 +17,7 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         if (storage == NULL)
             return NULL;
 
-        storage->self_mutex.v = 0;
+        storage->self_mutex = (PyMutex) {0};
         storage->local_len = 0;
         storage->participant_in_migration = 0;
         storage->reservation_buffer.head = 0;
@@ -30,9 +30,9 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
             goto fail;
 
         int appended;
-        Py_BEGIN_CRITICAL_SECTION(&self->accessors_lock);
+        PyMutex_Lock(&self->accessors_lock);
         appended = PyList_Append(self->accessors, (PyObject *) storage);
-        Py_END_CRITICAL_SECTION
+        PyMutex_Unlock(&self->accessors_lock);
 
         if (appended == -1)
             goto fail;
@@ -58,29 +58,29 @@ AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
 void
 AtomicDict_BeginSynchronousOperation(AtomicDict *self)
 {
-    _PyMutex_lock(&self->sync_op);
-    _PyMutex_lock(&self->accessors_lock);
+    PyMutex_Lock(&self->sync_op);
+    PyMutex_Lock(&self->accessors_lock);
     for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
         AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
         assert(storage != NULL);
 
-        _PyMutex_lock(&storage->self_mutex);
+        PyMutex_Lock(&storage->self_mutex);
     }
 }
 
 void
 AtomicDict_EndSynchronousOperation(AtomicDict *self)
 {
-    _PyMutex_unlock(&self->sync_op);
+    PyMutex_Unlock(&self->sync_op);
     for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
         AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItem(self->accessors, i);
+        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
         assert(storage != NULL);
 
-        _PyMutex_unlock(&storage->self_mutex);
+        PyMutex_Unlock(&storage->self_mutex);
     }
-    _PyMutex_unlock(&self->accessors_lock);
+    PyMutex_Unlock(&self->accessors_lock);
 }
 
 void

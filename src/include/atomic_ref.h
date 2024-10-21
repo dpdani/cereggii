@@ -31,9 +31,11 @@ PyObject *AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 int AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs);
 
-void AtomicRef_dealloc(AtomicRef *self);
-
 int AtomicRef_traverse(AtomicRef *self, visitproc visit, void *arg);
+
+int AtomicRef_clear(AtomicRef *self);
+
+void AtomicRef_dealloc(AtomicRef *self);
 
 extern PyTypeObject AtomicRef_Type;
 

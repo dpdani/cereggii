@@ -11,7 +11,7 @@ PyObject *
 AtomicEvent_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicEvent *self = NULL;
-    self = (AtomicEvent *) type->tp_alloc(type, 0);
+    self = PyObject_New(AtomicEvent, &AtomicEvent_Type);
     return (PyObject *) self;
 }
 

@@ -6,34 +6,46 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
-#include "atomic_ref.h"
 #include "atomic_ops.h"
-#include "pythread.h"
 
 
 AtomicDict_Block *
 AtomicDictBlock_New(AtomicDict_Meta *meta)
 {
     AtomicDict_Block *new = NULL;
-    new = PyObject_New(AtomicDict_Block, &AtomicDictBlock_Type);
+    new = PyObject_GC_New(AtomicDict_Block, &AtomicDictBlock_Type);
 
     if (new == NULL)
         return NULL;
 
-    Py_INCREF(meta->generation);
     new->generation = meta->generation;
     memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
+
+    PyObject_GC_Track(new);
 
     return new;
 }
 
-void
-AtomicDictBlock_dealloc(AtomicDict_Block *self)
+int
+AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
 {
-//    printf("dealloc %p ", self);
-//    fflush(stdout);
-    Py_CLEAR(self->generation);
+    AtomicDict_Entry entry;
+    for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
+        entry = self->entries[i];
 
+        if (entry.value == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+            continue;
+
+        Py_VISIT(entry.key);
+        Py_VISIT(entry.value);
+    }
+
+    return 0;
+}
+
+int
+AtomicDictBlock_clear(AtomicDict_Block *self)
+{
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
@@ -41,10 +53,20 @@ AtomicDictBlock_dealloc(AtomicDict_Block *self)
         if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
             continue;
 
+        self->entries[i].key = NULL;
         Py_XDECREF(entry.key);
+        self->entries[i].value = NULL;
         Py_XDECREF(entry.value);
     }
 
+    return 0;
+}
+
+void
+AtomicDictBlock_dealloc(AtomicDict_Block *self)
+{
+    PyObject_GC_UnTrack(self);
+    AtomicDictBlock_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
