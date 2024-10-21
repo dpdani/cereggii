@@ -27,18 +27,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: set up python ${{ matrix.python-version }}
-        uses: deadsnakes/action@v3.2.0
+        uses: astral-sh/setup-uv@v3
         if: endsWith(matrix.python-version, 't')
-        with:
-          python-version: 3.13
-          nogil: true
-#      - if: endsWith(matrix.python-version, 't')
-#        run: |
-#          uv python install ${{ matrix.python-version }}
-#          uv venv --python ${{ matrix.python-version }}
-#          . .venv/bin/activate
-#          echo PATH=$PATH >> $GITHUB_ENV
-#          uv pip install pip
+      - if: endsWith(matrix.python-version, 't')
+        run: |
+          uv python install ${{ matrix.python-version }}
+          uv venv --python ${{ matrix.python-version }}
+          . .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+          uv pip install pip
       - run: python --version --version && which python
       - name: system info
         run: |
