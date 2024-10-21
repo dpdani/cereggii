@@ -29,15 +29,15 @@ int64_t AtomicInt_Get(AtomicInt *self);
 
 PyObject *AtomicInt_Get_callable(AtomicInt *self);
 
-void AtomicInt_Set(AtomicInt *self, int64_t updated);
+void AtomicInt_Set(AtomicInt *self, int64_t desired);
 
 PyObject *AtomicInt_Set_callable(AtomicInt *self, PyObject *updated);
 
-int AtomicInt_CompareAndSet(AtomicInt *self, int64_t expected, int64_t updated);
+int AtomicInt_CompareAndSet(AtomicInt *self, int64_t expected, int64_t desired);
 
 PyObject *AtomicInt_CompareAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwargs);
 
-int64_t AtomicInt_GetAndSet(AtomicInt *self, int64_t updated);
+int64_t AtomicInt_GetAndSet(AtomicInt *self, int64_t desired);
 
 PyObject *AtomicInt_GetAndSet_callable(AtomicInt *self, PyObject *args, PyObject *kwargs);
 
