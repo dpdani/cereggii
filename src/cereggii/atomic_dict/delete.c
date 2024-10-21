@@ -189,7 +189,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (storage == NULL)
         goto fail;
 
-    _PyMutex_lock(&storage->self_mutex);
+    PyMutex_Lock(&storage->self_mutex);
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
@@ -205,7 +205,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         self->len_dirty = 1;
     }
 
-    _PyMutex_unlock(&storage->self_mutex);
+    PyMutex_Unlock(&storage->self_mutex);
 
     if (deleted < 0)
         goto fail;

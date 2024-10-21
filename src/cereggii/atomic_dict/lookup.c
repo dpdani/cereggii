@@ -243,6 +243,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     Py_hash_t hash;
     Py_hash_t *hashes = NULL;
     PyObject **keys = NULL;
+    AtomicDict_Meta *meta = NULL;
 
     hashes = PyMem_RawMalloc(chunk_size * sizeof(Py_hash_t));
     if (hashes == NULL)
@@ -253,7 +254,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     AtomicDict_SearchResult result;
-    AtomicDict_Meta *meta = NULL;
     retry:
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
@@ -262,6 +262,8 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_ssize_t chunk_start = 0, chunk_end = 0;
     Py_ssize_t pos = 0;
+
+    Py_BEGIN_CRITICAL_SECTION(batch);
 
     next_chunk:
     while (PyDict_Next(batch, &pos, &key, &value)) {
@@ -313,10 +315,10 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         assert(_PyDict_GetItem_KnownHash(batch, key, hash) != NULL); // returns a borrowed reference
         if (result.found) {
-            if (_PyDict_SetItem_KnownHash(batch, key, result.entry.value, hash) < 0)
+            if (PyDict_SetItem(batch, key, result.entry.value) < 0)
                 goto fail;
         } else {
-            if (_PyDict_SetItem_KnownHash(batch, key, NOT_FOUND, hash) < 0)
+            if (PyDict_SetItem(batch, key, NOT_FOUND) < 0)
                 goto fail;
         }
     }
@@ -325,6 +327,8 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         chunk_start = chunk_end;
         goto next_chunk;
     }
+
+    Py_END_CRITICAL_SECTION();
 
     if (self->metadata->reference != (PyObject *) meta) {
         Py_DECREF(meta);

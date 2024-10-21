@@ -6,27 +6,41 @@ on:
   pull_request:
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "nogil-3.9" ]
+        os:
+          - ubuntu-latest
+        python-version:
+          - 3.13.0
+          - 3.13t
+
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: set up python ${{ matrix.python-version }}
-        uses: dpdani/setup-python@nogil
+        uses: actions/setup-python@v5
+        if: "!endsWith(matrix.python-version, 't')"
         with:
           python-version: ${{ matrix.python-version }}
+      - name: set up python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v3
+        if: endsWith(matrix.python-version, 't')
+      - if: endsWith(matrix.python-version, 't')
+        run: |
+          uv python install ${{ matrix.python-version }}
+          uv venv --python ${{ matrix.python-version }}
+          . .venv/bin/activate
+          echo PATH=$PATH >> $GITHUB_ENV
+          uv pip install pip
+      - run: python --version --version && which python
       - name: system info
         run: |
           uname -a
           cat /proc/cpuinfo
-      - name: check nogil
-        run: |
-          python -c "import sys; print(sys.flags.nogil);"
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
@@ -34,82 +48,9 @@ jobs:
           pip install .[dev]
       - name: test with pytest
         run: |
-          ulimit -c unlimited
-          ulimit -c
-          sudo mkdir -p /cores/
-          sudo mkdir -p ./so-libs
-          sudo chmod -R 777 /cores/
-          sudo chmod -R 777 ./so-libs
-          echo "/cores/core-%e-%p-%t" | sudo tee /proc/sys/kernel/core_pattern
-          sudo cat /proc/sys/kernel/core_pattern
           pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
-        if: ${{ always() }}
-      - name: prepare shared libs
-        run: |
-          declare -a shared=(
-            "$pythonLocation/lib/python3.9/site-packages/cereggii/_cereggii.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/pyexpat.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_decimal.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/unicodedata.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_elementtree.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_datetime.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_sha512.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_random.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_json.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/math.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/select.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_posixsubprocess.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_struct.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_lzma.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_bz2.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/libpython3.9.so.1.0"
-            "$pythonLocation/lib/python3.9/lib-dynload/_uuid.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_bisect.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/grp.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/zlib.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/binascii.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_csv.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/lib/python3.9/lib-dynload/_heapq.nogil-39b-x86_64-linux-gnu.so"
-            "$pythonLocation/bin/python3.9"
-            "/usr/lib/locale/locale-archive"
-            "/usr/lib/x86_64-linux-gnu/libc.so.6"
-            "/lib/x86_64-linux-gnu/libz.so.1"
-            "/lib/x86_64-linux-gnu/libpthread.so.0"
-            "/lib/x86_64-linux-gnu/libdl.so.2"
-            "/lib/x86_64-linux-gnu/libutil.so.1"
-            "/lib/x86_64-linux-gnu/libm.so.6"
-            "/lib/x86_64-linux-gnu/libc.so.6"
-            "/usr/lib/x86_64-linux-gnu/libz.so.1.2.11"
-            "/usr/lib/locale/C.utf8/LC_CTYPE"
-            "/usr/lib/x86_64-linux-gnu/libm.so.6"
-            "/usr/lib/x86_64-linux-gnu/libutil.so.1"
-            "/usr/lib/x86_64-linux-gnu/libdl.so.2"
-            "/usr/lib/x86_64-linux-gnu/libpthread.so.0"
-            "/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache"
-            "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
-            "/lib64/ld-linux-x86-64.so.2"
-          )
-          
-          for f in "${shared[@]}"
-          do
-            mkdir -p $(dirname "./so-libs$f")
-            cp "$f" "./so-libs$f"
-          done
-        if: ${{ failure() }}
-      - name: upload core dump file
-        uses: actions/upload-artifact@v3
-        with:
-          name: core-dump
-          path: /cores
-        if: ${{ always() }}
-      - name: upload shared libs
-        uses: actions/upload-artifact@v3
-        with:
-          name: shared-libs
-          path: ./so-libs
-        if: ${{ always() }}
       - name: upload pytest test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-results-${{ matrix.python-version }}
           path: junit/test-results-${{ matrix.python-version }}.xml

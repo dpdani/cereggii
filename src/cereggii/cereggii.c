@@ -90,7 +90,7 @@ PyTypeObject AtomicInt_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicInt),
     .tp_itemsize = 0,
-    .tp_new = AtomicInt_new,
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc) AtomicInt_init,
     .tp_dealloc = (destructor) AtomicInt_dealloc,
     .tp_methods = AtomicInt_methods,
@@ -178,7 +178,7 @@ PyTypeObject AtomicIntHandle_Type = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicIntHandle),
     .tp_itemsize = 0,
-    .tp_new = AtomicIntHandle_new,
+    .tp_new = PyType_GenericNew,
     .tp_init = (initproc) AtomicIntHandle_init,
     .tp_dealloc = (destructor) AtomicIntHandle_dealloc,
     .tp_methods = AtomicIntHandle_methods,
@@ -206,8 +206,9 @@ PyTypeObject AtomicRef_Type = {
     .tp_itemsize = 0,
     .tp_new = AtomicRef_new,
     .tp_init = (initproc) AtomicRef_init,
-    .tp_dealloc = (destructor) AtomicRef_dealloc,
     .tp_traverse = (traverseproc) AtomicRef_traverse,
+    .tp_clear = (inquiry) AtomicRef_clear,
+    .tp_dealloc = (destructor) AtomicRef_dealloc,
     .tp_methods = AtomicRef_methods,
 };
 
@@ -232,7 +233,7 @@ static PyMappingMethods AtomicDict_mapping_methods = {
     .mp_ass_subscript = (objobjargproc) AtomicDict_SetItem,
 };
 
-static PyTypeObject AtomicDict_Type = {
+PyTypeObject AtomicDict_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicDict",
     .tp_doc = PyDoc_STR("A thread-safe dictionary (hashmap), that's almost-lock-free™."),
@@ -240,8 +241,9 @@ static PyTypeObject AtomicDict_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = AtomicDict_new,
-    .tp_dealloc = (destructor) AtomicDict_dealloc,
     .tp_traverse = (traverseproc) AtomicDict_traverse,
+    .tp_clear = (inquiry) AtomicDict_clear,
+    .tp_dealloc = (destructor) AtomicDict_dealloc,
     .tp_init = (initproc) AtomicDict_init,
     .tp_methods = AtomicDict_methods,
     .tp_as_mapping = &AtomicDict_mapping_methods,
@@ -252,8 +254,10 @@ PyTypeObject AtomicDictMeta_Type = {
     .tp_name = "cereggii._AtomicDictMeta",
     .tp_basicsize = sizeof(AtomicDict_Meta),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
+    .tp_traverse = (traverseproc) AtomicDictMeta_traverse,
+    .tp_clear = (inquiry) AtomicDictMeta_clear,
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
@@ -262,8 +266,10 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_name = "cereggii._AtomicDictBlock",
     .tp_basicsize = sizeof(AtomicDict_Block),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
+    .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
+    .tp_clear = (inquiry) AtomicDictBlock_clear,
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
 };
 
@@ -304,7 +310,7 @@ PyTypeObject AtomicEvent_Type = {
     .tp_basicsize = sizeof(AtomicEvent),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = AtomicEvent_new,
+    .tp_new = PyType_GenericNew,
     .tp_dealloc = (destructor) AtomicEvent_dealloc,
     .tp_init = (initproc) AtomicEvent_init,
     .tp_methods = AtomicEvent_methods,
@@ -324,13 +330,13 @@ PyTypeObject CereggiiConstant_Type = {
     .tp_basicsize = sizeof(CereggiiConstant),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = NULL,
+    .tp_new = PyType_GenericNew,
     .tp_repr = (reprfunc) CereggiiConstant_Repr,
 };
 
 
 static PyModuleDef cereggii_module = {
-    PyModuleDef_HEAD_INIT,
+    .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
     .m_doc = NULL,
     .m_size = -1,
@@ -339,7 +345,7 @@ static PyModuleDef cereggii_module = {
 __attribute__((unused)) PyMODINIT_FUNC
 PyInit__cereggii(void)
 {
-    PyObject *m;
+    PyObject *m = NULL;
 
     if (PyType_Ready(&CereggiiConstant_Type) < 0)
         return NULL;
@@ -362,76 +368,69 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicIntHandle_Type) < 0)
         return NULL;
 
-    m = PyModule_Create(&cereggii_module);
-    if (m == NULL)
+    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
+    if (Cereggii_ExpectationFailed == NULL)
         return NULL;
 
     NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
     if (NOT_FOUND == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "NOT_FOUND", NOT_FOUND) < 0) {
-        Py_DECREF(NOT_FOUND);
-        goto fail;
-    }
+        return NULL;
 
     ANY = CereggiiConstant_New("ANY");
     if (ANY == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "ANY", ANY) < 0) {
-        Py_DECREF(ANY);
-        goto fail;
-    }
+        return NULL;
 
     EXPECTATION_FAILED = CereggiiConstant_New("EXPECTATION_FAILED");
     if (EXPECTATION_FAILED == NULL)
-        goto fail;
-    if (PyModule_AddObject(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0) {
-        Py_DECREF(EXPECTATION_FAILED);
-        goto fail;
-    }
+        return NULL;
 
-    Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
-    if (Cereggii_ExpectationFailed == NULL)
-        goto fail;
-    Py_INCREF(Cereggii_ExpectationFailed);
-    if (PyModule_AddObject(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0) {
-        Py_DECREF(Cereggii_ExpectationFailed);
-        goto fail;
-    }
+    m = PyModule_Create(&cereggii_module);
+    if (m == NULL)
+        return NULL;
 
-    Py_INCREF(&AtomicDict_Type);
-    if (PyModule_AddObject(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0) {
-        Py_DECREF(&AtomicDict_Type);
-        goto fail;
-    }
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
 
-    Py_INCREF(&AtomicEvent_Type);
-    if (PyModule_AddObject(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0) {
-        Py_DECREF(&AtomicEvent_Type);
+    if (PyModule_AddObjectRef(m, "NOT_FOUND", NOT_FOUND) < 0)
         goto fail;
-    }
+    Py_DECREF(NOT_FOUND);
 
-    Py_INCREF(&AtomicRef_Type);
-    if (PyModule_AddObject(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0) {
-        Py_DECREF(&AtomicRef_Type);
+    if (PyModule_AddObjectRef(m, "ANY", ANY) < 0)
         goto fail;
-    }
+    Py_DECREF(ANY);
 
-    Py_INCREF(&AtomicInt_Type);
-    if (PyModule_AddObject(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0) {
-        Py_DECREF(&AtomicInt_Type);
+    if (PyModule_AddObjectRef(m, "EXPECTATION_FAILED", EXPECTATION_FAILED) < 0)
         goto fail;
-    }
+    Py_DECREF(EXPECTATION_FAILED);
 
-    Py_INCREF(&AtomicIntHandle_Type);
-    if (PyModule_AddObject(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0) {
-        Py_DECREF(&AtomicIntHandle_Type);
+    if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0)
         goto fail;
-    }
+    Py_DECREF(Cereggii_ExpectationFailed);
+
+    if (PyModule_AddObjectRef(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicDict_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicEvent_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicRef_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicInt", (PyObject *) &AtomicInt_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicInt_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicIntHandle", (PyObject *) &AtomicIntHandle_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicIntHandle_Type);
 
     return m;
     fail:
-    Py_DECREF(m);
+    Py_XDECREF(m);
     Py_XDECREF(NOT_FOUND);
     Py_XDECREF(ANY);
     Py_XDECREF(EXPECTATION_FAILED);

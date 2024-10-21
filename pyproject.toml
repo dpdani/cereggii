@@ -7,7 +7,7 @@ build-backend = "py_build_cmake.build"
 name = "cereggii"
 dynamic = ["version", "description"]
 readme = "README.md"
-requires-python = "~=3.9"
+requires-python = ">=3.13"
 license = { file = "LICENSE" }
 authors = [
   { name = "dpdani", email = "git@danieleparmeggiani.me" },
@@ -16,11 +16,11 @@ keywords = [
   "multithreading",
 ]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Operating System :: OS Independent",
   "Natural Language :: English",
@@ -29,11 +29,11 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-  "build==1.0.3",
-  "pytest==7.4.2",
+  "build==1.2.2.post1",
+  "pytest==8.3.3",
   "pytest-reraise==2.1.2",
-  "black==23.9.1",
-  "ruff==0.0.292",
+  "black==24.10.0",
+  "ruff==0.7.0",
 ]
 
 
@@ -58,13 +58,15 @@ install_components = ["python_modules"]
 
 
 [tool.black]
-target-version = ["py39"]
+target-version = ["py313"]
 line-length = 120
 skip-string-normalization = true
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py313"
 line-length = 120
+
+[lint]
 select = [
   "A",
   "ARG",
@@ -112,11 +114,9 @@ unfixable = [
   # Don't touch unused imports
   "F401",
 ]
-
-[tool.ruff.isort]
 known-first-party = ["cereggii"]
 
-[tool.ruff.per-file-ignores]
+[lint.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
 

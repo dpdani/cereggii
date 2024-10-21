@@ -6,23 +6,20 @@ on:
   pull_request:
 
 jobs:
-  build:
-
+  lint:
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "nogil-3.9" ]
+        python-version: [ "3.13.0" ]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: set up python ${{ matrix.python-version }}
-        uses: dpdani/setup-python@nogil
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: check nogil
-        run: |
-          python -c "import sys; print(sys.flags.nogil);"
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
@@ -31,4 +28,4 @@ jobs:
         run: black --check .
       - name: lint
         run: |
-          ruff .
+          ruff check .

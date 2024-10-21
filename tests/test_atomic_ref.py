@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import gc
 import threading
-from typing import Union
 
 from cereggii import AtomicRef
 
@@ -29,7 +28,7 @@ def test_set():
 
 class Result:
     def __init__(self):
-        self.result: Union[int, object, None] = 0
+        self.result: int | object | None = 0
 
 
 def test_cas():
@@ -53,6 +52,25 @@ def test_cas():
 
     assert sorted([result_0.result, result_1.result]) == [False, True]
     assert id(obj_0) == id_0 and id(obj_1) == id_1
+
+
+def test_counter():
+    r = AtomicRef(0)
+
+    def thread():
+        for _ in range(1_000):
+            expected = r.get()
+            while not r.compare_and_set(expected, expected + 1):
+                expected = r.get()
+
+    t0 = threading.Thread(target=thread)
+    t1 = threading.Thread(target=thread)
+    t0.start()
+    t1.start()
+    t0.join()
+    t1.join()
+
+    assert r.get() == 2_000
 
 
 def test_swap():
