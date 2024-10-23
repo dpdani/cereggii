@@ -399,10 +399,6 @@ class AtomicInt64(int):
         AtomicInt64 is bound to 64-bit signed integers: each of its methods may
         raise `OverflowError`.
 
-    !!! warning
-
-        This class will be renamed to `AtomicInt6464` in a future release.
-
     `AtomicInt64` borrows part of its API from Java's `AtomicInt64eger`, so that it
     should feel familiar to use, if you're coming to Python from Java.
     It also implements most numeric magic methods, so that it should feel
