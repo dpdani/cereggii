@@ -9,16 +9,16 @@ try:
     from cereggii import _cereggii
 except ImportError as exc:  # building sdist (without compiled modules)
 
-    class AtomicInt:
+    class AtomicInt64:
         def __init__(self):
             print("dummy")
 
-    class AtomicIntHandle:
+    class AtomicInt64Handle:
         def __init__(self):
             print("dummy")
 
     warnings.warn(str(exc), stacklevel=1)  # "UserWarning: No module named 'cereggii'" is expected during sdist build
 
 else:
-    AtomicInt = _cereggii.AtomicInt
-    AtomicIntHandle = _cereggii.AtomicIntHandle
+    AtomicInt64 = _cereggii.AtomicInt64
+    AtomicInt64Handle = _cereggii.AtomicInt64Handle

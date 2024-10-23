@@ -1,17 +1,17 @@
 import threading
 import timeit
 
-from cereggii import AtomicDict, AtomicInt
+from cereggii import AtomicDict, AtomicInt64
 
 
 class Spam:
     def __init__(self):
-        self.d = {k: AtomicInt(0) for k in range(10)}
+        self.d = {k: AtomicInt64(0) for k in range(10)}
 
 
 class AtomicSpam:
     def __init__(self):
-        self.d = AtomicDict({k: AtomicInt(0) for k in range(10)})
+        self.d = AtomicDict({k: AtomicInt64(0) for k in range(10)})
 
 
 def test_dict(spam):
