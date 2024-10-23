@@ -57,59 +57,42 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int64_t init_dict_size = 0;
     int64_t min_size = 0;
     int64_t buffer_size = 4;
-    PyObject *init_dict = NULL;
+    PyObject *initial = NULL;
+    PyObject *min_size_arg = NULL;
+    PyObject *buffer_size_arg = NULL;
     AtomicDict_Meta *meta = NULL;
 
-    if (args != NULL) {
-        if (!PyArg_ParseTuple(args, "|O", &init_dict)) {
+    char *kw_list[] = {"initial", "min_size", "buffer_size", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOO", kw_list, &initial, &min_size_arg, &buffer_size_arg)) {
+        goto fail;
+    }
+    if (initial != NULL) {
+        if (!PyDict_Check(initial)) {
+            PyErr_SetString(PyExc_TypeError, "type(initial) is not dict");
             goto fail;
-        }
-        if (init_dict != NULL) {
-            if (!PyDict_Check(init_dict)) {
-                PyErr_SetString(PyExc_TypeError, "type(iterable) is not dict");
-                goto fail;
-            }
         }
     }
 
-    if (kwargs != NULL) {
-        // it is unnecessary to acquire the GIL/begin a critical section:
-        // this is the only reference to kwargs
-        PyObject *min_size_arg;
-        if (PyDict_GetItemStringRef(kwargs, "min_size", &min_size_arg) < 0)
-            goto fail;
-        if (min_size_arg != NULL) {
-            min_size = PyLong_AsLong(min_size_arg);
-            PyDict_DelItemString(kwargs, "min_size");
-            if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
-                PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
-                return -1;
-            }
+    if (min_size_arg != NULL) {
+        min_size = PyLong_AsLong(min_size_arg);
+        if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+            PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
+            return -1;
         }
-        PyObject *buffer_size_arg;
-        if (PyDict_GetItemStringRef(kwargs, "buffer_size", &buffer_size_arg) < 0)
-            goto fail;
-        if (buffer_size_arg != NULL) {
-            buffer_size = PyLong_AsLong(buffer_size_arg);
-            PyDict_DelItemString(kwargs, "buffer_size");
-            if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
-                buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
-                buffer_size != 64) {
-                PyErr_SetString(PyExc_ValueError, "buffer_size not in (1, 2, 4, 8, 16, 32, 64)");
-                return -1;
-            }
-        }
-
-        if (init_dict == NULL) {
-            init_dict = kwargs;
-        } else {
-            // this internally calls Py_BEGIN_CRITICAL_SECTION
-            PyDict_Update(init_dict, kwargs);
+    }
+    if (buffer_size_arg != NULL) {
+        buffer_size = PyLong_AsLong(buffer_size_arg);
+        if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
+            buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
+            buffer_size != 64) {
+            PyErr_SetString(PyExc_ValueError, "buffer_size not in (1, 2, 4, 8, 16, 32, 64)");
+            return -1;
         }
     }
 
-    if (init_dict != NULL) {
-        init_dict_size = PyDict_Size(init_dict) * 2;
+    if (initial != NULL) {
+        init_dict_size = PyDict_Size(initial) * 2;
     }
     if (init_dict_size % ATOMIC_DICT_ENTRIES_IN_BLOCK == 0) { // allocate one more entry: cannot write to entry 0
         init_dict_size++;
@@ -197,14 +180,14 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     self->len = 0;
     self->len_dirty = 0;
 
-    if (init_dict != NULL && PyDict_Size(init_dict) > 0) {
+    if (initial != NULL && PyDict_Size(initial) > 0) {
         PyObject *key, *value;
         Py_hash_t hash;
         Py_ssize_t pos = 0;
 
-        Py_BEGIN_CRITICAL_SECTION(init_dict);
+        Py_BEGIN_CRITICAL_SECTION(initial);
 
-        while (PyDict_Next(init_dict, &pos, &key, &value)) {
+        while (PyDict_Next(initial, &pos, &key, &value)) {
             hash = PyObject_Hash(key);
             if (hash == -1)
                 goto fail;
@@ -310,9 +293,11 @@ AtomicDict_clear(AtomicDict *self)
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
 
-    PyThread_tss_delete(self->accessor_key);
-    PyThread_tss_free(self->accessor_key);
-    self->accessor_key = NULL;
+    if (self->accessor_key != NULL) {
+        PyThread_tss_delete(self->accessor_key);
+        PyThread_tss_free(self->accessor_key);
+        self->accessor_key = NULL;
+    }
 
     return 0;
 }

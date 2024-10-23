@@ -50,10 +50,9 @@ class AtomicDict:
         objects cannot be used as keys nor values.
     """
 
-    def __init__(self, iterable: dict | None = None, /, *, min_size: int | None = None, buffer_size: int = 4, **kwargs):
+    def __init__(self, initial: dict = {}, *, min_size: int | None = None, buffer_size: int = 4):
         """
-        :param iterable: An iterable to initialize this dictionary with. For now,
-            only `dict` can be supplied to this parameter.
+        :param initial: A `dict` to initialize this `AtomicDict` with.
 
         :param min_size: The size initially allocated. Configuring this
             parameter correctly avoids resizing.
@@ -63,15 +62,6 @@ class AtomicDict:
         :param buffer_size: The amount of entries that a thread reserves for future
             insertions. A larger value can help reducing contention, but may lead to
             increased fragmentation. Min: 1, max: 64.
-
-        :param kwargs: **Deprecated:** use `iterable` instead.
-            <br/>
-            Key-value pairs with which to initialize the dictionary.
-            This follows the behavior of built-in dictionary, but slightly differs:
-            keys that are already parameters to this ``__init__`` method will not be
-            considered, because of Python's ``**kwargs`` behavior.
-            E.g. ``AtomicDict(initial_size=123)`` will not create a dictionary
-            mapping ``initial_size`` to 123, but an empty one.
         """
     # def __contains__(self, item: Key) -> bool: ...
     def __delitem__(self, key: Key) -> None:
