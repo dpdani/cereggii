@@ -6,7 +6,7 @@
 #include "atomic_int_internal.h"
 
 int
-AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicInt64Handle_init(AtomicInt64Handle *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
     PyObject *integer = NULL;
 
@@ -16,10 +16,10 @@ AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(
     assert(integer != NULL);
     Py_INCREF(integer);
 
-    if (!PyObject_IsInstance(integer, (PyObject *) &AtomicInt_Type))
+    if (!PyObject_IsInstance(integer, (PyObject *) &AtomicInt64_Type))
         goto fail;
 
-    self->integer = (AtomicInt *) integer;
+    self->integer = (AtomicInt64 *) integer;
 //    CereggiiAtomic_StorePtr((void **) &self->integer, integer);
 
     return 0;
@@ -30,7 +30,7 @@ AtomicIntHandle_init(AtomicIntHandle *self, PyObject *args, PyObject *Py_UNUSED(
 }
 
 void
-AtomicIntHandle_dealloc(AtomicIntHandle *self)
+AtomicInt64Handle_dealloc(AtomicInt64Handle *self)
 {
     Py_XDECREF(self->integer);
     Py_TYPE(self)->tp_free((PyObject *) self);
@@ -48,429 +48,429 @@ AtomicIntHandle_dealloc(AtomicIntHandle *self)
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_Get(AtomicIntHandle *self)
+AtomicInt64Handle_Get(AtomicInt64Handle *self)
 {
-    return AtomicInt_Get(self->integer);
+    return AtomicInt64_Get(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Get_callable(AtomicIntHandle *self)
+AtomicInt64Handle_Get_callable(AtomicInt64Handle *self)
 {
-    return AtomicInt_Get_callable(self->integer);
+    return AtomicInt64_Get_callable(self->integer);
 }
 
 __attribute__((unused)) inline void
-AtomicIntHandle_Set(AtomicIntHandle *self, int64_t updated)
+AtomicInt64Handle_Set(AtomicInt64Handle *self, int64_t updated)
 {
-    return AtomicInt_Set(self->integer, updated);
+    return AtomicInt64_Set(self->integer, updated);
 }
 
 inline PyObject *
-AtomicIntHandle_Set_callable(AtomicIntHandle *self, PyObject *updated)
+AtomicInt64Handle_Set_callable(AtomicInt64Handle *self, PyObject *updated)
 {
-    return AtomicInt_Set_callable(self->integer, updated);
+    return AtomicInt64_Set_callable(self->integer, updated);
 }
 
 __attribute__((unused)) inline int
-AtomicIntHandle_CompareAndSet(AtomicIntHandle *self, int64_t expected, int64_t updated)
+AtomicInt64Handle_CompareAndSet(AtomicInt64Handle *self, int64_t expected, int64_t updated)
 {
-    return AtomicInt_CompareAndSet(self->integer, expected, updated);
+    return AtomicInt64_CompareAndSet(self->integer, expected, updated);
 }
 
 inline PyObject *
-AtomicIntHandle_CompareAndSet_callable(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+AtomicInt64Handle_CompareAndSet_callable(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs)
 {
-    return AtomicInt_CompareAndSet_callable(self->integer, args, kwargs);
+    return AtomicInt64_CompareAndSet_callable(self->integer, args, kwargs);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_GetAndSet(AtomicIntHandle *self, int64_t updated)
+AtomicInt64Handle_GetAndSet(AtomicInt64Handle *self, int64_t updated)
 {
-    return AtomicInt_GetAndSet(self->integer, updated);
+    return AtomicInt64_GetAndSet(self->integer, updated);
 }
 
 inline PyObject *
-AtomicIntHandle_GetAndSet_callable(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+AtomicInt64Handle_GetAndSet_callable(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs)
 {
-    return AtomicInt_GetAndSet_callable(self->integer, args, kwargs);
+    return AtomicInt64_GetAndSet_callable(self->integer, args, kwargs);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_IncrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow)
+AtomicInt64Handle_IncrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow)
 {
-    return AtomicInt_IncrementAndGet(self->integer, other, overflow);
+    return AtomicInt64_IncrementAndGet(self->integer, other, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_IncrementAndGet_callable(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_IncrementAndGet_callable(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_IncrementAndGet_callable(self->integer, other);
+    return AtomicInt64_IncrementAndGet_callable(self->integer, other);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_GetAndIncrement(AtomicIntHandle *self, int64_t other, int *overflow)
+AtomicInt64Handle_GetAndIncrement(AtomicInt64Handle *self, int64_t other, int *overflow)
 {
-    return AtomicInt_GetAndIncrement(self->integer, other, overflow);
+    return AtomicInt64_GetAndIncrement(self->integer, other, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_GetAndIncrement_callable(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_GetAndIncrement_callable(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_GetAndIncrement_callable(self->integer, other);
+    return AtomicInt64_GetAndIncrement_callable(self->integer, other);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_DecrementAndGet(AtomicIntHandle *self, int64_t other, int *overflow)
+AtomicInt64Handle_DecrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow)
 {
-    return AtomicInt_DecrementAndGet(self->integer, other, overflow);
+    return AtomicInt64_DecrementAndGet(self->integer, other, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_DecrementAndGet_callable(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_DecrementAndGet_callable(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_DecrementAndGet_callable(self->integer, other);
+    return AtomicInt64_DecrementAndGet_callable(self->integer, other);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_GetAndDecrement(AtomicIntHandle *self, int64_t other, int *overflow)
+AtomicInt64Handle_GetAndDecrement(AtomicInt64Handle *self, int64_t other, int *overflow)
 {
-    return AtomicInt_GetAndDecrement(self->integer, other, overflow);
+    return AtomicInt64_GetAndDecrement(self->integer, other, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_GetAndDecrement_callable(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_GetAndDecrement_callable(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_GetAndDecrement_callable(self->integer, other);
+    return AtomicInt64_GetAndDecrement_callable(self->integer, other);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_GetAndUpdate(AtomicIntHandle *self, PyObject *callable, int *overflow)
+AtomicInt64Handle_GetAndUpdate(AtomicInt64Handle *self, PyObject *callable, int *overflow)
 {
-    return AtomicInt_GetAndUpdate(self->integer, callable, overflow);
+    return AtomicInt64_GetAndUpdate(self->integer, callable, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_GetAndUpdate_callable(AtomicIntHandle *self, PyObject *callable)
+AtomicInt64Handle_GetAndUpdate_callable(AtomicInt64Handle *self, PyObject *callable)
 {
-    return AtomicInt_GetAndUpdate_callable(self->integer, callable);
+    return AtomicInt64_GetAndUpdate_callable(self->integer, callable);
 }
 
 __attribute__((unused)) inline int64_t
-AtomicIntHandle_UpdateAndGet(AtomicIntHandle *self, PyObject *callable, int *overflow)
+AtomicInt64Handle_UpdateAndGet(AtomicInt64Handle *self, PyObject *callable, int *overflow)
 {
-    return AtomicInt_UpdateAndGet(self->integer, callable, overflow);
+    return AtomicInt64_UpdateAndGet(self->integer, callable, overflow);
 }
 
 inline PyObject *
-AtomicIntHandle_UpdateAndGet_callable(AtomicIntHandle *self, PyObject *callable)
+AtomicInt64Handle_UpdateAndGet_callable(AtomicInt64Handle *self, PyObject *callable)
 {
-    return AtomicInt_UpdateAndGet_callable(self->integer, callable);
+    return AtomicInt64_UpdateAndGet_callable(self->integer, callable);
 }
 
 
 inline PyObject *
-AtomicIntHandle_GetHandle(AtomicIntHandle *self)
+AtomicInt64Handle_GetHandle(AtomicInt64Handle *self)
 {
-    return AtomicInt_GetHandle(self->integer);
+    return AtomicInt64_GetHandle(self->integer);
 }
 
 inline Py_hash_t
-AtomicIntHandle_Hash(AtomicIntHandle *self)
+AtomicInt64Handle_Hash(AtomicInt64Handle *self)
 {
-    return AtomicInt_Hash(self->integer);
+    return AtomicInt64_Hash(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Add(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Add(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Add(self->integer, other);
+    return AtomicInt64_Add(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Subtract(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Subtract(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Subtract(self->integer, other);
+    return AtomicInt64_Subtract(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Multiply(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Multiply(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Multiply(self->integer, other);
+    return AtomicInt64_Multiply(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Remainder(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Remainder(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Remainder(self->integer, other);
+    return AtomicInt64_Remainder(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Divmod(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Divmod(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Divmod(self->integer, other);
+    return AtomicInt64_Divmod(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Power(AtomicIntHandle *self, PyObject *other, PyObject *mod)
+AtomicInt64Handle_Power(AtomicInt64Handle *self, PyObject *other, PyObject *mod)
 {
-    return AtomicInt_Power(self->integer, other, mod);
+    return AtomicInt64_Power(self->integer, other, mod);
 }
 
 inline PyObject *
-AtomicIntHandle_Negative(AtomicIntHandle *self)
+AtomicInt64Handle_Negative(AtomicInt64Handle *self)
 {
-    return AtomicInt_Negative(self->integer);
+    return AtomicInt64_Negative(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Positive(AtomicIntHandle *self)
+AtomicInt64Handle_Positive(AtomicInt64Handle *self)
 {
-    return AtomicInt_Positive(self->integer);
+    return AtomicInt64_Positive(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Absolute(AtomicIntHandle *self)
+AtomicInt64Handle_Absolute(AtomicInt64Handle *self)
 {
-    return AtomicInt_Absolute(self->integer);
+    return AtomicInt64_Absolute(self->integer);
 }
 
 inline int
-AtomicIntHandle_Bool(AtomicIntHandle *self)
+AtomicInt64Handle_Bool(AtomicInt64Handle *self)
 {
-    return AtomicInt_Bool(self->integer);
+    return AtomicInt64_Bool(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Invert(AtomicIntHandle *self)
+AtomicInt64Handle_Invert(AtomicInt64Handle *self)
 {
-    return AtomicInt_Invert(self->integer);
+    return AtomicInt64_Invert(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Lshift(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Lshift(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Lshift(self->integer, other);
+    return AtomicInt64_Lshift(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Rshift(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Rshift(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Rshift(self->integer, other);
+    return AtomicInt64_Rshift(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_And(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_And(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_And(self->integer, other);
+    return AtomicInt64_And(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Xor(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Xor(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Xor(self->integer, other);
+    return AtomicInt64_Xor(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Or(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_Or(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_Or(self->integer, other);
+    return AtomicInt64_Or(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Int(AtomicIntHandle *self)
+AtomicInt64Handle_Int(AtomicInt64Handle *self)
 {
-    return AtomicInt_Int(self->integer);
+    return AtomicInt64_Int(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Float(AtomicIntHandle *self)
+AtomicInt64Handle_Float(AtomicInt64Handle *self)
 {
-    return AtomicInt_Float(self->integer);
+    return AtomicInt64_Float(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_FloorDivide(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_FloorDivide(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_FloorDivide(self->integer, other);
+    return AtomicInt64_FloorDivide(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_TrueDivide(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_TrueDivide(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_TrueDivide(self->integer, other);
+    return AtomicInt64_TrueDivide(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_Index(AtomicIntHandle *self)
+AtomicInt64Handle_Index(AtomicInt64Handle *self)
 {
-    return AtomicInt_Index(self->integer);
+    return AtomicInt64_Index(self->integer);
 }
 
 
 inline PyObject *
-AtomicIntHandle_InplaceAdd(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceAdd(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceAdd_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceAdd_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceSubtract(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceSubtract(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceSubtract_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceSubtract_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceMultiply(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceMultiply(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceMultiply_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceMultiply_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceRemainder(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceRemainder(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceRemainder_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceRemainder_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplacePower(AtomicIntHandle *self, PyObject *other, PyObject *mod)
+AtomicInt64Handle_InplacePower(AtomicInt64Handle *self, PyObject *other, PyObject *mod)
 {
-    return AtomicInt_InplacePower_internal(self->integer, other, mod, 0);
+    return AtomicInt64_InplacePower_internal(self->integer, other, mod, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceLshift(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceLshift(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceLshift_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceLshift_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceRshift(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceRshift(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceRshift_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceRshift_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceAnd(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceAnd(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceAnd_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceAnd_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceXor(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceXor(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceXor_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceXor_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceOr(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceOr(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceOr_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceOr_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceFloorDivide(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceFloorDivide(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceFloorDivide_internal(self->integer, other, 0);
+    return AtomicInt64_InplaceFloorDivide_internal(self->integer, other, 0);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceTrueDivide(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceTrueDivide(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceTrueDivide(self->integer, other);
+    return AtomicInt64_InplaceTrueDivide(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_MatrixMultiply(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_MatrixMultiply(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_MatrixMultiply(self->integer, other);
+    return AtomicInt64_MatrixMultiply(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_InplaceMatrixMultiply(AtomicIntHandle *self, PyObject *other)
+AtomicInt64Handle_InplaceMatrixMultiply(AtomicInt64Handle *self, PyObject *other)
 {
-    return AtomicInt_InplaceMatrixMultiply(self->integer, other);
+    return AtomicInt64_InplaceMatrixMultiply(self->integer, other);
 }
 
 inline PyObject *
-AtomicIntHandle_RichCompare(AtomicIntHandle *self, PyObject *other, int op)
+AtomicInt64Handle_RichCompare(AtomicInt64Handle *self, PyObject *other, int op)
 {
-    return AtomicInt_RichCompare(self->integer, other, op);
+    return AtomicInt64_RichCompare(self->integer, other, op);
 }
 
 inline PyObject *
-AtomicIntHandle_AsIntegerRatio(AtomicIntHandle *self)
+AtomicInt64Handle_AsIntegerRatio(AtomicInt64Handle *self)
 {
-    return AtomicInt_AsIntegerRatio(self->integer);
+    return AtomicInt64_AsIntegerRatio(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_BitLength(AtomicIntHandle *self)
+AtomicInt64Handle_BitLength(AtomicInt64Handle *self)
 {
-    return AtomicInt_BitLength(self->integer);
+    return AtomicInt64_BitLength(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_Conjugate(AtomicIntHandle *self)
+AtomicInt64Handle_Conjugate(AtomicInt64Handle *self)
 {
-    return AtomicInt_Conjugate(self->integer);
+    return AtomicInt64_Conjugate(self->integer);
 }
 
 inline PyObject *
-AtomicIntHandle_FromBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+AtomicInt64Handle_FromBytes(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs)
 {
-    return AtomicInt_FromBytes(self->integer, args, kwargs);
+    return AtomicInt64_FromBytes(self->integer, args, kwargs);
 }
 
 inline PyObject *
-AtomicIntHandle_ToBytes(AtomicIntHandle *self, PyObject *args, PyObject *kwargs)
+AtomicInt64Handle_ToBytes(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs)
 {
-    return AtomicInt_ToBytes(self->integer, args, kwargs);
+    return AtomicInt64_ToBytes(self->integer, args, kwargs);
 }
 
 inline PyObject *
-AtomicIntHandle_Denominator_Get(AtomicIntHandle *self, void *closure)
+AtomicInt64Handle_Denominator_Get(AtomicInt64Handle *self, void *closure)
 {
-    return AtomicInt_Denominator_Get(self->integer, closure);
+    return AtomicInt64_Denominator_Get(self->integer, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Denominator_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+AtomicInt64Handle_Denominator_Set(AtomicInt64Handle *self, PyObject *value, void *closure)
 {
-    return AtomicInt_Denominator_Set(self->integer, value, closure);
+    return AtomicInt64_Denominator_Set(self->integer, value, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Numerator_Get(AtomicIntHandle *self, void *closure)
+AtomicInt64Handle_Numerator_Get(AtomicInt64Handle *self, void *closure)
 {
-    return AtomicInt_Numerator_Get(self->integer, closure);
+    return AtomicInt64_Numerator_Get(self->integer, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Numerator_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+AtomicInt64Handle_Numerator_Set(AtomicInt64Handle *self, PyObject *value, void *closure)
 {
-    return AtomicInt_Numerator_Set(self->integer, value, closure);
+    return AtomicInt64_Numerator_Set(self->integer, value, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Imag_Get(AtomicIntHandle *self, void *closure)
+AtomicInt64Handle_Imag_Get(AtomicInt64Handle *self, void *closure)
 {
-    return AtomicInt_Imag_Get(self->integer, closure);
+    return AtomicInt64_Imag_Get(self->integer, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Imag_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+AtomicInt64Handle_Imag_Set(AtomicInt64Handle *self, PyObject *value, void *closure)
 {
-    return AtomicInt_Imag_Set(self->integer, value, closure);
+    return AtomicInt64_Imag_Set(self->integer, value, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Real_Get(AtomicIntHandle *self, void *closure)
+AtomicInt64Handle_Real_Get(AtomicInt64Handle *self, void *closure)
 {
-    return AtomicInt_Real_Get(self->integer, closure);
+    return AtomicInt64_Real_Get(self->integer, closure);
 }
 
 inline PyObject *
-AtomicIntHandle_Real_Set(AtomicIntHandle *self, PyObject *value, void *closure)
+AtomicInt64Handle_Real_Set(AtomicInt64Handle *self, PyObject *value, void *closure)
 {
-    return AtomicInt_Real_Set(self->integer, value, closure);
+    return AtomicInt64_Real_Set(self->integer, value, closure);
 }

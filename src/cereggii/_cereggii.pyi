@@ -391,27 +391,27 @@ class AtomicRef:
     def get_and_set(self, desired: object) -> object: ...
     def set(self, desired: object): ...  # noqa: A003
 
-class AtomicInt(int):
+class AtomicInt64(int):
     """An `int` that may be updated atomically.
 
     !!! warning
 
-        AtomicInt is bound to 64-bit signed integers: each of its methods may
+        AtomicInt64 is bound to 64-bit signed integers: each of its methods may
         raise `OverflowError`.
 
     !!! warning
 
-        This class will be renamed to `AtomicInt64` in a future release.
+        This class will be renamed to `AtomicInt6464` in a future release.
 
-    `AtomicInt` borrows part of its API from Java's `AtomicInteger`, so that it
+    `AtomicInt64` borrows part of its API from Java's `AtomicInt64eger`, so that it
     should feel familiar to use, if you're coming to Python from Java.
     It also implements most numeric magic methods, so that it should feel
     comfortable to use for Pythonistas.
 
     !!! note
 
-        The hash of an `AtomicInt` is independent of its value.
-        Two `AtomicInt`s may have the same hash, but hold different values.
+        The hash of an `AtomicInt64` is independent of its value.
+        Two `AtomicInt64`s may have the same hash, but hold different values.
         They may also have different hashes, but hold the same values.
 
         If you need to get the hash of the currently stored `int` value, you
@@ -420,13 +420,13 @@ class AtomicInt(int):
         hash(my_atomic_int.get())
         ```
 
-        An `AtomicInt` and its associated `AtomicIntHandle`s share the same hash value.
+        An `AtomicInt64` and its associated `AtomicInt64Handle`s share the same hash value.
 
     !!! note
 
-        The following operations are supported by `int`, but not `AtomicInt`:
+        The following operations are supported by `int`, but not `AtomicInt64`:
 
-        - `__itruediv__` (e.g. `my_atomic_int /= 3.14` &mdash; an `AtomicInt` cannot be used to store floats)
+        - `__itruediv__` (e.g. `my_atomic_int /= 3.14` &mdash; an `AtomicInt64` cannot be used to store floats)
         - `as_integer_ratio`
         - `bit_length`
         - `conjugate`
@@ -441,63 +441,63 @@ class AtomicInt(int):
     def __init__(self, initial_value: int = 0): ...
     def compare_and_set(self, expected: int, desired: int) -> bool:
         """
-        Atomically read the current value of this `AtomicInt` and if it is `expected`,
+        Atomically read the current value of this `AtomicInt64` and if it is `expected`,
         then replace it with `desired` and return `True`. Else, return `False`.
         """
 
     def get(self) -> int:
         """
-        Atomically read the current value of this `AtomicInt`.
+        Atomically read the current value of this `AtomicInt64`.
         """
 
     def set(self, desired: int) -> None:  # noqa: A003
         """
-        Unconditionally set the value of this `AtomicInt` to `desired`.
+        Unconditionally set the value of this `AtomicInt64` to `desired`.
 
         !!! warning
 
-            Use [`compare_and_set`][cereggii._cereggii.AtomicInt.compare_and_set]
+            Use [`compare_and_set`][cereggii._cereggii.AtomicInt64.compare_and_set]
             instead.
 
             When using this method, it is not possible to know that the value currently
             stored is the one being expected -- it may be mutated by another thread before
             this mutation is applied. Use this method only when no other thread may be
-            writing to this `AtomicInt`.
+            writing to this `AtomicInt64`.
         """
 
     def get_and_set(self, desired: int) -> int:
         """
-        Atomically swap the value of this `AtomicInt` to `desired` and return
+        Atomically swap the value of this `AtomicInt64` to `desired` and return
         the previously stored value.
         """
 
     def increment_and_get(self, /, amount: int = 1) -> int:
         """
-        Atomically increment this `AtomicInt` by `amount` and return the
+        Atomically increment this `AtomicInt64` by `amount` and return the
         incremented value.
         """
 
     def get_and_increment(self, /, amount: int = 1) -> int:
         """
-        Atomically increment this `AtomicInt` by `amount` and return the
+        Atomically increment this `AtomicInt64` by `amount` and return the
         previously stored value.
         """
 
     def decrement_and_get(self, /, amount: int = 1) -> int:
         """
-        Atomically decrement this `AtomicInt` by `amount` and return the
+        Atomically decrement this `AtomicInt64` by `amount` and return the
         decremented value.
         """
 
     def get_and_decrement(self, /, amount: int = 1) -> int:
         """
-        Atomically decrement this `AtomicInt` by `amount` and return the
+        Atomically decrement this `AtomicInt64` by `amount` and return the
         previously stored value.
         """
 
     def update_and_get(self, /, callable: Callable[[int], int]) -> int:
         """
-        Atomically update the value currently stored in this `AtomicInt` by applying
+        Atomically update the value currently stored in this `AtomicInt64` by applying
         `callable` and return the updated value.
 
         `callable` should be a function that takes one `int` parameter and
@@ -512,7 +512,7 @@ class AtomicInt(int):
 
     def get_and_update(self, /, callable: Callable[[int], int]) -> int:
         """
-        Atomically update the value currently stored in this `AtomicInt` by applying
+        Atomically update the value currently stored in this `AtomicInt64` by applying
         `callable` and return the previously stored value.
 
         `callable` should be a function that takes one `int` parameter and
@@ -525,9 +525,9 @@ class AtomicInt(int):
             called within one invocation of this method.
         """
 
-    def get_handle(self) -> AtomicIntHandle:
+    def get_handle(self) -> AtomicInt64Handle:
         """
-        Get a thread-local handle for this `AtomicInt`.
+        Get a thread-local handle for this `AtomicInt64`.
 
         When using a thread-local handle, you can improve the performance of
         your application (by reducing the number of times the reference counting
@@ -569,13 +569,13 @@ class AtomicInt(int):
     def real(self):
         raise NotImplementedError
 
-class AtomicIntHandle(AtomicInt):
+class AtomicInt64Handle(AtomicInt64):
     """
-    A thread-local handle for an [`AtomicInt`][cereggii._cereggii.AtomicInt].
-    It behaves exactly like `AtomicInt`, but provides some performance benefits.
+    A thread-local handle for an [`AtomicInt64`][cereggii._cereggii.AtomicInt64].
+    It behaves exactly like `AtomicInt64`, but provides some performance benefits.
 
-    You cannot instantiate an `AtomicIntHandle` directly.
-    Create it by calling [`AtomicInt.get_handle`][cereggii._cereggii.AtomicInt.get_handle]:
+    You cannot instantiate an `AtomicInt64Handle` directly.
+    Create it by calling [`AtomicInt64.get_handle`][cereggii._cereggii.AtomicInt64.get_handle]:
     ```python
     my_handle = my_atomic_int.get_handle()
     ```

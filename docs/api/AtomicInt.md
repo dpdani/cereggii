@@ -1,4 +1,4 @@
-::: cereggii._cereggii.AtomicInt
+::: cereggii._cereggii.AtomicInt64
     options:
         members:
             - __init__
@@ -14,6 +14,6 @@
             - get_and_update
             - get_handle
 
-::: cereggii._cereggii.AtomicIntHandle
+::: cereggii._cereggii.AtomicInt64Handle
     options:
         show_root_heading: true

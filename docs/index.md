@@ -11,7 +11,7 @@ pip install cereggii
 This package provides atomic versions of common data structures:
 
 - [AtomicDict][cereggii._cereggii.AtomicDict]
-- [AtomicInt][cereggii._cereggii.AtomicInt]
+- [AtomicInt64][cereggii._cereggii.AtomicInt64]
 - [AtomicRef][cereggii._cereggii.AtomicRef]
 - …and more to come
 
