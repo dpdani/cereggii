@@ -24,29 +24,31 @@ AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject
 }
 
 int
-AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *reference = NULL;
+    PyObject *initial_value = NULL;
+
+    char *kw_list[] = {"initial_value", NULL};
 
     if (args != NULL) {
-        if (!PyArg_ParseTuple(args, "|O", &reference))
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kw_list, &initial_value))
             goto fail;
     }
 
-    if (reference != NULL) {
-        Py_INCREF(reference);
+    if (initial_value != NULL) {
+        Py_INCREF(initial_value);
 #ifdef Py_GIL_DISABLED
-        if (!_Py_IsImmortal(reference)) {
-            _PyObject_SetMaybeWeakref(reference);
+        if (!_Py_IsImmortal(initial_value)) {
+            _PyObject_SetMaybeWeakref(initial_value);
         }
 #endif
         // decref'ed in destructor
-        self->reference = reference;
+        self->reference = initial_value;
     }
     return 0;
 
     fail:
-    Py_XDECREF(reference);
+    Py_XDECREF(initial_value);
     return -1;
 }
 
