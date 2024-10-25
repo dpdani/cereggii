@@ -48,7 +48,7 @@ PyObject *AtomicInt64_GetHandle(AtomicInt64 *self);
 
 
 /// java-esque methods
-// see https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicInt64eger.html
+// see https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicInteger.html
 
 int64_t AtomicInt64_IncrementAndGet(AtomicInt64 *self, int64_t other, int *overflow);
 

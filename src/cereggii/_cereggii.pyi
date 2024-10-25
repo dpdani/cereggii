@@ -399,7 +399,7 @@ class AtomicInt64(int):
         AtomicInt64 is bound to 64-bit signed integers: each of its methods may
         raise `OverflowError`.
 
-    `AtomicInt64` borrows part of its API from Java's `AtomicInt64eger`, so that it
+    `AtomicInt64` borrows part of its API from Java's `AtomicInteger`, so that it
     should feel familiar to use, if you're coming to Python from Java.
     It also implements most numeric magic methods, so that it should feel
     comfortable to use for Pythonistas.
@@ -416,7 +416,7 @@ class AtomicInt64(int):
         hash(my_atomic_int.get())
         ```
 
-        An `AtomicInt64` and its associated `AtomicInt64Handle`s share the same hash value.
+        An `AtomicInt64` and all of its associated `AtomicInt64Handle`s share the same hash value.
 
     !!! note
 
@@ -432,13 +432,18 @@ class AtomicInt64(int):
         - `numerator`
         - `imag`
         - `real`
+
+        You can of course call [`get`][cereggii._cereggii.AtomicInt64.get] on `AtomicInt64` and then call the desired
+        method on the standard `int` object.
     """
 
     def __init__(self, initial_value: int = 0): ...
     def compare_and_set(self, expected: int, desired: int) -> bool:
         """
-        Atomically read the current value of this `AtomicInt64` and if it is `expected`,
-        then replace it with `desired` and return `True`. Else, return `False`.
+        Atomically read the current value of this `AtomicInt64`:
+
+          - if it is `expected`, then replace it with `desired` and return `True`
+          - else, return `False`.
         """
 
     def get(self) -> int:
@@ -475,8 +480,8 @@ class AtomicInt64(int):
 
     def get_and_increment(self, /, amount: int = 1) -> int:
         """
-        Atomically increment this `AtomicInt64` by `amount` and return the
-        previously stored value.
+        Like [`increment_and_get`][cereggii._cereggii.AtomicInt64.increment_and_get], but returns the
+        value that was stored before applying this operation.
         """
 
     def decrement_and_get(self, /, amount: int = 1) -> int:
@@ -487,8 +492,8 @@ class AtomicInt64(int):
 
     def get_and_decrement(self, /, amount: int = 1) -> int:
         """
-        Atomically decrement this `AtomicInt64` by `amount` and return the
-        previously stored value.
+        Like [`decrement_and_get`][cereggii._cereggii.AtomicInt64.decrement_and_get], but returns the
+        value that was stored before applying this operation.
         """
 
     def update_and_get(self, /, callable: Callable[[int], int]) -> int:
@@ -508,17 +513,8 @@ class AtomicInt64(int):
 
     def get_and_update(self, /, callable: Callable[[int], int]) -> int:
         """
-        Atomically update the value currently stored in this `AtomicInt64` by applying
-        `callable` and return the previously stored value.
-
-        `callable` should be a function that takes one `int` parameter and
-        returns an `int`.
-
-        !!! warning
-
-            The `callable` function must be **stateless**: it will be called at least
-            once but there is no upper bound to the number of times it will be
-            called within one invocation of this method.
+        Like [`update_and_get`][cereggii._cereggii.AtomicInt64.update_and_get], but returns the
+        value that was stored before applying this operation.
         """
 
     def get_handle(self) -> AtomicInt64Handle:
@@ -526,8 +522,7 @@ class AtomicInt64(int):
         Get a thread-local handle for this `AtomicInt64`.
 
         When using a thread-local handle, you can improve the performance of
-        your application (by reducing the number of times the reference counting
-        slow path is taken).
+        your application.
         """
 
     def __itruediv__(self, other):
