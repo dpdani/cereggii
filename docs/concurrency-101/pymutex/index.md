@@ -13,5 +13,11 @@ This is a multipart journey, we'll begin with reviewing the performance of two
 standard locks, and then we'll delve into the details, choices, and tradeoffs of
 PyMutex.
 
+## A simple, correct lock
+
+
+## The next steps
+
+
 - [Part 1 — TAS vs TTAS](./test-and-set.md)
 - ...

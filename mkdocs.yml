@@ -78,6 +78,8 @@ markdown_extensions:
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
 
 extra:
   social:
@@ -102,6 +104,10 @@ plugins:
             show_source: false
             docstring_style: sphinx
             show_if_no_docstring: true
+
+extra_javascript:
+  - js/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 copyright: |
   &copy; 2023- Daniele Parmeggiani
