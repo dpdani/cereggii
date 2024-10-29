@@ -44,4 +44,6 @@ for n in range(1, 4):
         t.start()
     for t in threads:
         t.join()
-    print(f"Partitioned iter took {(time.time() - started) * 1000:.0f}ms with {n} threads ({partials=} {sum(partials)=}).")
+    print(
+        f"Partitioned iter took {(time.time() - started) * 1000:.0f}ms with {n} threads ({partials=} {sum(partials)=})."
+    )

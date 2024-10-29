@@ -462,6 +462,7 @@ class AtomicRef:
           - if it is `expected`, then replace it with `desired` and return `True`
           - else, don't change it and return `False`.
         """
+
     def get(self) -> object:
         """
         Atomically read the current value of this `AtomicRef`.
@@ -472,6 +473,7 @@ class AtomicRef:
         Atomically swap the value of this `AtomicRef` to `desired` and return
         the previously stored value.
         """
+
     def set(self, desired: object):  # noqa: A003
         """
         Unconditionally set the value of this `AtomicRef` to `desired`.
