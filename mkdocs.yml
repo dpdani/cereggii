@@ -1,4 +1,9 @@
 site_name: cereggii
+repo_url: https://github.com/dpdani/cereggii
+site_url: https://dpdani.github.io/cereggii/
+
+copyright: |
+  &copy; 2023- Daniele Parmeggiani
 
 nav:
   - 'index.md'
@@ -21,8 +26,6 @@ nav:
           - 'concurrency-101/pymutex/test-and-set.md'
   - 'News':
       - 'blog/index.md'
-
-repo_url: https://github.com/dpdani/cereggii
 
 theme:
   name: material
@@ -87,8 +90,10 @@ extra:
       link: https://github.com/dpdani/cereggii
     - icon: material/license
       link: https://github.com/dpdani/cereggii/blob/main/LICENSE
-  version:
-    provider: mike
+#  version:
+#    provider: mike
+#    default: stable
+#    alias: true
 
 plugins:
   - search
@@ -108,9 +113,6 @@ plugins:
 extra_javascript:
   - js/mathjax.js
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
-
-copyright: |
-  &copy; 2023- Daniele Parmeggiani
 
 watch:
   - ./src/cereggii/_cereggii.pyi

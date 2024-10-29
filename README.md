@@ -17,7 +17,7 @@ This package provides atomic versions of common data structures:
 - `AtomicRef`
 - …and more to come
 
-[Visit the docs for more information.](http://dpdani.github.io/cereggii)
+[Visit the docs for more information.](https://dpdani.github.io/cereggii)
 
 
 ## Cereus greggii
