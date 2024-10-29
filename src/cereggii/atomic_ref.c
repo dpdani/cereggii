@@ -24,29 +24,31 @@ AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject
 }
 
 int
-AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *reference = NULL;
+    PyObject *initial_value = NULL;
+
+    char *kw_list[] = {"initial_value", NULL};
 
     if (args != NULL) {
-        if (!PyArg_ParseTuple(args, "|O", &reference))
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kw_list, &initial_value))
             goto fail;
     }
 
-    if (reference != NULL) {
-        Py_INCREF(reference);
+    if (initial_value != NULL) {
+        Py_INCREF(initial_value);
 #ifdef Py_GIL_DISABLED
-        if (!_Py_IsImmortal(reference)) {
-            _PyObject_SetMaybeWeakref(reference);
+        if (!_Py_IsImmortal(initial_value)) {
+            _PyObject_SetMaybeWeakref(initial_value);
         }
 #endif
         // decref'ed in destructor
-        self->reference = reference;
+        self->reference = initial_value;
     }
     return 0;
 
     fail:
-    Py_XDECREF(reference);
+    Py_XDECREF(initial_value);
     return -1;
 }
 
@@ -89,18 +91,18 @@ PyObject *AtomicRef_Get(AtomicRef *self)
 }
 
 PyObject *
-AtomicRef_Set(AtomicRef *self, PyObject *reference)
+AtomicRef_Set(AtomicRef *self, PyObject *desired)
 {
-    assert(reference != NULL);
+    assert(desired != NULL);
 
-    Py_INCREF(reference);
+    Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    _PyObject_SetMaybeWeakref(reference);
+    _PyObject_SetMaybeWeakref(desired);
 #endif
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, reference)) {
+    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, desired)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
@@ -111,55 +113,57 @@ AtomicRef_Set(AtomicRef *self, PyObject *reference)
 }
 
 int
-AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *new)
+AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
 {
     assert(expected != NULL);
-    assert(new != NULL);
+    assert(desired != NULL);
 
-    Py_INCREF(new);
+    Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(new)) {
-        _PyObject_SetMaybeWeakref(new);
+    if (!_Py_IsImmortal(desired)) {
+        _PyObject_SetMaybeWeakref(desired);
     }
 #endif
-    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, new);
+    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, desired);
     if (retval) {
         Py_DECREF(expected);
         return 1;
     } else {
-        Py_DECREF(new);
+        Py_DECREF(desired);
         return 0;
     }
 }
 
 PyObject *
-AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
+AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwargs)
 {
-    PyObject *expected;
-    PyObject *new;
+    PyObject *expected = NULL;
+    PyObject *desired = NULL;
 
-    if (!PyArg_ParseTuple(args, "OO", &expected, &new)) {
+    char *kw_list[] = {"expected", "desired", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kw_list, &expected, &desired)) {
         return NULL;
     }
 
-    if (AtomicRef_CompareAndSet(self, expected, new)) {
+    if (AtomicRef_CompareAndSet(self, expected, desired)) {
         Py_RETURN_TRUE;
     } else {
         Py_RETURN_FALSE;
     }
 }
 
-PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *new)
+PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
 {
-    assert(new != NULL);
+    assert(desired != NULL);
 
-    Py_INCREF(new);
+    Py_INCREF(desired);
 #ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(new)) {
-        _PyObject_SetMaybeWeakref(new);
+    if (!_Py_IsImmortal(desired)) {
+        _PyObject_SetMaybeWeakref(desired);
     }
 #endif
-    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, new);
+    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
     // don't decref current_reference: passing it to python
     return current_reference;
 }

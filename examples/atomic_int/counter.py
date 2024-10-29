@@ -11,7 +11,7 @@ class Spam:
 
 class AtomicSpam:
     def __init__(self):
-        self.counter = cereggii.AtomicInt(0)
+        self.counter = cereggii.AtomicInt64(0)
 
 
 def builtin_int():
@@ -36,7 +36,7 @@ def builtin_int():
 
 
 def atomic_int():
-    print("A counter using cereggii.AtomicInt.")
+    print("A counter using cereggii.AtomicInt64.")
 
     spam = AtomicSpam()
     print(f"{spam.counter.get()=}")
@@ -57,7 +57,7 @@ def atomic_int():
 
 
 def atomic_int_with_handle():
-    print("A counter using cereggii.AtomicInt and cereggii.AtomicIntHandle.")
+    print("A counter using cereggii.AtomicInt64 and cereggii.AtomicInt64Handle.")
 
     spam = AtomicSpam()
     print(f"{spam.counter.get()=}")

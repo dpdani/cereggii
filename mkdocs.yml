@@ -1,0 +1,118 @@
+site_name: cereggii
+repo_url: https://github.com/dpdani/cereggii
+site_url: https://dpdani.github.io/cereggii/
+
+copyright: |
+  &copy; 2023- Daniele Parmeggiani
+
+nav:
+  - 'index.md'
+  - 'API Reference':
+      - 'api/AtomicDict.md'
+      - 'api/AtomicInt64.md'
+      - 'api/AtomicRef.md'
+#  - 'C-API Reference':
+#      - 'c-api/AtomicDict.md'
+#      - 'c-api/AtomicInt64.md'
+#      - 'c-api/AtomicRef.md'
+  - 'Concurrency 101':
+      - 'concurrency-101/index.md'
+      - 'concurrency-101/safety.md'
+      - 'concurrency-101/low-safety.md'
+      - 'concurrency-101/progress-guarantees.md'
+      - 'concurrency-101/performance.md'
+      - 'Recreating PyMutex':
+          - 'Introduction': 'concurrency-101/pymutex/index.md'
+          - 'concurrency-101/pymutex/test-and-set.md'
+  - 'News':
+      - 'blog/index.md'
+
+theme:
+  name: material
+  icon:
+    logo: material/flower-poppy
+  features:
+    - header.autohide
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
+  language: en
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+      primary: white
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+      primary: white
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.mark
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dpdani/cereggii
+    - icon: material/license
+      link: https://github.com/dpdani/cereggii/blob/main/LICENSE
+#  version:
+#    provider: mike
+#    default: stable
+#    alias: true
+
+plugins:
+  - search
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [ ./src ]
+          load_external_modules: true
+          options:
+            show_source: false
+            docstring_style: sphinx
+            show_if_no_docstring: true
+
+extra_javascript:
+  - js/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+watch:
+  - ./src/cereggii/_cereggii.pyi

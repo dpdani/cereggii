@@ -23,32 +23,16 @@ def test_init():
             3: 4,
         }
     )
-    AtomicDict(spam=42, cheese=True)
-    AtomicDict(
-        {
-            "bird": "norwegian blue",
-        },
-        bird="spam",
-    )
     AtomicDict(min_size=120)
-
-
-def test_weird_init():
-    # this may be confusing: the iterable is the input parameter for initializing
-    # the dictionary, but it is a positional-only parameter. thus, when passing it
-    # as a keyword parameter, it is considered to be one key in itself.
-    d = AtomicDict(min_size=64, iterable={1: 0})
-    with raises(KeyError):
-        assert d[1] == 0
-    assert d["iterable"] == {1: 0}
+    AtomicDict(min_size=64, initial={1: 0})
 
     with raises(TypeError):
         AtomicDict(None)
 
 
 def test_debug():
-    d = AtomicDict({"key": "value"}, min_size=64, iterable={1: 0})
-    dbg = d.debug()
+    d = AtomicDict({"key": "value"} | {1: 0}, min_size=64)
+    dbg = d._debug()
     assert type(dbg) is dict
     assert "meta" in dbg
     assert "index" in dbg
@@ -57,7 +41,7 @@ def test_debug():
     previous = None
     while (this := gc.collect()) != previous:
         previous = this
-    d.debug()
+    d._debug()
     previous = None
     while (this := gc.collect()) != previous:
         previous = this
@@ -84,8 +68,6 @@ def test_key_error():
 def test_getitem():
     d = AtomicDict({"spam": 42})
     assert d["spam"] == 42
-    c = AtomicDict({"spam": 42}, spam=43)
-    assert c["spam"] == 43
 
 
 def test_getitem_confused():
@@ -156,7 +138,7 @@ def test_setitem_distance_1_insert():
     d[pos_0_again] = 42
     assert d[pos_0] == 1
     assert d[pos_0_again] == 42
-    debug = d.debug()
+    debug = d._debug()
     assert debug["index"][1] == 10
     d = AtomicDict()
     d[pos_0] = 1
@@ -168,7 +150,7 @@ def test_setitem_distance_1_insert():
     assert d[pos_0] == 1
     assert d[pos_1] == 2
     assert d[pos_0_again] == 3
-    debug = d.debug()
+    debug = d._debug()
     assert debug["index"][0] == 7
     assert debug["index"][1] == 14
     assert debug["index"][2] == 10
@@ -184,30 +166,30 @@ def test_insert_non_compact():
 
 def test_full_dict():
     d = AtomicDict({k: None for k in range(63)})
-    assert len(d.debug()["index"]) == 128
+    assert len(d._debug()["index"]) == 128
 
     d = AtomicDict(min_size=64)
     for k in range(62):
         d[k] = None
-    assert len(d.debug()["index"]) == 64
+    assert len(d._debug()["index"]) == 64
 
     d = AtomicDict({k: None for k in range((1 << 10) - 1)})
-    assert len(d.debug()["index"]) == 1 << 11
+    assert len(d._debug()["index"]) == 1 << 11
     d = AtomicDict(min_size=1 << 10)
     for k in range((1 << 10) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 11
+    assert len(d._debug()["index"]) == 1 << 11
 
 
 @pytest.mark.skip()
 def test_full_dict_32():
     # this test is slow (allocates a lot of memory)
     d = AtomicDict({k: None for k in range((1 << 25) - 1)})
-    assert len(d.debug()["index"]) == 1 << 25
+    assert len(d._debug()["index"]) == 1 << 25
     d = AtomicDict(min_size=1 << 25)
     for k in range((1 << 25) - 2):
         d[k] = None
-    assert len(d.debug()["index"]) == 1 << 26
+    assert len(d._debug()["index"]) == 1 << 26
 
 
 def test_dealloc():
@@ -272,11 +254,11 @@ def test_delete():
     keys = keys_for_hash_for_log_size[6]  # noqa: F841
 
     # d = AtomicDict({keys[_][0]: None for _ in range(15)})
-    # assert d.debug()["blocks"][0]["entries"][14]  # exists
+    # assert d._debug()["blocks"][0]["entries"][14]  # exists
     # del d[keys[14][0]]
     # with raises(KeyError):
     #     d[keys[14][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][14] == debug["meta"]["tombstone"]
     # with raises(IndexError):
     #     debug["blocks"][0]["entries"][14]
@@ -285,7 +267,7 @@ def test_delete():
     # del d[keys[14][0]]
     # with raises(KeyError):
     #     d[keys[14][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][14] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(15)})
@@ -293,67 +275,67 @@ def test_delete():
     # del d[keys[14][0]]
     # with raises(KeyError):
     #     d[keys[14][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][15] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(15)})
     # del d[keys[7][0]]
     # with raises(KeyError):
     #     d[keys[7][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][7] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(8)})
     # for _ in range(7, 7 + 7):
     #     d[keys[_][1]] = None
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][14] != 0
     # del d[keys[7][0]]
     # with raises(KeyError):
     #     d[keys[7][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][14] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(16)})
     # del d[keys[15][0]]
     # with raises(KeyError):
     #     d[keys[15][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][15] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(17)})
     # del d[keys[15][0]]
     # with raises(KeyError):
     #     d[keys[15][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][15] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[16][0]: None})
     # del d[keys[16][0]]
     # with raises(KeyError):
     #     d[keys[16][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[16][0]: None, keys[17][0]: None})
     # del d[keys[16][0]]
     # with raises(KeyError):
     #     d[keys[16][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[15][0]: None, keys[16][0]: None})
     # del d[keys[16][0]]
     # with raises(KeyError):
     #     d[keys[16][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
     # d = AtomicDict({keys[15][0]: None, keys[16][0]: None, keys[17][0]: None})
     # del d[keys[16][0]]
     # with raises(KeyError):
     #     d[keys[16][0]]
-    # debug = d.debug()
+    # debug = d._debug()
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
 
@@ -363,11 +345,11 @@ def test_delete_with_swap():
 
     keys = keys_for_hash_for_log_size[8]
     d = AtomicDict({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
-    assert d.debug()["meta"]["log_size"] == 9
+    assert d._debug()["meta"]["log_size"] == 9
     del d[keys[0][1]]
     with raises(KeyError):
         del d[keys[0][1]]
-    debug = d.debug()
+    debug = d._debug()
     assert debug["index"][1] == debug["meta"]["tombstone"]
     assert debug["index"][16] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
     assert debug["blocks"][1]["entries"][1] == (65, 128, keys[8][0], keys[8][0], None)
@@ -439,11 +421,11 @@ def test_memory_leak():
 def test_grow():
     keys = keys_for_hash_for_log_size[6]
     d = AtomicDict({keys[0][0]: None, keys[1][0]: None, keys[0][1]: None, keys[1][1]: None})
-    assert d.debug()["meta"]["log_size"] == 6
-    assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len({0, 1, 64, 65})
+    assert d._debug()["meta"]["log_size"] == 6
+    assert len(list(filter(lambda _: _ != 0, Counter(d._debug()["index"]).keys()))) == len({0, 1, 64, 65})
     d[keys[0][2]] = None
-    assert d.debug()["meta"]["log_size"] == 7
-    nodes = Counter(d.debug()["index"])
+    assert d._debug()["meta"]["log_size"] == 7
+    nodes = Counter(d._debug()["index"])
     assert len(list(filter(lambda _: _ != 0, nodes))) == len({0, 1, 64, 65, 128})
     for _ in nodes:
         if _ != 0:
@@ -452,9 +434,9 @@ def test_grow():
         assert d[_] is None
 
     d = AtomicDict({keys[_][0]: None for _ in range(63)})
-    assert d.debug()["meta"]["log_size"] == 7
+    assert d._debug()["meta"]["log_size"] == 7
     d[keys[0][1]] = None
-    assert d.debug()["meta"]["log_size"] == 7
+    assert d._debug()["meta"]["log_size"] == 7
     for _ in [*[keys[k][0] for k in range(63)], keys[0][1]]:
         assert d[_] is None
 
@@ -471,14 +453,14 @@ def test_compact():
     )
     for _ in range(20):
         d[keys[0][_]] = None
-        assert len(list(filter(lambda _: _ != 0, Counter(d.debug()["index"]).keys()))) == len(
+        assert len(list(filter(lambda _: _ != 0, Counter(d._debug()["index"]).keys()))) == len(
             {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][i] for i in range(_ + 1)]}
         ), _
     for _ in [keys[0][0], keys[1][0], keys[0][1], keys[1][1]]:
         assert d[_] is None
     for _ in range(20):
         assert d[keys[0][_]] is None
-    debug_before = d.debug()
+    debug_before = d._debug()
     assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
         {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
     )
@@ -500,7 +482,7 @@ def test_compact():
     node_of_8192 = node_of_8192[0]
     assert node_of_8192 & debug_before["meta"]["distance_mask"] == 0
     d.compact()
-    debug_after = d.debug()
+    debug_after = d._debug()
     assert len(list(filter(lambda _: _ != 0, debug_after["index"]))) == non_empty_nodes
     assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
         {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
@@ -524,33 +506,33 @@ def test_compact():
     d = AtomicDict({keys[0][0]: None, keys[1][0]: None})
     for _ in range(20):
         d[keys[0][_]] = None
-    assert d.debug()["meta"]["log_size"] == 7
+    assert d._debug()["meta"]["log_size"] == 7
     d.compact()
     for _ in range(20):
         assert d[keys[0][_]] is None
-    assert d.debug()["meta"]["log_size"] == 9
+    assert d._debug()["meta"]["log_size"] == 9
 
     d = AtomicDict({}, min_size=2**16)
-    assert len(d.debug()["index"]) == 2**16
+    assert len(d._debug()["index"]) == 2**16
     d.compact()
-    assert len(d.debug()["index"]) == 2**16
+    assert len(d._debug()["index"]) == 2**16
 
 
 def test_grow_then_shrink():
     d = AtomicDict()
-    assert d.debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 6
 
     for _ in range(2**10):
-        debug = d.debug()
+        debug = d._debug()
         assert len(Counter(debug["index"]).keys()) == _ + 1, debug["meta"]["log_size"]
         d[_] = None
-    assert d.debug()["meta"]["log_size"] == 11
+    assert d._debug()["meta"]["log_size"] == 11
 
     for _ in range(2**10):
         del d[_]
-    # assert d.debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
+    # assert d._debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
 
-    # debug = d.debug()
+    # debug = d._debug()
     # empty = 0
     # tombstone = debug["meta"]["tombstone"]
     # assert len(Counter(debug["index"]).keys()) == len({empty, tombstone}), debug["meta"]["log_size"]
@@ -558,40 +540,40 @@ def test_grow_then_shrink():
     for _ in range(2**20, 2**20 + 2**14):
         d[_] = None
 
-    assert d.debug()["meta"]["log_size"] == 15
-    # assert len(Counter(d.debug()["index"]).keys()) == 2**14 + 1
+    assert d._debug()["meta"]["log_size"] == 15
+    # assert len(Counter(d._debug()["index"]).keys()) == 2**14 + 1
 
     for _ in range(2**20, 2**20 + 2**14):
         del d[_]
-    # assert d.debug()["meta"]["log_size"] == 7
+    # assert d._debug()["meta"]["log_size"] == 7
 
 
 @pytest.mark.skip()
 def test_large_grow_then_shrink():
     d = AtomicDict()
-    assert d.debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 6
 
     for _ in range(2**25):
         d[_] = None
-    assert d.debug()["meta"]["log_size"] == 26
+    assert d._debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
         del d[_]
-    assert d.debug()["meta"]["log_size"] == 7
+    assert d._debug()["meta"]["log_size"] == 7
 
 
 @pytest.mark.skip()
 def test_large_pre_allocated_grow_then_shrink():
     d = AtomicDict(min_size=2**26)
-    assert d.debug()["meta"]["log_size"] == 26
+    assert d._debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
         d[_] = None
-    assert d.debug()["meta"]["log_size"] == 26
+    assert d._debug()["meta"]["log_size"] == 26
 
     for _ in range(2**25):
         del d[_]
-    assert d.debug()["meta"]["log_size"] == 26
+    assert d._debug()["meta"]["log_size"] == 26
 
 
 def test_dont_implode():
@@ -599,7 +581,7 @@ def test_dont_implode():
     del d[1]
     d[2] = None
     assert d[2] is None
-    assert d.debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 6
 
 
 def test_len_bounds():

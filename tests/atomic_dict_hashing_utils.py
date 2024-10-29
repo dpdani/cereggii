@@ -19,7 +19,7 @@ if not stored_hashes.exists():
             keys_for_hash_for_log_size[log_size][pos] = []
 
             for _ in range((1 << log_size) * 32):
-                h = d.rehash(_) >> (64 - log_size)
+                h = d._rehash(_) >> (64 - log_size)
                 if h == pos:
                     keys_for_hash_for_log_size[log_size][pos].append(_)
 
