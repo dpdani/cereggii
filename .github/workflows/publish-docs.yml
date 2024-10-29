@@ -6,7 +6,7 @@ on:
       - dev
 
 jobs:
-  deploy:
+  docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
