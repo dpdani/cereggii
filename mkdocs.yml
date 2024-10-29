@@ -90,10 +90,10 @@ extra:
       link: https://github.com/dpdani/cereggii
     - icon: material/license
       link: https://github.com/dpdani/cereggii/blob/main/LICENSE
-#  version:
-#    provider: mike
-#    default: stable
-#    alias: true
+  version:
+    provider: mike
+    default: stable
+    alias: true
 
 plugins:
   - search
