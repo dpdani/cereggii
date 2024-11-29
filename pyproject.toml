@@ -1,11 +1,12 @@
 [build-system]
-requires = ["py-build-cmake"]
-build-backend = "py_build_cmake.build"
+requires = ["hatchling>=1.24.2", "scikit-build-core==0.10.7"]
+build-backend = "hatchling.build"
 
 
 [project]
 name = "cereggii"
-dynamic = ["version", "description"]
+dynamic = ["description"]
+version = "0.3.1"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { file = "LICENSE" }
@@ -50,19 +51,27 @@ Documentation = "https://github.com/dpdani/cereggii#readme"
 Issues = "https://github.com/dpdani/cereggii/issues"
 Source = "https://github.com/dpdani/cereggii"
 
-[tool.py-build-cmake.module]
-directory = "src"
+#[tool.py-build-cmake.module]
+#directory = "src"
+#
+#[tool.py-build-cmake.sdist]
+#include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
+#
+#[tool.py-build-cmake.cmake]
+#minimum_version = "3.18"
+#build_type = "RelWithDebInfo"
+#source_path = "src"
+#args = ["-L"]
+#build_args = ["-j"]
+#install_components = ["python_modules"]
 
-[tool.py-build-cmake.sdist]
-include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
+[tool.hatch.build.targets.wheel.hooks.scikit-build]
+experimental = true
 
-[tool.py-build-cmake.cmake]
-minimum_version = "3.18"
-build_type = "RelWithDebInfo"
-source_path = "src"
-args = ["-L"]
-build_args = ["-j"]
-install_components = ["python_modules"]
+[tool.scikit-build]
+#build_type = "Debug"
+build.verbose = true
+logging.level = "INFO"
 
 
 [tool.black]
