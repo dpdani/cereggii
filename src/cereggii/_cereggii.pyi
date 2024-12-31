@@ -489,6 +489,26 @@ class AtomicRef:
             writing to this `AtomicRef`.
         """
 
+    def get_handle(self) -> AtomicRefHandle:
+        """
+        Get a thread-local handle for this `AtomicRef`.
+
+        When using a thread-local handle, you can improve the performance of
+        your application.
+        """
+
+class AtomicRefHandle(AtomicRef):
+    """
+    A thread-local handle for an [`AtomicRef`][cereggii._cereggii.AtomicRef].
+    It behaves exactly like `AtomicRef`, but provides some performance benefits.
+
+    You cannot instantiate an `AtomicRefHandle` directly.
+    Create it by calling [`AtomicRef.get_handle`][cereggii._cereggii.AtomicRef.get_handle]:
+    ```python
+    my_handle = my_atomic_ref.get_handle()
+    ```
+    """
+
 class AtomicInt64(int):
     """An `int` that may be updated atomically.
 

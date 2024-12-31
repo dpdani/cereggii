@@ -194,6 +194,7 @@ static PyMethodDef AtomicRef_methods[] = {
     {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
     {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
+    {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
     {NULL}
 };
 
@@ -210,6 +211,30 @@ PyTypeObject AtomicRef_Type = {
     .tp_clear = (inquiry) AtomicRef_clear,
     .tp_dealloc = (destructor) AtomicRef_dealloc,
     .tp_methods = AtomicRef_methods,
+};
+
+static PyMethodDef AtomicRefHandle_methods[] = {
+    {"get",             (PyCFunction) AtomicRefHandle_Get,                    METH_NOARGS, NULL},
+    {"set",             (PyCFunction) AtomicRefHandle_Set,                    METH_O,      NULL},
+    {"compare_and_set", (PyCFunction) AtomicRefHandle_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",     (PyCFunction) AtomicRefHandle_GetAndSet,              METH_O,      NULL},
+    {"get_handle",      (PyCFunction) AtomicRefHandle_GetHandle,              METH_NOARGS, NULL},
+    {NULL}
+};
+
+PyTypeObject AtomicRefHandle_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicRefHandle",
+    .tp_doc = PyDoc_STR("An immutable handle for referencing an AtomicRef."),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_basicsize = sizeof(AtomicRefHandle),
+    .tp_itemsize = 0,
+    .tp_new = AtomicRefHandle_new,
+    .tp_init = (initproc) AtomicRefHandle_init,
+    .tp_traverse = (traverseproc) AtomicRefHandle_traverse,
+    .tp_clear = (inquiry) AtomicRefHandle_clear,
+    .tp_dealloc = (destructor) AtomicRefHandle_dealloc,
+    .tp_methods = AtomicRefHandle_methods,
 };
 
 
@@ -363,6 +388,8 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicRefHandle_Type) < 0)
+        return NULL;
     if (PyType_Ready(&AtomicInt64_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicInt64Handle_Type) < 0)
@@ -419,6 +446,10 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0)
         goto fail;
     Py_DECREF(&AtomicRef_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicRefHandle", (PyObject *) &AtomicRefHandle_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicRefHandle_Type);
 
     if (PyModule_AddObjectRef(m, "AtomicInt64", (PyObject *) &AtomicInt64_Type) < 0)
         goto fail;
