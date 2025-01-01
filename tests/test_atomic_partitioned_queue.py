@@ -14,7 +14,6 @@ def test_init():
     assert isinstance(queue, AtomicPartitionedQueue)
     assert queue.num_partitions == 1
 
-    breakpoint()
     queue = AtomicPartitionedQueue(num_partitions=1)
     assert queue
     assert isinstance(queue, AtomicPartitionedQueue)
