@@ -145,6 +145,7 @@ AtomicPartitionedQueue_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         return NULL;
     }
     self->queue = queue;
+    self->queue->partitions = NULL;
 
     return (PyObject *) self;
 }
@@ -210,6 +211,9 @@ fail:
 int
 AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, void *arg)
 {
+    if (self->queue->partitions == NULL)
+        return 0;
+
     for (int p = 0; p < self->queue->num_partitions; p++) {
         _AtomicPartitionedQueuePartition *partition = self->queue->partitions[p];
 
@@ -236,6 +240,9 @@ AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, v
 int
 AtomicPartitionedQueue_clear(AtomicPartitionedQueue *self)
 {
+    if (self->queue->partitions == NULL)
+        return 0;
+
     _AtomicPartitionedQueuePartition *partition = NULL;
     for (int p = 0; p < self->queue->num_partitions; p++) {
         partition = self->queue->partitions[p];
