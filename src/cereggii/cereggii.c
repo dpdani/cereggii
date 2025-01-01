@@ -10,6 +10,7 @@
 #include "atomic_ref.h"
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "atomic_partitioned_queue.h"
 
 
 static PyMethodDef AtomicInt64_methods[] = {
@@ -427,6 +428,9 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "AtomicInt64Handle", (PyObject *) &AtomicInt64Handle_Type) < 0)
         goto fail;
     Py_DECREF(&AtomicInt64Handle_Type);
+
+    if (_AtomicPartitionedQueue_mod_init(m) < 0)
+        goto fail;
 
     return m;
     fail:

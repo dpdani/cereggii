@@ -8,6 +8,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options("-mcx16")
 add_compile_options("-msse4.2")
 
+execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
+
+configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
+
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
 
@@ -30,6 +34,9 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/robin_hood.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
+        "cereggii/atomic_partitioned_queue/atomic_partitioned_queue.c"
+        "cereggii/atomic_partitioned_queue/consumer.c"
+        "cereggii/atomic_partitioned_queue/producer.c"
         "cereggii/atomic_event.c"
         "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"

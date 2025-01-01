@@ -669,3 +669,27 @@ class AtomicInt64Handle(AtomicInt64):
     my_handle = my_atomic_int.get_handle()
     ```
     """
+
+
+class AtomicPartitionedQueue:
+
+    class AtomicPartitionedQueueProducer:
+        def put(self, item):
+            pass
+
+    class AtomicPartitionedQueueConsumer:
+        def get(self):
+            pass
+
+    def __init__(self, num_partitions: int = 1):
+        pass
+
+    @property
+    def num_partitions(self) -> int:
+        pass
+
+    def producer(self) -> AtomicPartitionedQueueProducer:
+        pass
+
+    def consumer(self) -> AtomicPartitionedQueueConsumer:
+        pass
