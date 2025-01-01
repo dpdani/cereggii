@@ -670,9 +670,7 @@ class AtomicInt64Handle(AtomicInt64):
     ```
     """
 
-
 class AtomicPartitionedQueue:
-
     class AtomicPartitionedQueueProducer:
         def put(self, item):
             pass

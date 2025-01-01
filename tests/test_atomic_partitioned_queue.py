@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import threading
-
 import pytest
 from cereggii import AtomicPartitionedQueue
 
@@ -36,6 +34,7 @@ def test_producer():
     with pytest.raises(RuntimeError):
         producer.put(None)
 
+
 def test_consumer():
     queue = AtomicPartitionedQueue()
     with queue.consumer() as consumer:
@@ -59,7 +58,6 @@ def test_consumer():
 #         with pytest.raises(RuntimeError):
 #             with queue.producer():
 #                 pass
-
 
 
 def test_put_then_get():
