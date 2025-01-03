@@ -10,10 +10,10 @@
 #include "internal/cereggiiconfig.h"
 
 
-#define ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE 512
+#define ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE (512 - 1)
 
-typedef struct {
-  PyObject *items[ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1];
+typedef struct _AtomicPartitionedQueuePage {
+  PyObject *items[ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE];
   struct _AtomicPartitionedQueuePage *next;
 } _AtomicPartitionedQueuePage;
 
@@ -47,6 +47,7 @@ typedef struct {
   PyObject_HEAD
 
   _AtomicPartitionedQueue *queue;
+  AtomicPartitionedQueue *q_ob;
   int in_ctx;
 } AtomicPartitionedQueueProducer;
 
@@ -54,6 +55,7 @@ typedef struct {
   PyObject_HEAD
 
   _AtomicPartitionedQueue *queue;
+  AtomicPartitionedQueue *q_ob;
   int in_ctx;
 } AtomicPartitionedQueueConsumer;
 

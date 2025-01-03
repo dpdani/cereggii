@@ -49,7 +49,7 @@ PyTypeObject AtomicPartitionedQueueProducer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicPartitionedQueueProducer",
     .tp_doc = PyDoc_STR("A producer instance for cereggii.AtomicPartitionedQueue."),
-    .tp_basicsize = sizeof(AtomicPartitionedQueue),
+    .tp_basicsize = sizeof(AtomicPartitionedQueueProducer),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = AtomicPartitionedQueueProducer_new,
@@ -73,7 +73,7 @@ PyTypeObject AtomicPartitionedQueueConsumer_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicPartitionedQueueConsumer",
     .tp_doc = PyDoc_STR("A consumer instance for cereggii.AtomicPartitionedQueue."),
-    .tp_basicsize = sizeof(AtomicPartitionedQueue),
+    .tp_basicsize = sizeof(AtomicPartitionedQueueConsumer),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = AtomicPartitionedQueueConsumer_new,
@@ -147,6 +147,8 @@ AtomicPartitionedQueue_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     self->queue = queue;
     self->queue->partitions = NULL;
 
+    PyObject_GC_Track(self);
+
     return (PyObject *) self;
 }
 
@@ -211,18 +213,18 @@ fail:
 int
 AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, void *arg)
 {
-    if (self->queue->partitions == NULL)
+    if (self->queue == NULL || self->queue->partitions == NULL)
         return 0;
 
     for (int p = 0; p < self->queue->num_partitions; p++) {
         _AtomicPartitionedQueuePartition *partition = self->queue->partitions[p];
 
-        for (int i = partition->head_offset; i >= 0 && i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1; i++) {
+        for (int i = partition->head_offset; i >= 0 && i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
             Py_VISIT(partition->head_page->items[i]);
         }
 
         for (_AtomicPartitionedQueuePage *page = partition->head_page; page != partition->tail_page; page = page->next) {
-            for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1; i++) {
+            for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
                 Py_VISIT(page->items[i]);
             }
         }
@@ -240,19 +242,24 @@ AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, v
 int
 AtomicPartitionedQueue_clear(AtomicPartitionedQueue *self)
 {
-    if (self->queue->partitions == NULL)
+    if (self->queue == NULL || self->queue->partitions == NULL)
         return 0;
 
     _AtomicPartitionedQueuePartition *partition = NULL;
     for (int p = 0; p < self->queue->num_partitions; p++) {
         partition = self->queue->partitions[p];
 
-        for (int i = partition->head_offset; i >= 0 && i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1; i++) {
+        int end_offset = ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE;
+        if (partition->tail_page == partition->head_page) {
+            end_offset = partition->tail_offset;
+        }
+
+        for (int i = partition->head_offset; i >= 0 && i < end_offset; i++) {
             Py_CLEAR(partition->head_page->items[i]);
         }
 
         for (_AtomicPartitionedQueuePage *page = partition->head_page; page != partition->tail_page; page = page->next) {
-            for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1; i++) {
+            for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
                 Py_CLEAR(page->items[i]);
             }
         }
@@ -272,6 +279,28 @@ AtomicPartitionedQueue_dealloc(AtomicPartitionedQueue *self)
 {
     PyObject_GC_UnTrack(self);
     AtomicPartitionedQueue_clear(self);
+
+    if (self->queue) {
+        if (self->queue->partitions) {
+            for (int part = 0; part < self->queue->num_partitions; part++) {
+                _AtomicPartitionedQueuePartition *partition = self->queue->partitions[part];
+
+                _AtomicPartitionedQueuePage *page = partition->head_page;
+                for (_AtomicPartitionedQueuePage *next = page->next; next; next = page->next) {
+                    PyMem_RawFree(page);
+                    page = next;
+                }
+                PyMem_RawFree(page);
+
+                PyMem_RawFree(partition);
+            }
+
+            PyMem_RawFree(self->queue->partitions);
+        }
+
+        PyMem_RawFree(self->queue);
+    }
+
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
@@ -294,12 +323,14 @@ AtomicPartitionedQueueProducer_init(AtomicPartitionedQueueProducer *self, PyObje
 int
 AtomicPartitionedQueueProducer_traverse(AtomicPartitionedQueueProducer *self, visitproc visit, void *arg)
 {
+    Py_VISIT(self->q_ob);
     return 0;
 }
 
 int
 AtomicPartitionedQueueProducer_clear(AtomicPartitionedQueueProducer *self)
 {
+    Py_CLEAR(self->q_ob);
     return 0;
 }
 
@@ -330,12 +361,14 @@ AtomicPartitionedQueueConsumer_init(AtomicPartitionedQueueConsumer *self, PyObje
 int
 AtomicPartitionedQueueConsumer_traverse(AtomicPartitionedQueueConsumer *self, visitproc visit, void *arg)
 {
+    Py_VISIT(self->q_ob);
     return 0;
 }
 
 int
 AtomicPartitionedQueueConsumer_clear(AtomicPartitionedQueueConsumer *self)
 {
+    Py_CLEAR(self->q_ob);
     return 0;
 }
 

@@ -12,14 +12,18 @@ PyObject *
 AtomicPartitionedQueue_Producer(AtomicPartitionedQueue *self)
 {
     AtomicPartitionedQueueProducer *producer = NULL;
-    producer = (AtomicPartitionedQueueProducer *)
-        AtomicPartitionedQueueProducer_new(&AtomicPartitionedQueueProducer_Type, NULL, NULL);
+    producer = PyObject_GC_New(AtomicPartitionedQueueProducer, &AtomicPartitionedQueueProducer_Type);
 
     if (producer == NULL)
         return NULL;
 
     producer->queue = self->queue;
     producer->in_ctx = 0;
+    Py_INCREF(self);
+    producer->q_ob = self;
+
+    PyObject_GC_Track(producer);
+    Py_INCREF(producer); // fixme
 
     return (PyObject *) producer;
 }
@@ -53,7 +57,7 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
 
     assert(page != NULL);
 
-    if (partition->tail_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1) {
+    if (partition->tail_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
         // todo: new page
         PyErr_SetNone(PyExc_RuntimeError);
         return NULL;

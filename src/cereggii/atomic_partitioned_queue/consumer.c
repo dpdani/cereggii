@@ -12,14 +12,18 @@ PyObject *
 AtomicPartitionedQueue_Consumer(AtomicPartitionedQueue *self)
 {
     AtomicPartitionedQueueConsumer *consumer = NULL;
-    consumer = (AtomicPartitionedQueueConsumer *)
-        AtomicPartitionedQueueConsumer_new(&AtomicPartitionedQueueConsumer_Type, NULL, NULL);
+    consumer = PyObject_GC_New(AtomicPartitionedQueueConsumer, &AtomicPartitionedQueueConsumer_Type);
 
     if (consumer == NULL)
         return NULL;
 
     consumer->queue = self->queue;
     consumer->in_ctx = 0;
+    Py_INCREF(self);
+    consumer->q_ob = self;
+
+    PyObject_GC_Track(consumer);
+    Py_INCREF(consumer); // fixme
 
     return (PyObject *) consumer;
 }
@@ -53,7 +57,7 @@ AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
 
     assert(page != NULL);
 
-    if (partition->head_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE - 1) {
+    if (partition->head_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
         // todo: free page
         PyErr_SetNone(PyExc_RuntimeError);
         return NULL;
