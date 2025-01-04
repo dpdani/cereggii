@@ -58,9 +58,15 @@ AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
     assert(page != NULL);
 
     if (partition->consumer.head_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
-        // todo: free page
-        PyErr_SetNone(PyExc_RuntimeError);
-        return NULL;
+        while (page->next == NULL) {}
+
+        _AtomicPartitionedQueuePage *next = page->next;
+
+        partition->consumer.head_page = next;
+        partition->consumer.head_offset = -1;
+
+        PyMem_RawFree(page);
+        page = next;
     }
 
     PyObject *item = NULL;
@@ -75,6 +81,7 @@ AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
 
     assert(item != NULL);
 
+    // todo: wakeup producer
     return item;
 }
 

@@ -63,8 +63,8 @@ def test_consumer():
 def test_put_then_get():
     queue = AtomicPartitionedQueue()
     with queue.producer() as producer:
-        for i in range(511):
+        for i in range(4096):
             producer.put(i)
     with queue.consumer() as consumer:
-        for i in range(511):
+        for i in range(4096):
             assert consumer.get() == i

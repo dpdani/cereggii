@@ -6,6 +6,7 @@
 
 #include <Python.h>
 #include "atomic_partitioned_queue.h"
+#include "atomic_ops.h"
 
 
 PyObject *
@@ -58,9 +59,27 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
     assert(page != NULL);
 
     if (partition->producer.tail_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
-        // todo: new page
-        PyErr_SetNone(PyExc_RuntimeError);
-        return NULL;
+        assert(page->next == NULL);
+
+        _AtomicPartitionedQueuePage *new_page = NULL;
+        new_page = PyMem_RawMalloc(sizeof(_AtomicPartitionedQueuePage));
+        if (new_page == NULL) {
+            PyErr_NoMemory();
+            return NULL;
+        }
+#ifndef NDEBUG
+        memset(new_page->items, 0, sizeof(PyObject *) * ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE);
+#endif
+        new_page->next = NULL;
+
+        partition->producer.tail_page = new_page;
+        partition->producer.tail_offset = -1;
+
+        CereggiiAtomic_StorePtr((void **) &page->next, new_page);
+        // "atomic" store is necessary because we don't want
+        // the compiler to reorder things after this
+
+        page = new_page;
     }
 
     Py_INCREF(item);
@@ -71,7 +90,7 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
     }
     partition->producer.produced++;
 
-    // wakeup consumer
+    // todo: wakeup consumer
     Py_RETURN_NONE;
 }
 
