@@ -197,10 +197,12 @@ AtomicPartitionedQueue_init(AtomicPartitionedQueue *self, PyObject *args, PyObje
         memset(page->items, 0, sizeof(PyObject *) * ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE);
 #endif
 
-        partition->head_page = page;
-        partition->tail_page = page;
-        partition->head_offset = -1;
-        partition->tail_offset = -1;
+        partition->consumer.head_page = page;
+        partition->producer.tail_page = page;
+        partition->consumer.head_offset = -1;
+        partition->producer.tail_offset = -1;
+        partition->consumer.consumed = 0;
+        partition->producer.produced = 0;
 
         self->queue->partitions[i] = partition;
     }
@@ -219,19 +221,19 @@ AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, v
     for (int p = 0; p < self->queue->num_partitions; p++) {
         _AtomicPartitionedQueuePartition *partition = self->queue->partitions[p];
 
-        for (int i = partition->head_offset; i >= 0 && i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
-            Py_VISIT(partition->head_page->items[i]);
+        for (int i = partition->consumer.head_offset; i >= 0 && i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
+            Py_VISIT(partition->consumer.head_page->items[i]);
         }
 
-        for (_AtomicPartitionedQueuePage *page = partition->head_page; page != partition->tail_page; page = page->next) {
+        for (_AtomicPartitionedQueuePage *page = partition->consumer.head_page; page != partition->producer.tail_page; page = page->next) {
             for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
                 Py_VISIT(page->items[i]);
             }
         }
 
-        if (partition->head_page != partition->tail_page) {
-            for (int i = 0; i < partition->tail_offset; i++) {
-                Py_VISIT(partition->tail_page->items[i]);
+        if (partition->consumer.head_page != partition->producer.tail_page) {
+            for (int i = 0; i < partition->producer.tail_offset; i++) {
+                Py_VISIT(partition->producer.tail_page->items[i]);
             }
         }
     }
@@ -250,23 +252,23 @@ AtomicPartitionedQueue_clear(AtomicPartitionedQueue *self)
         partition = self->queue->partitions[p];
 
         int end_offset = ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE;
-        if (partition->tail_page == partition->head_page) {
-            end_offset = partition->tail_offset;
+        if (partition->producer.tail_page == partition->consumer.head_page) {
+            end_offset = partition->producer.tail_offset;
         }
 
-        for (int i = partition->head_offset; i >= 0 && i < end_offset; i++) {
-            Py_CLEAR(partition->head_page->items[i]);
+        for (int i = partition->consumer.head_offset; i >= 0 && i < end_offset; i++) {
+            Py_CLEAR(partition->consumer.head_page->items[i]);
         }
 
-        for (_AtomicPartitionedQueuePage *page = partition->head_page; page != partition->tail_page; page = page->next) {
+        for (_AtomicPartitionedQueuePage *page = partition->consumer.head_page; page != partition->producer.tail_page; page = page->next) {
             for (int i = 0; i < ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE; i++) {
                 Py_CLEAR(page->items[i]);
             }
         }
 
-        if (partition->head_page != partition->tail_page) {
-            for (int i = 0; i < partition->tail_offset; i++) {
-                Py_CLEAR(partition->tail_page->items[i]);
+        if (partition->consumer.head_page != partition->producer.tail_page) {
+            for (int i = 0; i < partition->producer.tail_offset; i++) {
+                Py_CLEAR(partition->producer.tail_page->items[i]);
             }
         }
     }
@@ -285,7 +287,7 @@ AtomicPartitionedQueue_dealloc(AtomicPartitionedQueue *self)
             for (int part = 0; part < self->queue->num_partitions; part++) {
                 _AtomicPartitionedQueuePartition *partition = self->queue->partitions[part];
 
-                _AtomicPartitionedQueuePage *page = partition->head_page;
+                _AtomicPartitionedQueuePage *page = partition->consumer.head_page;
                 for (_AtomicPartitionedQueuePage *next = page->next; next; next = page->next) {
                     PyMem_RawFree(page);
                     page = next;

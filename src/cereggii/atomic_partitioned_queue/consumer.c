@@ -53,18 +53,25 @@ AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
     }
 
     _AtomicPartitionedQueuePartition *partition = self->queue->partitions[0];
-    _AtomicPartitionedQueuePage *page = partition->head_page;
+    _AtomicPartitionedQueuePage *page = partition->consumer.head_page;
 
     assert(page != NULL);
 
-    if (partition->head_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
+    if (partition->consumer.head_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
         // todo: free page
         PyErr_SetNone(PyExc_RuntimeError);
         return NULL;
     }
 
     PyObject *item = NULL;
-    item = page->items[++partition->head_offset];
+    item = page->items[++partition->consumer.head_offset];
+
+    if (partition->consumer.consumed == INT64_MAX) {
+        // todo: handle overflow
+    }
+    partition->consumer.consumed++;
+
+    // don't decref: passing to python
 
     assert(item != NULL);
 

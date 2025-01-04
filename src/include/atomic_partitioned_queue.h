@@ -17,17 +17,31 @@ typedef struct _AtomicPartitionedQueuePage {
   struct _AtomicPartitionedQueuePage *next;
 } _AtomicPartitionedQueuePage;
 
-typedef struct {
+struct _AtomicPartitionedQueuePartitionConsumer {
+  PyMutex mx;
   _AtomicPartitionedQueuePage *head_page;
   int head_offset;
+  int64_t consumed;
+};
+
+struct _AtomicPartitionedQueuePartitionProducer {
+  PyMutex mx;
+  _AtomicPartitionedQueuePage *tail_page;
+  int tail_offset;
+  int64_t produced;
+};
+
+typedef struct {
+  struct _AtomicPartitionedQueuePartitionConsumer consumer;
 
   /* The padding makes it so that while a producer modifies the tail, it doesn't
      disturb a consumer modifying the head. */
-  int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(_AtomicPartitionedQueuePage *) - sizeof(int)];
+  int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(struct _AtomicPartitionedQueuePartitionConsumer)];
 
-  _AtomicPartitionedQueuePage *tail_page;
-  int tail_offset;
+  struct _AtomicPartitionedQueuePartitionProducer producer;
 } _AtomicPartitionedQueuePartition;
+
+_Static_assert(LEVEL1_DCACHE_LINESIZE - sizeof(struct _AtomicPartitionedQueuePartitionConsumer) >= 0, "LEVEL1_DCACHE_LINESIZE - SIZE_OF_CONSUMER_SIDE < 0");
 
 typedef struct {
   int num_partitions;

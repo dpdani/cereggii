@@ -53,18 +53,23 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
     }
 
     _AtomicPartitionedQueuePartition *partition = self->queue->partitions[0];
-    _AtomicPartitionedQueuePage *page = partition->tail_page;
+    _AtomicPartitionedQueuePage *page = partition->producer.tail_page;
 
     assert(page != NULL);
 
-    if (partition->tail_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
+    if (partition->producer.tail_offset + 1 >= ATOMIC_PARTITIONED_QUEUE_PAGE_SIZE) {
         // todo: new page
         PyErr_SetNone(PyExc_RuntimeError);
         return NULL;
     }
 
     Py_INCREF(item);
-    page->items[++partition->tail_offset] = item;
+    page->items[++partition->producer.tail_offset] = item;
+
+    if (partition->producer.produced == INT64_MAX) {
+        // todo: handle overflow
+    }
+    partition->producer.produced++;
 
     // wakeup consumer
     Py_RETURN_NONE;
