@@ -45,15 +45,42 @@ AtomicPartitionedQueueProducer_exit(AtomicPartitionedQueueProducer *self, PyObje
     Py_RETURN_NONE;
 }
 
+static inline void
+wait_for_rebalance(_AtomicPartitionedQueue *self)
+{
+    while (self->producers_mx) {
+        sched_yield();
+    }
+}
+
+static inline int
+try_lock(_AtomicPartitionedQueuePartition *partition)
+{
+    return CereggiiAtomic_CompareExchangeInt8(&partition->producer.mx, 0, 1);
+}
+
+static inline void
+unlock(_AtomicPartitionedQueuePartition *partition)
+{
+    CereggiiAtomic_StoreInt8(&partition->producer.mx, 0);
+}
+
 PyObject *
 AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObject *item)
 {
+beginning:
     if (!self->in_ctx) {
         PyErr_SetString(PyExc_RuntimeError, "producer without context, please see "); // todo
         return NULL;
     }
 
     _AtomicPartitionedQueuePartition *partition = self->queue->partitions[0];
+
+    if (!try_lock(partition)) {
+        wait_for_rebalance(self->queue);
+        goto beginning;
+    }
+
     _AtomicPartitionedQueuePage *page = partition->producer.tail_page;
 
     assert(page != NULL);
@@ -65,6 +92,7 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
         new_page = PyMem_RawMalloc(sizeof(_AtomicPartitionedQueuePage));
         if (new_page == NULL) {
             PyErr_NoMemory();
+            unlock(partition);
             return NULL;
         }
 #ifndef NDEBUG
@@ -83,12 +111,18 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
     }
 
     Py_INCREF(item);
-    page->items[++partition->producer.tail_offset] = item;
+    int tail_offset = partition->producer.tail_offset + 1;
+    page->items[tail_offset] = item;
+
+    CereggiiAtomic_StoreInt(&partition->producer.tail_offset, tail_offset);
+    // again, compiler mustn't feel funky
 
     if (partition->producer.produced == INT64_MAX) {
         // todo: handle overflow
     }
     partition->producer.produced++;
+
+    unlock(partition);
 
     // todo: wakeup consumer
     Py_RETURN_NONE;

@@ -6,6 +6,7 @@
 
 #include <Python.h>
 #include "atomic_partitioned_queue.h"
+#include "atomic_ops.h"
 
 
 PyObject *
@@ -44,15 +45,42 @@ AtomicPartitionedQueueConsumer_exit(AtomicPartitionedQueueConsumer *self, PyObje
     Py_RETURN_NONE;
 }
 
+static inline void
+wait_for_rebalance(_AtomicPartitionedQueue *self)
+{
+    while (self->consumers_mx) {
+        sched_yield();
+    }
+}
+
+static inline int
+try_lock(_AtomicPartitionedQueuePartition *partition)
+{
+    return CereggiiAtomic_CompareExchangeInt8(&partition->consumer.mx, 0, 1);
+}
+
+static inline void
+unlock(_AtomicPartitionedQueuePartition *partition)
+{
+    CereggiiAtomic_StoreInt8(&partition->consumer.mx, 0);
+}
+
 PyObject *
 AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
 {
+beginning:
     if (!self->in_ctx) {
         PyErr_SetString(PyExc_RuntimeError, "consumer without context, please see "); // todo
         return NULL;
     }
 
     _AtomicPartitionedQueuePartition *partition = self->queue->partitions[0];
+
+    if (!try_lock(partition)) {
+        wait_for_rebalance(self->queue);
+        goto beginning;
+    }
+
     _AtomicPartitionedQueuePage *page = partition->consumer.head_page;
 
     assert(page != NULL);
@@ -69,15 +97,20 @@ AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self)
         page = next;
     }
 
+    while (
+        partition->consumer.head_page == partition->producer.tail_page
+        && partition->consumer.head_offset == partition->producer.tail_offset
+        ) {}
+
     PyObject *item = NULL;
-    item = page->items[++partition->consumer.head_offset];
+    item = page->items[++partition->consumer.head_offset]; // don't decref: passing to python
 
     if (partition->consumer.consumed == INT64_MAX) {
         // todo: handle overflow
     }
     partition->consumer.consumed++;
 
-    // don't decref: passing to python
+    unlock(partition);
 
     assert(item != NULL);
 

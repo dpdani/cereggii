@@ -18,14 +18,14 @@ typedef struct _AtomicPartitionedQueuePage {
 } _AtomicPartitionedQueuePage;
 
 struct _AtomicPartitionedQueuePartitionConsumer {
-  PyMutex mx;
+  int8_t mx;
   _AtomicPartitionedQueuePage *head_page;
   int head_offset;
   int64_t consumed;
 };
 
 struct _AtomicPartitionedQueuePartitionProducer {
-  PyMutex mx;
+  int8_t mx;
   _AtomicPartitionedQueuePage *tail_page;
   int tail_offset;
   int64_t produced;
@@ -39,6 +39,8 @@ typedef struct {
   int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(struct _AtomicPartitionedQueuePartitionConsumer)];
 
   struct _AtomicPartitionedQueuePartitionProducer producer;
+
+  int8_t _padding2[LEVEL1_DCACHE_LINESIZE - sizeof(struct _AtomicPartitionedQueuePartitionConsumer)];
 } _AtomicPartitionedQueuePartition;
 
 _Static_assert(LEVEL1_DCACHE_LINESIZE - sizeof(struct _AtomicPartitionedQueuePartitionConsumer) >= 0, "LEVEL1_DCACHE_LINESIZE - SIZE_OF_CONSUMER_SIDE < 0");
@@ -47,8 +49,8 @@ typedef struct {
   int num_partitions;
   _AtomicPartitionedQueuePartition **partitions;
 
-  // PyMutex *producers_mx;
-  // PyMutex *consumers_mx;
+  int64_t producers_mx;
+  int64_t consumers_mx;
 } _AtomicPartitionedQueue;
 
 typedef struct {

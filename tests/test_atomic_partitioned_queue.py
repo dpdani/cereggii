@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
 #
 # SPDX-License-Identifier: Apache-2.0
+import time
+from threading import Barrier, Thread
 
 import pytest
 from cereggii import AtomicPartitionedQueue
@@ -68,3 +70,52 @@ def test_put_then_get():
     with queue.consumer() as consumer:
         for i in range(4096):
             assert consumer.get() == i
+
+
+def test_consumer_producer_threads():
+    queue = AtomicPartitionedQueue()
+
+    def producer():
+        with queue.producer() as producer:
+            for i in range(4096):
+                producer.put(i)
+
+    def consumer():
+        with queue.consumer() as consumer:
+            for i in range(4096):
+                assert consumer.get() == i
+
+    threads = [
+        Thread(target=producer),
+        Thread(target=consumer),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+def test_consumer_waits_for_producer():
+    queue = AtomicPartitionedQueue()
+    barrier = Barrier(2)
+
+    def producer():
+        barrier.wait()
+        time.sleep(.1)
+        with queue.producer() as producer:
+            for i in range(4096):
+                producer.put(i)
+
+    def consumer():
+        barrier.wait()
+        with queue.consumer() as consumer:
+            for i in range(4096):
+                assert consumer.get() == i
+
+    threads = [
+        Thread(target=producer),
+        Thread(target=consumer),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()

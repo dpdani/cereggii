@@ -168,6 +168,9 @@ AtomicPartitionedQueue_init(AtomicPartitionedQueue *self, PyObject *args, PyObje
 
     assert(num_partitions == 1); // fixme
 
+    self->queue->consumers_mx = 0;
+    self->queue->producers_mx = 0;
+
     self->queue->num_partitions = num_partitions;
     self->queue->partitions = PyMem_RawMalloc(sizeof(_AtomicPartitionedQueuePartition *) * num_partitions);
     if (self->queue->partitions == NULL) {
@@ -203,6 +206,8 @@ AtomicPartitionedQueue_init(AtomicPartitionedQueue *self, PyObject *args, PyObje
         partition->producer.tail_offset = -1;
         partition->consumer.consumed = 0;
         partition->producer.produced = 0;
+        partition->consumer.mx = 0;
+        partition->producer.mx = 0;
 
         self->queue->partitions[i] = partition;
     }
