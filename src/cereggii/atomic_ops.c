@@ -97,7 +97,7 @@ CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t desi
 inline int
 CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t desired)
 {
-    return __sync_bool_compare_and_swap_16(obj, expected, desired);
+    return __sync_bool_compare_and_swap_16((_Atomic(__int128_t) *) obj, expected, desired);
 }
 
 inline int
@@ -139,7 +139,7 @@ CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t 
 inline int
 CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t desired)
 {
-    return __sync_bool_compare_and_swap_16(obj, expected, desired);
+    return __sync_bool_compare_and_swap_16((_Atomic(__uint128_t) *) obj, expected, desired);
 }
 
 inline int
