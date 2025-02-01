@@ -63,7 +63,7 @@ inline int
 AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 {
 #ifdef __aarch64__
-    int overflowed = __builtin_saddll_overflow(current, to_sub, result);
+    int overflowed = __builtin_ssubll_overflow(current, to_sub, result);
 #else
     int overflowed = __builtin_ssubl_overflow(current, to_sub, result);
 #endif
@@ -83,7 +83,7 @@ inline int
 AtomicInt64_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
 {
 #ifdef __aarch64__
-    int overflowed = __builtin_saddll_overflow(current, to_mul, result);
+    int overflowed = __builtin_smulll_overflow(current, to_mul, result);
 #else
     int overflowed = __builtin_smull_overflow(current, to_mul, result);
 #endif
