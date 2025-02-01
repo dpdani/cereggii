@@ -48,7 +48,11 @@ AtomicDict_ZoneOf(uint64_t ix, AtomicDict_Meta *meta)
 
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
+#ifdef __aarch64__
+#define REHASH(x) (uint64_t) (__builtin_aarch64_crc32cx((x), LOWER_SEED) | (__builtin_aarch64_crc32cx((x), UPPER_SEED) << 32))
+#else
 #define REHASH(x) (uint64_t) (__builtin_ia32_crc32di((x), LOWER_SEED) | (__builtin_ia32_crc32di((x), UPPER_SEED) << 32))
+#endif // __aarch64__
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
