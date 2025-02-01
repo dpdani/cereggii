@@ -39,9 +39,13 @@ jobs:
           uv pip install pip
       - run: python --version --version && which python
       - name: system info
-        run: |
-          uname -a
-          cat /proc/cpuinfo
+        run: uname -a
+      - name: processor info
+        if: matrix.os == 'ubuntu-latest'
+        run: cat /proc/cpuinfo
+      - name: processor info
+        if: matrix.os == 'macos-latest'
+        run: system_profiler SPHardwareDataType
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
