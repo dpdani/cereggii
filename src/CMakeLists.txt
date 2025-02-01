@@ -5,8 +5,14 @@ set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-#add_compile_options("-mcx16")
-#add_compile_options("-msse4.2")
+if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    add_compile_options("-mcx16")
+    add_compile_options("-msse4.2")
+elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+
+else ()
+    message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
+endif ()
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
