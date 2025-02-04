@@ -150,7 +150,7 @@ def test_setitem_distance_1_insert():
     assert d[pos_0] == 1
     assert d[pos_1] == 2
     assert d[pos_0_again] == 3
-    debug = d._debug()
+    # debug = d._debug()
     # assert debug["index"][0] == 7
     # assert debug["index"][1] == 14
     # assert debug["index"][2] == 10
