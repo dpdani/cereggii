@@ -138,7 +138,7 @@ def test_setitem_distance_1_insert():
     d[pos_0_again] = 42
     assert d[pos_0] == 1
     assert d[pos_0_again] == 42
-    debug = d._debug()
+    # debug = d._debug()
     # assert debug["index"][1] == 10
     d = AtomicDict()
     d[pos_0] = 1
