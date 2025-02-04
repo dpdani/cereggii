@@ -13,6 +13,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
         python-version:
           - 3.13.0
           - 3.13t
@@ -38,9 +39,13 @@ jobs:
           uv pip install pip
       - run: python --version --version && which python
       - name: system info
-        run: |
-          uname -a
-          cat /proc/cpuinfo
+        run: uname -a
+      - name: processor info
+        if: matrix.os == 'ubuntu-latest'
+        run: cat /proc/cpuinfo
+      - name: processor info
+        if: matrix.os == 'macos-latest'
+        run: system_profiler SPHardwareDataType
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
@@ -48,10 +53,4 @@ jobs:
           pip install .[dev]
       - name: test with pytest
         run: |
-          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
-      - name: upload pytest test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results-${{ matrix.python-version }}
-          path: junit/test-results-${{ matrix.python-version }}.xml
-        if: ${{ always() }}
+          pytest
