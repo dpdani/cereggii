@@ -434,7 +434,6 @@ class AtomicDict:
             `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
         """
 
-    def compact(self) -> None: ...
     def _debug(self) -> dict:
         """
         Provide some debugging information.

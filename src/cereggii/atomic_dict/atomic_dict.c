@@ -14,7 +14,7 @@ PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicDict *self = NULL;
-    self = PyObject_GC_New(AtomicDict, &AtomicDict_Type);
+    self = PyObject_GC_New(AtomicDict, type);
     if (self != NULL) {
         self->metadata = NULL;
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
@@ -327,27 +327,18 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
         .index = pos,
         .tag = hash,
     };
-    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
 
-    for (int probe = 0; probe < meta->max_distance; probe++) {
-        AtomicDict_ReadNodeAt((ix + probe) % meta->size, &temp, meta);
+    for (uint64_t distance = 0; distance < SIZE_OF(meta); distance++) {
+        AtomicDict_ReadNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
 
         if (temp.node == 0) {
-            node.distance = probe;
-            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
+            AtomicDict_WriteNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
             goto done;
         }
-
-        if (temp.distance < probe) {
-            // non-atomic robin hood
-            node.distance = probe;
-            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
-            ix = ix + probe - temp.distance;
-            probe = temp.distance;
-            node = temp;
-        }
     }
-    // probes exhausted
+
+    // full
     return -1;
     done:
     return 0;
@@ -548,18 +539,9 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *block_info = NULL;
 
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-    metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsOsOsO}",
+    metadata = Py_BuildValue("{sOsOsOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
-                             "node_size\0", Py_BuildValue("B", meta->node_size),
-                             "distance_size\0", Py_BuildValue("B", meta->distance_size),
-                             "tag_size\0", Py_BuildValue("B", meta->tag_size),
-                             "node_mask\0", Py_BuildValue("k", meta->node_mask),
-                             "index_mask\0", Py_BuildValue("k", meta->index_mask),
-                             "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
-                             "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
-                             "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
-                             "is_compact\0", Py_BuildValue("B", meta->is_compact),
                              "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
                              "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
                              "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
@@ -572,7 +554,7 @@ AtomicDict_Debug(AtomicDict *self)
         goto fail;
 
     AtomicDict_Node node;
-    for (uint64_t i = 0; i < meta->size; i++) {
+    for (uint64_t i = 0; i < SIZE_OF(meta); i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
         PyObject *n = Py_BuildValue("k", node.node);
         if (n == NULL)

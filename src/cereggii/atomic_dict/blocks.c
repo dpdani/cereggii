@@ -33,7 +33,7 @@ AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
 
-        if (entry.value == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+        if (entry.value == NULL)
             continue;
 
         Py_VISIT(entry.key);
@@ -50,7 +50,7 @@ AtomicDictBlock_clear(AtomicDict_Block *self)
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
         entry = self->entries[i];
 
-        if (entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+        if (entry.value == NULL)
             continue;
 
         self->entries[i].key = NULL;
@@ -108,10 +108,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        if (greatest_allocated_block + 1 >= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+        if (greatest_allocated_block + 1 >= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             return 0; // must grow
         }
-        assert(greatest_allocated_block + 1 <= meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+        assert(greatest_allocated_block + 1 <= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
 
         AtomicDict_Block *block = NULL;
         block = AtomicDictBlock_New(meta);
@@ -121,7 +121,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
         block->entries[0].flags = ENTRY_FLAGS_RESERVED;
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
-            if (greatest_allocated_block + 2 < meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+            if (greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
                 CereggiiAtomic_StorePtr((void **) &meta->blocks[greatest_allocated_block + 2], NULL);
             }
             CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
@@ -144,7 +144,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     done:
     assert(entry_loc->entry != NULL);
     assert(entry_loc->entry->key == NULL);
-    assert(entry_loc->location < meta->size);
+    assert(entry_loc->location < SIZE_OF(meta));
     return 1;
     fail:
     entry_loc->entry = NULL;
@@ -178,7 +178,7 @@ AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
 {
     entry->flags = entry_p->flags;
     entry->value = entry_p->value;
-    if (entry->value == NULL || entry->flags & ENTRY_FLAGS_TOMBSTONE || entry->flags & ENTRY_FLAGS_SWAPPED) {
+    if (entry->value == NULL) {
         entry->key = NULL;
         entry->value = NULL;
         entry->hash = -1;

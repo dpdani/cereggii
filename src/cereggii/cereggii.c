@@ -216,7 +216,6 @@ PyTypeObject AtomicRef_Type = {
 static PyMethodDef AtomicDict_methods[] = {
     {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
     {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
-    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
     {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},

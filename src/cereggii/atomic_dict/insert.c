@@ -61,7 +61,7 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
                 if (!*done) {
                     AtomicDict_ReadEntry(entry_p, &entry);
 
-                    if (*current == NULL || entry.flags & ENTRY_FLAGS_TOMBSTONE || entry.flags & ENTRY_FLAGS_SWAPPED)
+                    if (*current == NULL)
                         return 0;
                 }
             } while (!*done);
@@ -76,85 +76,6 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
     }
 
     return 0;
-    fail:
-    return -1;
-}
-
-int
-AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
-                                                  PyObject *expected, PyObject *desired, PyObject **current,
-                                                  AtomicDict_EntryLoc *entry_loc, int *must_grow, int *done,
-                                                  int *expectation, AtomicDict_Node *to_insert, uint64_t distance_0,
-                                                  int skip_entry_check)
-{
-    assert(entry_loc != NULL);
-    AtomicDict_BufferedNodeReader reader;
-    AtomicDict_Node temp[16];
-    int begin_write, end_write;
-
-    beginning:
-    reader.zone = -1;
-    AtomicDict_ReadNodesFromZoneStartIntoBuffer(distance_0, &reader, meta);
-
-    for (int i = (int) (distance_0 % meta->nodes_in_zone); i < meta->nodes_in_zone; i++) {
-        if (reader.buffer[i].node == 0)
-            goto empty_slot;
-
-        if (!skip_entry_check) {
-            if (reader.buffer[i].tag != (hash & meta->tag_mask)) {
-                continue;
-            }
-
-            int updated = AtomicDict_ExpectedUpdateEntry(meta, reader.buffer[i].index, key, hash, expected, desired,
-                                                         current, done, expectation);
-            if (updated < 0)
-                goto fail;
-
-            if (updated)
-                return 1;
-        }
-    }
-    return 0;
-
-    empty_slot:
-    if (expected != NOT_FOUND && expected != ANY) {
-        *done = 1;
-        *expectation = 0;
-        return 0;
-    }
-
-    AtomicDict_CopyNodeBuffers(reader.buffer, temp);
-
-    to_insert->index = entry_loc->location;
-    to_insert->distance = 0;
-    to_insert->tag = hash;
-
-    AtomicDict_RobinHoodResult rhr =
-        AtomicDict_RobinHoodInsert(meta, temp, to_insert, (int) (distance_0 % meta->nodes_in_zone));
-
-    if (rhr == grow) {
-        if (skip_entry_check) {
-            return 0;
-        }
-
-        *must_grow = 1;
-        goto fail;
-    }
-    assert(rhr == ok);
-
-    AtomicDict_ComputeBeginEndWrite(meta, reader.buffer, temp, &begin_write, &end_write);
-
-    *done = AtomicDict_AtomicWriteNodesAt(
-        distance_0 - (distance_0 % meta->nodes_in_zone) + begin_write, end_write - begin_write,
-        &reader.buffer[begin_write], &temp[begin_write], meta
-    );
-
-    if (!*done) {
-        reader.zone = -1;
-        goto beginning;
-    }
-
-    return 1;
     fail:
     return -1;
 }
@@ -187,36 +108,14 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
     AtomicDict_Node node;
 
-    if (expected == NOT_FOUND || expected == ANY) {
-        // insert fast-path
-        if (AtomicDict_ReadRawNodeAt(distance_0, meta) == 0) {
-            assert(entry_loc != NULL);
-
-            node.index = entry_loc->location;
-            node.distance = 0;
-            node.tag = hash;
-
-            if (AtomicDict_AtomicWriteNodesAt(distance_0, 1, &meta->zero, &node, meta)) {
-                return NOT_FOUND;
-            }
-        }
-    }
-
-    beginning:
     done = 0;
     expectation = 1;
     uint64_t distance = 0;
     PyObject *current = NULL;
-    uint8_t is_compact = meta->is_compact;
     AtomicDict_Node to_insert;
 
-    if (AtomicDict_ExpectedInsertOrUpdateCloseToDistance0(meta, key, hash, expected, desired, &current, entry_loc,
-                                                          must_grow, &done, &expectation, &to_insert,
-                                                          distance_0, skip_entry_check) < 0)
-        goto fail;
-
     while (!done) {
-        uint64_t ix = (distance_0 + distance) & (meta->size - 1);
+        uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
         AtomicDict_ReadNodeAt(ix, &node, meta);
 
         if (node.node == 0) {
@@ -226,29 +125,16 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             }
             assert(entry_loc != NULL);
 
-            // non-compact insert
-            if (is_compact) {
-                CereggiiAtomic_StoreUInt8(&meta->is_compact, 0);
-            }
-
             to_insert.index = entry_loc->location;
-            to_insert.distance = meta->max_distance;
             to_insert.tag = hash;
 
-            done = AtomicDict_AtomicWriteNodesAt(ix, 1, &node, &to_insert, meta);
+            done = AtomicDict_AtomicWriteNodeAt(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (node.node == meta->tombstone.node) {
+        } else if (node.node == TOMBSTONE(meta)) {
             // pass
-        } else if (is_compact && !AtomicDict_NodeIsReservation(&node, meta) && (
-            (ix - node.distance > distance_0)
-        )) {
-            if (expected != NOT_FOUND && expected != ANY) {
-                expectation = 0;
-                break;
-            }
-        } else if (node.tag != (hash & meta->tag_mask)) {
+        } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
         } else if (!skip_entry_check) {
             int updated = AtomicDict_ExpectedUpdateEntry(meta, node.index, key, hash, expected, desired,
@@ -262,7 +148,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
         distance++;
 
-        if (distance >= meta->size) {
+        if (distance >= (1 << meta->log_size)) {
             // traversed the entire dictionary without finding an empty slot
             *must_grow = 1;
             goto fail;
@@ -272,28 +158,25 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     // assert(expected == ANY => expectation == 1);
     assert(expected != ANY || expectation == 1);
 
-    if (expected != NOT_FOUND && expectation == 0 && meta->is_compact != is_compact)
-        goto beginning;
-
     if (expectation && expected == NOT_FOUND) {
         return NOT_FOUND;
-    } else if (expectation && expected == ANY) {
+    }
+    if (expectation && expected == ANY) {
         if (current == NULL) {
             return NOT_FOUND;
-        } else {
-            return current;
         }
-    } else if (expectation) {
+        return current;
+    }
+    if (expectation) {
         assert(current != NULL);
         // no need to incref:
         //   - should incref because it's being returned
         //   - should decref because it has just been removed from the dict
         return current;
-    } else {
-        return EXPECTATION_FAILED;
     }
+    return EXPECTATION_FAILED;
 
-    fail:
+fail:
     return NULL;
 }
 
@@ -417,7 +300,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto fail;
 
     if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
-                     ATOMIC_DICT_ENTRIES_IN_BLOCK >= meta->size * 2 / 3) {
+                     ATOMIC_DICT_ENTRIES_IN_BLOCK >= SIZE_OF(meta) * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)
@@ -557,10 +440,7 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
             if (hash == -1)
                 goto fail;
 
-            __builtin_prefetch(AtomicDict_IndexAddressOf(
-                AtomicDict_Distance0Of(hash, meta),
-                meta
-            ));
+            __builtin_prefetch(&meta->index[AtomicDict_Distance0Of(hash, meta)]);
         }
 
         for (int i = 0; i < num_items; ++i) {
