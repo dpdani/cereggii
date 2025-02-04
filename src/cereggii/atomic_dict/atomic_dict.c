@@ -267,7 +267,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
-    assert(Py_REFCNT(meta) == 1);
     return 0;
     fail:
     Py_XDECREF(meta);
