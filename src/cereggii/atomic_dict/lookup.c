@@ -111,28 +111,28 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         goto fail;
 
     AtomicDict_SearchResult result;
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
     retry:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
 
     result.entry.value = NULL;
     AtomicDict_Lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
 
-    if (AtomicRef_Get(self->metadata) != (PyObject *) meta) {
-        Py_DECREF(meta);
+    if (AtomicDict_GetMeta(self, storage) != meta)
         goto retry;
-    }
-    Py_DECREF(meta); // for AtomicRef_Get (if condition)
 
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
     }
 
-    Py_DECREF(meta);
     return result.entry.value;
     fail:
-    Py_XDECREF(meta);
     return NULL;
 }
 
@@ -202,8 +202,13 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     AtomicDict_SearchResult result;
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
     retry:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
 
     if (meta == NULL)
         goto fail;
@@ -275,18 +280,14 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_END_CRITICAL_SECTION();
 
-    if (self->metadata->reference != (PyObject *) meta) {
-        Py_DECREF(meta);
+    if (AtomicDict_GetMeta(self, storage) != meta)
         goto retry;
-    }
 
-    Py_DECREF(meta);
     PyMem_RawFree(hashes);
     PyMem_RawFree(keys);
     Py_INCREF(batch);
     return batch;
     fail:
-    Py_XDECREF(meta);
     if (hashes != NULL) {
         PyMem_RawFree(hashes);
     }

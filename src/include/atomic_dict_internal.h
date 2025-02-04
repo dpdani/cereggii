@@ -203,12 +203,10 @@ typedef struct AtomicDict_AccessorStorage {
     PyObject_HEAD
 
     PyMutex self_mutex;
-
     int32_t local_len;
-
     int participant_in_migration;
-
     AtomicDict_ReservationBuffer reservation_buffer;
+    AtomicDict_Meta *meta;
 } AtomicDict_AccessorStorage;
 
 extern PyTypeObject AtomicDictAccessorStorage_Type;
@@ -216,6 +214,8 @@ extern PyTypeObject AtomicDictAccessorStorage_Type;
 AtomicDict_AccessorStorage *AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self);
 
 AtomicDict_AccessorStorage *AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key);
+
+AtomicDict_Meta *AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage);
 
 void AtomicDict_BeginSynchronousOperation(AtomicDict *self);
 

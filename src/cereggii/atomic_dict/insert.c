@@ -238,7 +238,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto fail;
 
     beginning:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
     if (meta == NULL)
         goto fail;
 
@@ -246,8 +246,6 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
-        Py_DECREF(meta);
-        meta = NULL;
         goto beginning;
     }
 
@@ -269,8 +267,6 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             if (migrated < 0)
                 goto fail;
 
-            Py_DECREF(meta);
-            meta = NULL;
             goto beginning;
         }
 
@@ -307,15 +303,12 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto fail;
 
         if (must_grow) {  // insertion didn't happen
-            Py_DECREF(meta);
             goto beginning;
         }
     }
 
-    Py_DECREF(meta);
     return result;
     fail:
-    Py_XDECREF(meta);
     Py_DECREF(key);
     Py_DECREF(desired);
     return NULL;
@@ -409,8 +402,13 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
 
     Py_ssize_t pos = 0;
 
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
     get_meta:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
     if (meta == NULL)
         goto fail;
 
@@ -478,7 +476,6 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     PyMem_RawFree(keys);
     PyMem_RawFree(expected);
     PyMem_RawFree(desired);
-    Py_DECREF(meta);
     return 0;
 
     fail:
@@ -491,7 +488,6 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate)
     if (desired != NULL) {
         PyMem_RawFree(desired);
     }
-    Py_XDECREF(meta);
     return -1;
 }
 

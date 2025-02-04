@@ -16,19 +16,20 @@ int
 AtomicDict_Grow(AtomicDict *self)
 {
     AtomicDict_Meta *meta = NULL;
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-    if (meta == NULL)
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
         goto fail;
+
+    meta = AtomicDict_GetMeta(self, storage);
 
     int migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size + 1);
     if (migrate < 0)
         goto fail;
 
-    Py_DECREF(meta);
     return migrate;
 
     fail:
-    Py_XDECREF(meta);
     return -1;
 }
 

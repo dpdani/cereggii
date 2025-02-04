@@ -24,6 +24,7 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         storage->reservation_buffer.tail = 0;
         storage->reservation_buffer.count = 0;
         memset(storage->reservation_buffer.reservations, 0, sizeof(AtomicDict_EntryLoc) * RESERVATION_BUFFER_SIZE);
+        storage->meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
 
         int set = PyThread_tss_set(self->accessor_key, storage);
         if (set != 0)
@@ -53,6 +54,18 @@ AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
     AtomicDict_AccessorStorage *storage = PyThread_tss_get(accessor_key);
     assert(storage != NULL);
     return storage;
+}
+
+inline AtomicDict_Meta *
+AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage)
+{
+    if (self->metadata->reference == (PyObject *) storage->meta)
+        return storage->meta;
+
+    Py_CLEAR(storage->meta);
+    storage->meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    assert(storage->meta != NULL);
+    return storage->meta;
 }
 
 void
@@ -86,6 +99,7 @@ AtomicDict_EndSynchronousOperation(AtomicDict *self)
 void
 AtomicDict_AccessorStorage_dealloc(AtomicDict_AccessorStorage *self)
 {
+    Py_CLEAR(self->meta);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 

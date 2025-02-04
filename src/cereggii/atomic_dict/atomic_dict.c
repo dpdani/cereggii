@@ -372,7 +372,11 @@ PyObject *
 AtomicDict_LenBounds(AtomicDict *self)
 {
     AtomicDict_Meta *meta = NULL;
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_AccessorStorage *storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
+    meta = AtomicDict_GetMeta(self, storage);
     if (meta == NULL)
         goto fail;
 
@@ -398,7 +402,6 @@ AtomicDict_LenBounds(AtomicDict *self)
         // visit the grb
         found += AtomicDict_CountKeysInBlock(grb, meta);
     }
-    Py_DECREF(meta);
     meta = NULL;
 
     if (supposedly_full_blocks < 0) {
@@ -429,7 +432,6 @@ AtomicDict_LenBounds(AtomicDict *self)
     return Py_BuildValue("(ll)", lower + found, upper + found);
 
     fail:
-    Py_XDECREF(meta);
     return NULL;
 }
 
