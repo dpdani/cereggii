@@ -47,7 +47,6 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->migration_leader = 0;
     meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
-    meta->accessors = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)

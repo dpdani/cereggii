@@ -277,8 +277,10 @@ PyTypeObject AtomicDictAccessorStorage_Type = {
     .tp_name = "cereggii._AtomicDictAccessorStorage",
     .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
+    .tp_traverse = (traverseproc) AtomicDict_AccessorStorage_traverse,
+    .tp_clear = (inquiry) AtomicDict_AccessorStorage_clear,
     .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
 };
 

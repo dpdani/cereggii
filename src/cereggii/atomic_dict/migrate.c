@@ -34,14 +34,14 @@ AtomicDict_Grow(AtomicDict *self)
 }
 
 int
-AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
+AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex, PyObject *accessors)
 {
     if (current_meta->migration_leader == 0) {
         return 0;
     }
 
     PyMutex_Unlock(self_mutex);
-    AtomicDict_FollowerMigrate(current_meta);
+    AtomicDict_FollowerMigrate(current_meta, accessors);
     return 1;
 }
 
@@ -62,7 +62,7 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
         }
     }
 
-    AtomicDict_FollowerMigrate(current_meta);
+    AtomicDict_FollowerMigrate(current_meta, self->accessors);
 
     return 1;
 }
@@ -115,7 +115,6 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     if (from_log_size < to_log_size) {
         current_meta->accessor_key = self->accessor_key;
-        current_meta->accessors = self->accessors;
 
         for (int64_t block = 0; block <= new_meta->greatest_allocated_block; ++block) {
             new_meta->blocks[block]->generation = new_meta->generation;
@@ -132,7 +131,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     AtomicEvent_Set(current_meta->new_metadata_ready);
 
     // birds flying
-    AtomicDict_CommonMigrate(current_meta, new_meta);
+    AtomicDict_CommonMigrate(current_meta, new_meta, self->accessors);
 
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
@@ -170,50 +169,27 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 }
 
 void
-AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta)
+AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, PyObject *accessors)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
     AtomicDict_Meta *new_meta = current_meta->new_gen_metadata;
 
-    AtomicDict_CommonMigrate(current_meta, new_meta);
+    AtomicDict_CommonMigrate(current_meta, new_meta, accessors);
 
     AtomicEvent_Wait(current_meta->migration_done);
 }
 
 void
-AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
-{
-    if (current_meta->log_size < new_meta->log_size) {
-        AtomicDict_QuickMigrate(current_meta, new_meta);
-    } else {
-        AtomicDict_SlowMigrate(current_meta, new_meta);
-    }
-}
-
-void
-AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
-{
-    if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
-        int node_migration_done = AtomicDict_MigrateReInsertAll(current_meta, new_meta);
-
-        if (node_migration_done) {
-            AtomicEvent_Set(current_meta->node_migration_done);
-        }
-        AtomicEvent_Wait(current_meta->node_migration_done);
-    }
-}
-
-void
-AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
+AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, PyObject *accessors)
 {
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
         AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
         CereggiiAtomic_StoreInt(&storage->participant_in_migration, 1);
 
-        int node_migration_done = AtomicDict_MigrateNodes(current_meta, new_meta);
+        AtomicDict_MigrateNodes(current_meta, new_meta);
 
-        if (node_migration_done) {
+        if (AtomicDict_NodesMigrationDone(accessors)) {
             AtomicEvent_Set(current_meta->node_migration_done);
         }
         AtomicEvent_Wait(current_meta->node_migration_done);
@@ -381,7 +357,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     }
 }
 
-int
+void
 AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
 {
     uint64_t current_size = SIZE_OF(current_meta);
@@ -396,18 +372,16 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
 
     AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
     CereggiiAtomic_StoreInt(&storage->participant_in_migration, 2);
-
-    return AtomicDict_NodesMigrationDone(current_meta);
 }
 
 int
-AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta)
+AtomicDict_NodesMigrationDone(PyObject *accessors)
 {
     int done = 1;
 
-    for (Py_ssize_t migrator = 0; migrator < PyList_Size(current_meta->accessors); ++migrator) {
+    for (Py_ssize_t migrator = 0; migrator < PyList_Size(accessors); ++migrator) {
         AtomicDict_AccessorStorage *storage =
-            (AtomicDict_AccessorStorage *) PyList_GetItemRef(current_meta->accessors, migrator);
+            (AtomicDict_AccessorStorage *) PyList_GetItemRef(accessors, migrator);
 
         if (storage->participant_in_migration == 1) {
             done = 0;

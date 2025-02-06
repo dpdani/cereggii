@@ -95,7 +95,6 @@ struct AtomicDict_Meta {
     uintptr_t migration_leader;
     int64_t node_to_migrate;
     Py_tss_t *accessor_key;
-    PyObject *accessors;
     AtomicEvent *new_metadata_ready;
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
@@ -154,29 +153,24 @@ int AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicD
 /// migrations
 int AtomicDict_Grow(AtomicDict *self);
 
-int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex);
+int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex, PyObject *accessors);
 
 int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
 
 int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
                              uint8_t from_log_size, uint8_t to_log_size);
 
-void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta);
+void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, PyObject *accessors);
 
-void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
-
-void AtomicDict_QuickMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
-
-void AtomicDict_SlowMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, PyObject *accessors);
 
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void
-AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta);
+void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta);
 
-int AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+void AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-int AtomicDict_NodesMigrationDone(const AtomicDict_Meta *current_meta);
+int AtomicDict_NodesMigrationDone(PyObject *accessors);
 
 
 /// reservation buffer (see ./reservation_buffer.c)
@@ -220,6 +214,10 @@ AtomicDict_Meta *AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage
 void AtomicDict_BeginSynchronousOperation(AtomicDict *self);
 
 void AtomicDict_EndSynchronousOperation(AtomicDict *self);
+
+int AtomicDict_AccessorStorage_traverse(AtomicDict_AccessorStorage *self, visitproc visit, void *arg);
+
+int AtomicDict_AccessorStorage_clear(AtomicDict_AccessorStorage *self);
 
 void AtomicDict_AccessorStorage_dealloc(AtomicDict_AccessorStorage *self);
 
