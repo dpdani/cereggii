@@ -34,7 +34,7 @@ AtomicDict_Grow(AtomicDict *self)
 }
 
 int
-AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex, PyObject *accessors)
+AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex, AtomicDict_AccessorStorage *accessors)
 {
     if (current_meta->migration_leader == 0) {
         return 0;
@@ -139,8 +139,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
-        for (int i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *accessor = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
+        for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
             accessor->participant_in_migration = 0;
         }
     }
@@ -169,7 +168,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 }
 
 void
-AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, PyObject *accessors)
+AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, AtomicDict_AccessorStorage *accessors)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
     AtomicDict_Meta *new_meta = current_meta->new_gen_metadata;
@@ -180,7 +179,7 @@ AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, PyObject *accessors)
 }
 
 void
-AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, PyObject *accessors)
+AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, AtomicDict_AccessorStorage *accessors)
 {
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
@@ -375,14 +374,11 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
 }
 
 int
-AtomicDict_NodesMigrationDone(PyObject *accessors)
+AtomicDict_NodesMigrationDone(AtomicDict_AccessorStorage *accessors)
 {
     int done = 1;
 
-    for (Py_ssize_t migrator = 0; migrator < PyList_Size(accessors); ++migrator) {
-        AtomicDict_AccessorStorage *storage =
-            (AtomicDict_AccessorStorage *) PyList_GetItemRef(accessors, migrator);
-
+    for (AtomicDict_AccessorStorage *storage = accessors; storage != NULL; storage = storage->next_accessor) {
         if (storage->participant_in_migration == 1) {
             done = 0;
             break;

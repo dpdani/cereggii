@@ -8,7 +8,6 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-//#include <structmember.h>
 #include "atomic_ref.h"
 
 
@@ -27,7 +26,7 @@ typedef struct AtomicDict {
 
     Py_tss_t *accessor_key;
     PyMutex accessors_lock;
-    PyObject *accessors; // PyListObject
+    struct AtomicDict_AccessorStorage *accessors;
 } AtomicDict;
 
 extern PyTypeObject AtomicDict_Type;

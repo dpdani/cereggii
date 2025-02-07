@@ -13,10 +13,11 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
     AtomicDict_AccessorStorage *storage = PyThread_tss_get(self->accessor_key);
 
     if (storage == NULL) {
-        storage = PyObject_GC_New(AtomicDict_AccessorStorage, &AtomicDictAccessorStorage_Type);
+        storage = PyMem_RawMalloc(sizeof(AtomicDict_AccessorStorage));
         if (storage == NULL)
             return NULL;
 
+        storage->next_accessor = NULL;
         storage->self_mutex = (PyMutex) {0};
         storage->local_len = 0;
         storage->participant_in_migration = 0;
@@ -30,21 +31,22 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         if (set != 0)
             goto fail;
 
-        int appended;
         PyMutex_Lock(&self->accessors_lock);
-        appended = PyList_Append(self->accessors, (PyObject *) storage);
+        if (self->accessors == NULL) {
+            self->accessors = storage;
+        } else {
+            AtomicDict_AccessorStorage *s = NULL;
+            for (s = self->accessors; s->next_accessor != NULL; s = s->next_accessor) {}
+            assert(s != NULL);
+            s->next_accessor = storage;
+        }
         PyMutex_Unlock(&self->accessors_lock);
-
-        if (appended == -1)
-            goto fail;
-        Py_DECREF(storage);
-        PyObject_GC_Track(storage);
     }
 
     return storage;
     fail:
     assert(storage != NULL);
-    Py_DECREF(storage);
+    PyMem_RawFree(storage);
     return NULL;
 }
 
@@ -55,6 +57,31 @@ AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
     AtomicDict_AccessorStorage *storage = PyThread_tss_get(accessor_key);
     assert(storage != NULL);
     return storage;
+}
+
+inline void
+AtomicDict_FreeAccessorStorage(AtomicDict_AccessorStorage *self)
+{
+    Py_CLEAR(self->meta);
+    PyMem_RawFree(self);
+}
+
+inline void
+AtomicDict_FreeAccessorStorageList(AtomicDict_AccessorStorage *head)
+{
+    if (head == NULL)
+        return;
+
+    AtomicDict_AccessorStorage *prev = head;
+    AtomicDict_AccessorStorage *next = head->next_accessor;
+
+    while (next) {
+        AtomicDict_FreeAccessorStorage(prev);
+        prev = next;
+        next = next->next_accessor;
+    }
+
+    AtomicDict_FreeAccessorStorage(prev);
 }
 
 inline AtomicDict_Meta *
@@ -74,11 +101,7 @@ AtomicDict_BeginSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Lock(&self->sync_op);
     PyMutex_Lock(&self->accessors_lock);
-    for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-        AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
-        assert(storage != NULL);
-
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
         PyMutex_Lock(&storage->self_mutex);
     }
 }
@@ -87,36 +110,10 @@ void
 AtomicDict_EndSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Unlock(&self->sync_op);
-    for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-        AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
-        assert(storage != NULL);
-
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
         PyMutex_Unlock(&storage->self_mutex);
     }
     PyMutex_Unlock(&self->accessors_lock);
-}
-
-int
-AtomicDict_AccessorStorage_traverse(AtomicDict_AccessorStorage *self, visitproc visit, void *arg)
-{
-    Py_VISIT(self->meta);
-    return 0;
-}
-
-int
-AtomicDict_AccessorStorage_clear(AtomicDict_AccessorStorage *self)
-{
-    Py_CLEAR(self->meta);
-    return 0;
-}
-
-void
-AtomicDict_AccessorStorage_dealloc(AtomicDict_AccessorStorage *self)
-{
-    PyObject_GC_UnTrack(self);
-    AtomicDict_AccessorStorage_clear(self);
-    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 /**

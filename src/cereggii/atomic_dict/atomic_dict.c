@@ -33,10 +33,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         self->accessor_key = tss_key;
 
         self->accessors = NULL;
-        self->accessors = Py_BuildValue("[]");
-        if (self->accessors == NULL)
-            goto fail;
-
         self->accessors_lock = (PyMutex) {0};
 
         PyObject_GC_Track(self);
@@ -45,7 +41,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 
     fail:
     Py_XDECREF(self->metadata);
-    Py_XDECREF(self->accessors);
     Py_XDECREF(self);
     return NULL;
 }
@@ -280,7 +275,9 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    Py_VISIT(self->accessors);
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        Py_VISIT(storage->meta);
+    }
     return 0;
 }
 
@@ -288,7 +285,7 @@ int
 AtomicDict_clear(AtomicDict *self)
 {
     Py_CLEAR(self->metadata);
-    Py_CLEAR(self->accessors);
+    AtomicDict_FreeAccessorStorageList(self->accessors);
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
 
@@ -409,21 +406,19 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     int64_t upper = supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK;
 
-    Py_ssize_t threads_count = PyList_Size(self->accessors);
-    int64_t lower =
-        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+    Py_ssize_t threads_count = 0;
+    int64_t lower = 0;
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        threads_count++;
 
-    AtomicDict_ReservationBuffer *rb;
-    for (int i = 0; i < threads_count; ++i) {
-        rb = &(
-            (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i)
-        )->reservation_buffer;
-
+        AtomicDict_ReservationBuffer *rb = &storage->reservation_buffer;
         if (rb == NULL)
             goto fail;
 
         lower += self->reservation_buffer_size - rb->count;
     }
+    lower +=
+        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
 
     if (upper < 0) upper = 0;
     if (lower < 0) lower = 0;
@@ -489,11 +484,7 @@ AtomicDict_Len_impl(AtomicDict *self)
     if (len == NULL)
         goto fail;
 
-    for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-        AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
-        assert(storage != NULL);
-
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
         local_len = PyLong_FromLong(storage->local_len);
         if (local_len == NULL)
             goto fail;

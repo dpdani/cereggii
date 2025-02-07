@@ -272,18 +272,6 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
 };
 
-PyTypeObject AtomicDictAccessorStorage_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._AtomicDictAccessorStorage",
-    .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
-    .tp_new = PyType_GenericNew,
-    .tp_traverse = (traverseproc) AtomicDict_AccessorStorage_traverse,
-    .tp_clear = (inquiry) AtomicDict_AccessorStorage_clear,
-    .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
-};
-
 PyTypeObject AtomicDictFastIterator_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictFastIterator",
@@ -355,8 +343,6 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
