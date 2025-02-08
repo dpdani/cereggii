@@ -285,7 +285,10 @@ int
 AtomicDict_clear(AtomicDict *self)
 {
     Py_CLEAR(self->metadata);
-    AtomicDict_FreeAccessorStorageList(self->accessors);
+    if (self->accessors != NULL) {
+        AtomicDict_FreeAccessorStorageList(self->accessors);
+        self->accessors = NULL;
+    }
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
 
