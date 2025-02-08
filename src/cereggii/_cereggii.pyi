@@ -1,7 +1,6 @@
 from collections.abc import Callable, Iterable, Iterator
 from typing import SupportsComplex, SupportsFloat, SupportsInt
 
-
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
 NOT_FOUND: object
@@ -15,7 +14,6 @@ EXPECTATION_FAILED: object
 Used in `AtomicDict` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
-
 
 class AtomicDict[Key, Value]:
     """
@@ -447,7 +445,6 @@ class AtomicDict[Key, Value]:
         For internal usage only.
         This method is subject to change without a deprecation notice.
         """
-
 
 class AtomicRef[T]:
     """An object reference that may be updated atomically."""
