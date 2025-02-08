@@ -121,7 +121,7 @@ AtomicDict_EndSynchronousOperation(AtomicDict *self)
  * caller must ensure no segfaults, et similia.
  * */
 void
-AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n)
+AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n, AtomicDict_Meta *meta)
 {
     // use asserts to check for circular buffer correctness (don't return and check for error)
 
@@ -129,12 +129,13 @@ AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_Ent
     assert(n <= 64);
 
     for (int i = 0; i < n; ++i) {
-        if (entry_loc->location + i == 0) { // entry 0 is forbidden (cf. reservations / tombstones)
+        if (entry_loc->location + i == 0) {
+            // entry 0 is reserved for correctness of tombstones
             continue;
         }
         assert(rb->count < 64);
         AtomicDict_EntryLoc *head = &rb->reservations[rb->head];
-        head->entry = entry_loc->entry + i;
+        head->entry = AtomicDict_GetEntryAt(entry_loc->location + i, meta);
         head->location = entry_loc->location + i;
         rb->head++;
         if (rb->head == 64) {

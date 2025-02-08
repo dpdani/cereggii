@@ -229,7 +229,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
 
                 if (n > 0) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n, meta);
                 }
             }
         }
@@ -255,7 +255,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                     }
                 }
                 if (!found) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
                 }
             }
         }

@@ -283,7 +283,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         entry_loc.entry->key = 0;
         entry_loc.entry->value = 0;
         entry_loc.entry->hash = 0;
-        AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1);
+        AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
     }
 
     if (result == NOT_FOUND && entry_loc.location != 0) {

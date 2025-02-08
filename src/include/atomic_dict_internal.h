@@ -165,7 +165,7 @@ typedef struct AtomicDict_ReservationBuffer {
     AtomicDict_EntryLoc reservations[RESERVATION_BUFFER_SIZE];
 } AtomicDict_ReservationBuffer;
 
-void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n);
+void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n, AtomicDict_Meta *meta);
 
 void AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc);
 

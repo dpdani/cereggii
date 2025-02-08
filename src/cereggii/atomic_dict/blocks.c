@@ -94,7 +94,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                         (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
                     assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
-                    AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
+                    AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
                 }
@@ -134,7 +134,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
             assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
-            AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
+            AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
             Py_DECREF(block);
