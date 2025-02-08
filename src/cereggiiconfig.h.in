@@ -1,0 +1,10 @@
+// SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
+//
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef CEREGGII_CONFIG_H
+#define CEREGGII_CONFIG_H
+
+#define LEVEL1_DCACHE_LINESIZE ${LEVEL1_DCACHE_LINESIZE}
+
+#endif //CEREGGII_CONFIG_H
