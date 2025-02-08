@@ -570,8 +570,8 @@ AtomicDict_Debug(AtomicDict *self)
             goto fail;
 
         for (int j = 0; j < 64; j++) {
-            PyObject *key = block->entries[j].key;
-            PyObject *value = block->entries[j].value;
+            PyObject *key = block->entries[j].entry.key;
+            PyObject *value = block->entries[j].entry.value;
             if (key != NULL) {
                 if (value == NULL) {
                     value = PyExc_KeyError;
@@ -579,8 +579,8 @@ AtomicDict_Debug(AtomicDict *self)
                 uint64_t entry_ix = (i << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + j;
                 entry_tuple = Py_BuildValue("(kBlOO)",
                                             entry_ix,
-                                            block->entries[j].flags,
-                                            block->entries[j].hash,
+                                            block->entries[j].entry.flags,
+                                            block->entries[j].entry.hash,
                                             key,
                                             value);
                 if (entry_tuple == NULL)

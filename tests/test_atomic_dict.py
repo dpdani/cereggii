@@ -110,7 +110,6 @@ def test_setitem_inserts_a_value():
     assert d[0] == 42
     assert d[2] == 2
     assert d[67108864] == 1
-    # breakpoint()  # 64 bit nodes not supported yet
     d = AtomicDict(min_size=(1 << 26) - 1)
     d[0] = 42
     d[2] = 2

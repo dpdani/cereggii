@@ -54,7 +54,12 @@ Source = "https://github.com/dpdani/cereggii"
 directory = "src"
 
 [tool.py-build-cmake.sdist]
-include = ["CMakeLists.txt", "src/CMakeLists.txt", "src/include/*"]
+include = [
+  "CMakeLists.txt",
+  "src/CMakeLists.txt",
+  "src/cereggiiconfig.h.in",
+  "src/include/*",
+]
 
 [tool.py-build-cmake.cmake]
 minimum_version = "3.18"

@@ -19,7 +19,7 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
         return NULL;
 
     new->generation = meta->generation;
-    memset(new->entries, 0, sizeof(AtomicDict_Entry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
+    memset(new->entries, 0, sizeof(AtomicDict_PaddedEntry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
 
     PyObject_GC_Track(new);
 
@@ -31,7 +31,7 @@ AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
 {
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-        entry = self->entries[i];
+        entry = self->entries[i].entry;
 
         if (entry.value == NULL)
             continue;
@@ -48,14 +48,14 @@ AtomicDictBlock_clear(AtomicDict_Block *self)
 {
     AtomicDict_Entry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-        entry = self->entries[i];
+        entry = self->entries[i].entry;
 
         if (entry.value == NULL)
             continue;
 
-        self->entries[i].key = NULL;
+        self->entries[i].entry.key = NULL;
         Py_XDECREF(entry.key);
-        self->entries[i].value = NULL;
+        self->entries[i].entry.value = NULL;
         Py_XDECREF(entry.value);
     }
 
@@ -84,9 +84,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
         reserve_in_inserting_block:
         inserting_block = meta->inserting_block;
         for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_BLOCK; offset += self->reservation_buffer_size) {
-            entry_loc->entry = &meta
+            entry_loc->entry = &(meta
                 ->blocks[inserting_block]
-                ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK];
+                ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK]
+                .entry);
             if (entry_loc->entry->flags == 0) {
                 if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
                     entry_loc->location =
@@ -118,7 +119,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
         if (block == NULL)
             goto fail;
 
-        block->entries[0].flags = ENTRY_FLAGS_RESERVED;
+        block->entries[0].entry.flags = ENTRY_FLAGS_RESERVED;
 
         if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
             if (greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
@@ -130,7 +131,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block,
                                                 greatest_allocated_block,
                                                 greatest_allocated_block + 1);
-            entry_loc->entry = &block->entries[0];
+            entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
             assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size);
@@ -170,6 +171,7 @@ AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
     return &(
         meta->blocks[AtomicDict_BlockOf(ix)]
             ->entries[AtomicDict_PositionInBlockOf(ix)]
+            .entry
     );
 }
 

@@ -8,11 +8,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     add_compile_options("-mcx16")
     add_compile_options("-msse4.2")
+    execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-
+    execute_process(COMMAND sysctl -n hw.cachelinesize OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
 endif ()
+
+configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
