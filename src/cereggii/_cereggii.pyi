@@ -1,9 +1,6 @@
-from collections.abc import Iterable, Iterator, Callable
-from typing import NewType, SupportsComplex, SupportsFloat, SupportsInt
+from collections.abc import Callable, Iterable, Iterator
+from typing import SupportsComplex, SupportsFloat, SupportsInt
 
-Key = NewType("Key", object)
-Value = NewType("Value", object)
-Cancel = NewType("Cancel", object)
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
@@ -19,7 +16,8 @@ Used in `AtomicDict` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
 
-class AtomicDict:
+
+class AtomicDict[Key, Value]:
     """
     A concurrent dictionary (hash table).
 
@@ -450,11 +448,12 @@ class AtomicDict:
         This method is subject to change without a deprecation notice.
         """
 
-class AtomicRef:
+
+class AtomicRef[T]:
     """An object reference that may be updated atomically."""
 
-    def __init__(self, initial_value: object | None = None): ...
-    def compare_and_set(self, expected: object, desired: object) -> bool:
+    def __init__(self, initial_value: T = None): ...
+    def compare_and_set(self, expected: T, desired: T) -> bool:
         """
         Atomically read the current value of this `AtomicRef`:
 
@@ -462,18 +461,18 @@ class AtomicRef:
           - else, don't change it and return `False`.
         """
 
-    def get(self) -> object:
+    def get(self) -> T:
         """
         Atomically read the current value of this `AtomicRef`.
         """
 
-    def get_and_set(self, desired: object) -> object:
+    def get_and_set(self, desired: T) -> T:
         """
         Atomically swap the value of this `AtomicRef` to `desired` and return
         the previously stored value.
         """
 
-    def set(self, desired: object):  # noqa: A003
+    def set(self, desired: T):  # noqa: A003
         """
         Unconditionally set the value of this `AtomicRef` to `desired`.
 
