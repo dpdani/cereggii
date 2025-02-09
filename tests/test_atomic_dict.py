@@ -144,17 +144,6 @@ def test_full_dict():
     assert len(d._debug()["index"]) == 1 << 11
 
 
-@pytest.mark.skip()
-def test_full_dict_32():
-    # this test is slow (allocates a lot of memory)
-    d = AtomicDict({k: None for k in range((1 << 25) - 1)})
-    assert len(d._debug()["index"]) == 1 << 25
-    d = AtomicDict(min_size=1 << 25)
-    for k in range((1 << 25) - 2):
-        d[k] = None
-    assert len(d._debug()["index"]) == 1 << 26
-
-
 def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d
