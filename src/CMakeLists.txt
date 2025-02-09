@@ -8,11 +8,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     add_compile_options("-mcx16")
     add_compile_options("-msse4.2")
+    execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
-
+    execute_process(COMMAND sysctl -n hw.cachelinesize OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
 endif ()
+
+configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
@@ -32,8 +35,6 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/meta.c"
         "cereggii/atomic_dict/migrate.c"
         "cereggii/atomic_dict/node_ops.c"
-        "cereggii/atomic_dict/node_sizes_table.c"
-        "cereggii/atomic_dict/robin_hood.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
         "cereggii/atomic_event.c"

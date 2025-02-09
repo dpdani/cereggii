@@ -16,15 +16,11 @@ AtomicDictMeta_New(uint8_t log_size)
     uint64_t *index = NULL;
     AtomicDict_Meta *meta = NULL;
 
-    AtomicDict_NodeSizeInfo node_sizes = AtomicDict_NodeSizesTable[log_size];
-
     generation = PyMem_RawMalloc(1);
     if (generation == NULL)
         goto fail;
 
-    uint64_t index_size = node_sizes.node_size / 8;
-    index_size *= (uint64_t) 1 << log_size;
-    index = PyMem_RawMalloc(index_size);
+    index = PyMem_RawMalloc(sizeof(uint64_t) * (1 << log_size));
     if (index == NULL)
         goto fail;
 
@@ -39,68 +35,18 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->inserting_block = -1;
 
     meta->log_size = log_size;
-    meta->size = 1UL << log_size;
     meta->generation = generation;
     meta->index = index;
-    meta->is_compact = 1;
-    meta->node_size = node_sizes.node_size;
-    meta->distance_size = node_sizes.distance_size;
-    meta->max_distance = (1 << meta->distance_size) - 1;
-    meta->tag_size = node_sizes.tag_size;
-    meta->nodes_in_region = 8 / (meta->node_size / 8);
 //#if defined(__aarch64__) && !defined(__APPLE__)
 //    meta->nodes_in_zone = 8 / (meta->node_size / 8);
 //#else
 //    meta->nodes_in_zone = 16 / (meta->node_size / 8);
 //#endif
-    meta->nodes_in_zone = 16 / (meta->node_size / 8);
-    if (meta->node_size == 64) {
-        meta->node_mask = ULONG_MAX;
-    } else {
-        meta->node_mask = (1UL << node_sizes.node_size) - 1;
-    }
-    meta->index_mask = ((1UL << log_size) - 1) << (node_sizes.node_size - log_size);
-    meta->distance_mask = ((1UL << node_sizes.distance_size) - 1) << node_sizes.tag_size;
-    meta->tag_mask = (Py_hash_t) (1UL << node_sizes.tag_size) - 1;
-    meta->d0_shift = SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size;
-    switch (node_sizes.node_size) {
-        case 8:
-            meta->shift_mask = 8 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read8NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read16NodesAt;
-            break;
-        case 16:
-            meta->shift_mask = 4 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read4NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read8NodesAt;
-            break;
-        case 32:
-            meta->shift_mask = 2 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read2NodesAt;
-            meta->read_nodes_in_zone = AtomicDict_Read4NodesAt;
-            break;
-        case 64:
-            meta->shift_mask = 1 - 1;
-            meta->read_nodes_in_region = AtomicDict_Read1NodeAt;
-            meta->read_nodes_in_zone = AtomicDict_Read2NodesAt;
-            break;
-    }
-
-    meta->tombstone.distance = 0;
-    meta->tombstone.index = 0;
-    meta->tombstone.tag = 0;
-    AtomicDict_ComputeRawNode(&meta->tombstone, meta);
-
-    meta->zero.distance = meta->max_distance;
-    meta->zero.index = 0;
-    meta->zero.tag = 0;
-    AtomicDict_ComputeRawNode(&meta->zero, meta);
 
     meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;
     meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
-    meta->accessors = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
@@ -126,7 +72,7 @@ AtomicDictMeta_New(uint8_t log_size)
 void
 AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
 {
-    memset(meta->index, 0, meta->node_size / 8 * meta->size);
+    memset(meta->index, 0, sizeof(uint64_t) * SIZE_OF(meta));
 }
 
 int
@@ -135,7 +81,7 @@ AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
     AtomicDict_Block **blocks = NULL;
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) * (meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+    blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) * (SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
     if (blocks == NULL)
         goto fail;
 
@@ -157,7 +103,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 {
     assert(from_meta != NULL);
     assert(to_meta != NULL);
-    assert(from_meta->size <= to_meta->size);
+    assert(from_meta->log_size <= to_meta->log_size);
 
     AtomicDict_Block **previous_blocks = from_meta->blocks;
     int64_t inserting_block = from_meta->inserting_block;
@@ -169,7 +115,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
     AtomicDict_Block **blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) *
-                                                (to_meta->size >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+                                                (SIZE_OF(to_meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
     if (blocks == NULL)
         goto fail;
 
@@ -210,10 +156,7 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 
         to_meta->blocks[block_j] = from_meta->blocks[block_i];
 
-        for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-            AtomicDict_AccessorStorage *storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
-            assert(storage != NULL);
-
+        for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
             AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);
         }
 

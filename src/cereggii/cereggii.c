@@ -216,7 +216,6 @@ PyTypeObject AtomicRef_Type = {
 static PyMethodDef AtomicDict_methods[] = {
     {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
     {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
-    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
     {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
@@ -271,16 +270,6 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
     .tp_clear = (inquiry) AtomicDictBlock_clear,
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
-};
-
-PyTypeObject AtomicDictAccessorStorage_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._AtomicDictAccessorStorage",
-    .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
 };
 
 PyTypeObject AtomicDictFastIterator_Type = {
@@ -354,8 +343,6 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
-        return NULL;
-    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;

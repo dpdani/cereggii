@@ -1,3 +1,6 @@
+#ifndef CEREGGII_PY_CORE_H
+#define CEREGGII_PY_CORE_H
+
 #include "Python.h"
 
 #ifdef Py_GIL_DISABLED
@@ -190,3 +193,5 @@ _Py_TryIncref(PyObject *op)
     return 0;
 #endif
 }
+
+#endif // CEREGGII_PY_CORE_H

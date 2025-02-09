@@ -14,44 +14,24 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
                   AtomicDict_SearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
-    uint8_t is_compact;
-    uint64_t probe, reservations;
-    AtomicDict_Node node;
+    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
+    uint64_t distance = 0;
 
-    beginning:
-    is_compact = meta->is_compact;
-    reservations = 0;
+    for (; distance < (1 << meta->log_size); distance++) {
+        AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-    for (probe = 0; probe < meta->size; probe++) {
-        AtomicDict_ReadNodeAt(ix + probe + reservations, &node, meta);
-
-        if (AtomicDict_NodeIsReservation(&node, meta)) {
-            probe--;
-            reservations++;
-            result->is_reservation = 1;
-            goto check_entry;
-        }
-        result->is_reservation = 0;
-
-        if (node.node == 0) {
+        if (result->node.node == 0) {
             goto not_found;
         }
 
-        if (
-            is_compact && (
-                (ix + probe + reservations - node.distance > ix)
-                || (probe >= meta->max_distance)
-            )) {
-            goto not_found;
-        }
+        if (result->node.node == TOMBSTONE(meta))
+            continue;
 
-        check_entry:
-        if (node.tag == (hash & meta->tag_mask)) {
-            result->entry_p = AtomicDict_GetEntryAt(node.index, meta);
+        if (result->node.tag == (hash & TAG_MASK(meta))) {
+            result->entry_p = AtomicDict_GetEntryAt(result->node.index, meta);
             AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
-            if (result->entry.value == NULL || result->entry.flags & ENTRY_FLAGS_TOMBSTONE) {
+            if (result->entry.value == NULL) {
                 continue;
             }
             if (result->entry.key == key) {
@@ -60,21 +40,22 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
             if (result->entry.hash != hash) {
                 continue;
             }
+
             int cmp = PyObject_RichCompareBool(result->entry.key, key, Py_EQ);
             if (cmp < 0) {
                 // exception thrown during compare
                 goto error;
-            } else if (cmp == 0) {
+            }
+            if (cmp == 0) {
                 continue;
             }
             goto found;
         }
-    }  // probes exhausted
+    }
+
+    // have looped over the entire index without finding the key => not found
 
     not_found:
-    if (is_compact != meta->is_compact) {
-        goto beginning;
-    }
     result->error = 0;
     result->found = 0;
     result->entry_p = NULL;
@@ -85,8 +66,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     found:
     result->error = 0;
     result->found = 1;
-    result->position = (ix + probe + reservations) & (meta->size - 1);
-    result->node = node;
+    result->position = (d0 + distance) & ((1 << meta->log_size) - 1);
 }
 
 void
@@ -95,62 +75,30 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 {
     // index-only search
 
-    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
-    uint8_t is_compact;
-    uint64_t probe, reservations;
-    AtomicDict_Node node;
+    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
+    uint64_t distance = 0;
 
-    beginning:
-    is_compact = meta->is_compact;
-    reservations = 0;
+    for (; distance < (1 << meta->log_size); distance++) {
+        AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-    for (probe = 0; probe < meta->size; probe++) {
-        AtomicDict_ReadNodeAt(ix + probe + reservations, &node, meta);
-
-        if (AtomicDict_NodeIsTombstone(&node, meta)) {
-            probe--;
-            reservations++;
-            continue;
-        }
-
-        if (AtomicDict_NodeIsReservation(&node, meta)) {
-            probe--;
-            reservations++;
-            result->is_reservation = 1;
-            goto check_entry;
-        }
-        result->is_reservation = 0;
-
-        if (node.node == 0) {
-            goto not_found;
-        }
-
-        if (
-            is_compact && (
-                (ix + probe + reservations - node.distance > ix)
-                || (probe >= meta->max_distance)
-            )) {
+        if (result->node.node == 0) {
             goto not_found;
         }
 
         check_entry:
-        if (node.index == entry_ix) {
+        if (result->node.index == entry_ix) {
             goto found;
         }
     }  // probes exhausted
 
     not_found:
-    if (is_compact != meta->is_compact) {
-        goto beginning;
-    }
     result->error = 0;
     result->found = 0;
     return;
     found:
     result->error = 0;
     result->found = 1;
-    result->position = (ix + probe + reservations) & (meta->size - 1);
-    result->node = node;
+    result->position = (d0 + distance) & ((1 << meta->log_size) - 1);
 }
 
 
@@ -163,28 +111,28 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         goto fail;
 
     AtomicDict_SearchResult result;
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
     retry:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
 
     result.entry.value = NULL;
     AtomicDict_Lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
 
-    if (AtomicRef_Get(self->metadata) != (PyObject *) meta) {
-        Py_DECREF(meta);
+    if (AtomicDict_GetMeta(self, storage) != meta)
         goto retry;
-    }
-    Py_DECREF(meta); // for AtomicRef_Get (if condition)
 
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
     }
 
-    Py_DECREF(meta);
     return result.entry.value;
     fail:
-    Py_XDECREF(meta);
     return NULL;
 }
 
@@ -254,8 +202,13 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     AtomicDict_SearchResult result;
+    AtomicDict_AccessorStorage *storage = NULL;
+    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
     retry:
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = AtomicDict_GetMeta(self, storage);
 
     if (meta == NULL)
         goto fail;
@@ -275,7 +228,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         hashes[(chunk_end - 1) % chunk_size] = hash;
         keys[(chunk_end - 1) % chunk_size] = key;
 
-        __builtin_prefetch(AtomicDict_IndexAddressOf(AtomicDict_Distance0Of(hash, meta), meta));
+        __builtin_prefetch(&meta->index[AtomicDict_Distance0Of(hash, meta)]);
 
         if (chunk_end % chunk_size == 0)
             break;
@@ -288,19 +241,16 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
         AtomicDict_Node node;
 
-        for (uint64_t j = d0; j < d0 + meta->max_distance; ++j) {
-            AtomicDict_ReadNodeAt(j, &node, meta);
+        AtomicDict_ReadNodeAt(d0, &node, meta);
 
-            if (node.node == 0)
-                break;
+        if (node.node == 0)
+            continue;
 
-            if (AtomicDict_NodeIsTombstone(&node, meta))
-                continue;
+        if (node.node == TOMBSTONE(meta))
+            continue;
 
-            if (node.tag == (hash & meta->tag_mask)) {
-                __builtin_prefetch(AtomicDict_GetEntryAt(node.index, meta));
-                break;
-            }
+        if (node.tag == (hash & TAG_MASK(meta))) {
+            __builtin_prefetch(AtomicDict_GetEntryAt(node.index, meta));
         }
     }
 
@@ -330,18 +280,14 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_END_CRITICAL_SECTION();
 
-    if (self->metadata->reference != (PyObject *) meta) {
-        Py_DECREF(meta);
+    if (AtomicDict_GetMeta(self, storage) != meta)
         goto retry;
-    }
 
-    Py_DECREF(meta);
     PyMem_RawFree(hashes);
     PyMem_RawFree(keys);
     Py_INCREF(batch);
     return batch;
     fail:
-    Py_XDECREF(meta);
     if (hashes != NULL) {
         PyMem_RawFree(hashes);
     }

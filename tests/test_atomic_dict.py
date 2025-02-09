@@ -110,7 +110,6 @@ def test_setitem_inserts_a_value():
     assert d[0] == 42
     assert d[2] == 2
     assert d[67108864] == 1
-    # breakpoint()  # 64 bit nodes not supported yet
     d = AtomicDict(min_size=(1 << 26) - 1)
     d[0] = 42
     d[2] = 2
@@ -128,42 +127,6 @@ def test_setitem_updates_an_inserted_value():
     assert d[0] == 2
 
 
-def test_setitem_distance_1_insert():
-    pos_0 = keys_for_hash_for_log_size[6][0][0]
-    pos_1 = keys_for_hash_for_log_size[6][1][0]
-    pos_0_again = keys_for_hash_for_log_size[6][0][1]
-
-    d = AtomicDict({pos_0: 1})
-    assert d[pos_0] == 1
-    d[pos_0_again] = 42
-    assert d[pos_0] == 1
-    assert d[pos_0_again] == 42
-    # debug = d._debug()
-    # assert debug["index"][1] == 10
-    d = AtomicDict()
-    d[pos_0] = 1
-    assert d[pos_0] == 1
-    d[pos_1] = 2
-    assert d[pos_0] == 1
-    assert d[pos_1] == 2
-    d[pos_0_again] = 3
-    assert d[pos_0] == 1
-    assert d[pos_1] == 2
-    assert d[pos_0_again] == 3
-    # debug = d._debug()
-    # assert debug["index"][0] == 7
-    # assert debug["index"][1] == 14
-    # assert debug["index"][2] == 10
-
-
-def test_insert_non_compact():
-    d = AtomicDict({k: None for k in range(60)})
-    d[64] = 1
-    for k in range(60):
-        assert d[k] is None
-    assert d[64] == 1
-
-
 def test_full_dict():
     d = AtomicDict({k: None for k in range(63)})
     assert len(d._debug()["index"]) == 128
@@ -179,17 +142,6 @@ def test_full_dict():
     for k in range((1 << 10) - 2):
         d[k] = None
     assert len(d._debug()["index"]) == 1 << 11
-
-
-@pytest.mark.skip()
-def test_full_dict_32():
-    # this test is slow (allocates a lot of memory)
-    d = AtomicDict({k: None for k in range((1 << 25) - 1)})
-    assert len(d._debug()["index"]) == 1 << 25
-    d = AtomicDict(min_size=1 << 25)
-    for k in range((1 << 25) - 2):
-        d[k] = None
-    assert len(d._debug()["index"]) == 1 << 26
 
 
 def test_dealloc():
@@ -339,22 +291,6 @@ def test_delete():
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
 
-@pytest.mark.skip()
-def test_delete_with_swap():
-    """test the swapping mechanism for de-fragmenting the data table"""
-
-    keys = keys_for_hash_for_log_size[8]
-    d = AtomicDict({keys[_][0]: None for _ in range(64)} | {keys[_][1]: None for _ in range(64)})
-    assert d._debug()["meta"]["log_size"] == 9
-    del d[keys[0][1]]
-    with raises(KeyError):
-        del d[keys[0][1]]
-    debug = d._debug()
-    assert debug["index"][1] == debug["meta"]["tombstone"]
-    assert debug["index"][16] >> (debug["meta"]["node_size"] - debug["meta"]["log_size"]) == 65
-    assert debug["blocks"][1]["entries"][1] == (65, 128, keys[8][0], keys[8][0], None)
-
-
 def test_delete_concurrent(reraise):
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
 
@@ -439,83 +375,6 @@ def test_grow():
     assert d._debug()["meta"]["log_size"] == 7
     for _ in [*[keys[k][0] for k in range(63)], keys[0][1]]:
         assert d[_] is None
-
-
-def test_compact():
-    keys = keys_for_hash_for_log_size[6]
-    d = AtomicDict(
-        {
-            keys[0][0]: None,
-            keys[1][0]: None,
-            keys[0][1]: None,
-            keys[1][1]: None,
-        }
-    )
-    for _ in range(20):
-        d[keys[0][_]] = None
-        assert len(list(filter(lambda _: _ != 0, Counter(d._debug()["index"]).keys()))) == len(
-            {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][i] for i in range(_ + 1)]}
-        ), _
-    for _ in [keys[0][0], keys[1][0], keys[0][1], keys[1][1]]:
-        assert d[_] is None
-    for _ in range(20):
-        assert d[keys[0][_]] is None
-    debug_before = d._debug()
-    assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
-        {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
-    )
-    assert not debug_before["meta"]["is_compact"]
-    # 8192 == 2 ** 13 will be in a reservation
-    entry_of_8192 = list(filter(lambda _: _[3] == keys[0][13], debug_before["blocks"][0]["entries"]))
-    assert len(entry_of_8192) == 1
-    entry_of_8192 = entry_of_8192[0]
-    non_empty_nodes = len(list(filter(lambda _: _ != 0, debug_before["index"])))
-    node_of_8192 = list(
-        filter(
-            lambda _: (_ & debug_before["meta"]["index_mask"])
-            >> (debug_before["meta"]["node_size"] - debug_before["meta"]["log_size"])
-            == entry_of_8192[0],
-            debug_before["index"],
-        )
-    )
-    assert len(node_of_8192) == 1
-    node_of_8192 = node_of_8192[0]
-    assert node_of_8192 & debug_before["meta"]["distance_mask"] == 0
-    d.compact()
-    debug_after = d._debug()
-    assert len(list(filter(lambda _: _ != 0, debug_after["index"]))) == non_empty_nodes
-    assert len(list(filter(lambda _: _ != 0, Counter(debug_before["index"]).keys()))) == len(
-        {keys[0][0], keys[1][0], keys[0][1], keys[1][1], *[keys[0][_] for _ in range(20)]}
-    )
-    assert debug_after["meta"]["is_compact"]
-    entry_of_8192 = list(filter(lambda _: _[3] == keys[0][13], debug_after["blocks"][0]["entries"]))
-    assert len(entry_of_8192) == 1
-    entry_of_8192 = entry_of_8192[0]
-    node_of_8192 = list(
-        filter(
-            lambda _: (_ & debug_after["meta"]["index_mask"])
-            >> (debug_after["meta"]["node_size"] - debug_after["meta"]["log_size"])
-            == entry_of_8192[0],
-            debug_after["index"],
-        )
-    )
-    assert len(node_of_8192) == 1
-    node_of_8192 = node_of_8192[0]
-    assert node_of_8192 & debug_after["meta"]["distance_mask"] != 0
-
-    d = AtomicDict({keys[0][0]: None, keys[1][0]: None})
-    for _ in range(20):
-        d[keys[0][_]] = None
-    assert d._debug()["meta"]["log_size"] == 7
-    d.compact()
-    for _ in range(20):
-        assert d[keys[0][_]] is None
-    # assert d._debug()["meta"]["log_size"] == 9
-
-    d = AtomicDict({}, min_size=2**16)
-    assert len(d._debug()["index"]) == 2**16
-    d.compact()
-    assert len(d._debug()["index"]) == 2**16
 
 
 def test_grow_then_shrink():
