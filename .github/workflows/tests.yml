@@ -54,6 +54,3 @@ jobs:
       - name: test with pytest
         run: |
           pytest
-      - name: count_keys performance
-        run: |
-          python ./examples/atomic_dict/count_keys.py
