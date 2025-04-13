@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "atomic_int.h"
-#include "atomic_int_internal.h"
-#include "atomic_ops.h"
+#include "cereggii/atomic_int.h"
+#include "cereggii/atomic_int_internal.h"
+#include "cereggii/atomics.h"
 
 #include "pyhash.h"
 

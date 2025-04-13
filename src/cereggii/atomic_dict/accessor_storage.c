@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "atomic_dict.h"
-#include "atomic_dict_internal.h"
+#include "cereggii/atomic_dict.h"
+#include "cereggii/atomic_dict_internal.h"
 
 
 AtomicDict_AccessorStorage *

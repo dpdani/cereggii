@@ -4,12 +4,12 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "constants.h"
-#include "atomic_event.h"
-#include "atomic_int.h"
-#include "atomic_ref.h"
-#include "atomic_dict.h"
-#include "atomic_dict_internal.h"
+#include "cereggii/constants.h"
+#include "cereggii/atomic_event.h"
+#include "cereggii/atomic_int.h"
+#include "cereggii/atomic_ref.h"
+#include "cereggii/atomic_dict.h"
+#include "cereggii/atomic_dict_internal.h"
 
 
 static PyMethodDef AtomicInt64_methods[] = {

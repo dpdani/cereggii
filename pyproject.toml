@@ -58,7 +58,7 @@ include = [
   "CMakeLists.txt",
   "src/CMakeLists.txt",
   "src/cereggiiconfig.h.in",
-  "src/include/*",
+  "src/cereggii/include/*",
 ]
 
 [tool.py-build-cmake.cmake]
@@ -69,6 +69,12 @@ args = ["-L"]
 build_args = ["-j"]
 install_components = ["python_modules"]
 
+
+[tool.cibuildwheel]
+enable = [
+  "cpython-freethreading",
+]
+build = "cp313*-manylinux_aarch64"
 
 [tool.black]
 target-version = ["py313"]
