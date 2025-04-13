@@ -77,7 +77,7 @@ enable = [
 ]
 skip = "*i686"
 before-test = "pip install .[dev]"
-test-command = "pytest {project}/tests"
+test-command = "pytest {project}"
 
 
 [tool.black]
