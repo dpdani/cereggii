@@ -6,7 +6,6 @@ set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-    add_compile_options("-mcx16")
     add_compile_options("-msse4.2")
     execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
@@ -15,16 +14,15 @@ else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
 endif ()
 
-configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
+configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/cereggii/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
-find_package(Python3 REQUIRED COMPONENTS Development.Module)
+find_package(Python3 REQUIRED COMPONENTS Development)
 
 
-include_directories("include/")
+include_directories("cereggii/include/" PUBLIC)
 
-# Add the module to compile
-Python3_add_library(_cereggii MODULE
+set(sources
         "cereggii/atomic_dict/accessor_storage.c"
         "cereggii/atomic_dict/atomic_dict.c"
         "cereggii/atomic_dict/blocks.c"
@@ -38,14 +36,33 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
         "cereggii/atomic_event.c"
-        "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
         "cereggii/constants.c"
 )
 
+# Add the module to compile
+Python3_add_library(_cereggii MODULE ${sources})
+
+# Add library... todo
+set(CEREGGII_LIB "cereggii.${PY_BUILD_CMAKE_PROJECT_VERSION}")
+Python3_add_library(${CEREGGII_LIB} SHARED ${sources})
+
+# Set visibility rules
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 0)
+
+# Define export macro
+target_compile_definitions(${CEREGGII_LIB} PRIVATE BUILDING_CEREGGII)
+
 # Install the module
 install(TARGETS _cereggii
+        EXCLUDE_FROM_ALL
+        COMPONENT python_modules
+        DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
+
+# Install the library
+install(TARGETS ${CEREGGII_LIB}
         EXCLUDE_FROM_ALL
         COMPONENT python_modules
         DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
