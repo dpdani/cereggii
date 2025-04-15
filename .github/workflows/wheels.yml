@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dev dependencies
-        run: pip install .[dev]
+        run: pip install build
 
       - name: Build sdist
         run: python -m build --sdist
