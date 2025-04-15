@@ -18,7 +18,7 @@ jobs:
 #          - windows-latest
           # macos-13 is an intel runner, macos-14 is apple silicon
 #          - macos-13
-#          - macos-14
+#          - macos-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -27,29 +27,25 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.2
         with:
           output-dir: 'wheelhouse'
-        # env:
-        #   CIBW_SOME_OPTION: value
-        #    ...
-        # with:
-        #   package-dir: .
-        #   output-dir: wheelhouse
-        #   config-file: "{package}/pyproject.toml"
 
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
-#  build_sdist:
-#    name: Build source distribution
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#
-#      - name: Build sdist
-#        run: pipx run build --sdist
-#
-#      - uses: actions/upload-artifact@v4
-#        with:
-#          name: cibw-sdist
-#          path: dist/*.tar.gz
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dev dependencies
+        run: pip install .[dev]
+
+      - name: Build sdist
+        run: python -m build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-sdist
+          path: dist/*.tar.gz
