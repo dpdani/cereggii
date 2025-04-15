@@ -6,6 +6,7 @@ set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    add_compile_options("-mcx16")
     add_compile_options("-msse4.2")
     execute_process(COMMAND cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
