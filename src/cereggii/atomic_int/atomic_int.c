@@ -42,7 +42,17 @@ AtomicInt64_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, in
 inline int
 AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 {
-    int overflowed = __builtin_saddll_overflow(current, to_add, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_add_overflow(current, to_add, result);
+#else
+    int overflowed = 0;
+    if ((to_add > 0 && current > INT64_MAX - to_add) ||
+        (to_add < 0 && current < INT64_MIN - to_add)) {
+        overflowed = 1;
+    } else {
+        *result = current + to_add;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
@@ -58,7 +68,17 @@ AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 inline int
 AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 {
-    int overflowed = __builtin_ssubll_overflow(current, to_sub, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_sub_overflow(current, to_sub, result);
+#else
+    int overflowed = 0;
+    if ((to_sub < 0 && current > INT64_MAX + to_sub) ||
+        (to_sub > 0 && current < INT64_MIN + to_sub)) {
+        overflowed = 1;
+    } else {
+        *result = current - to_sub;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
@@ -74,7 +94,27 @@ AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 inline int
 AtomicInt64_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
 {
-    int overflowed = __builtin_smulll_overflow(current, to_mul, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_mul_overflow(current, to_mul, result);
+#else
+    int overflowed = 0;
+    if (current > 0) {
+        if (to_mul > 0) {
+            if (current > INT64_MAX / to_mul) overflowed = 1;
+        } else {
+            if (to_mul < INT64_MIN / current) overflowed = 1;
+        }
+    } else {
+        if (to_mul > 0) {
+            if (current < INT64_MIN / to_mul) overflowed = 1;
+        } else {
+            if (current != 0 && to_mul < INT64_MAX / current) overflowed = 1;
+        }
+    }
+    if (!overflowed) {
+        *result = current * to_mul;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
