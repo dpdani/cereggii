@@ -8,6 +8,7 @@
 #include "atomic_dict.h"
 #include "atomic_event.h"
 #include "internal/cereggiiconfig.h"
+#include "internal/misc.h"
 
 
 /// basic structs
@@ -54,7 +55,7 @@ typedef struct AtomicDict_Node {
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
 
-__attribute__((aligned(LEVEL1_DCACHE_LINESIZE)))
+CEREGGII_ALIGN(LEVEL1_DCACHE_LINESIZE)
 typedef struct AtomicDict_PaddedEntry {
     AtomicDict_Entry entry;
     int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(AtomicDict_Entry)];
