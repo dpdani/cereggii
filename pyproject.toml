@@ -71,7 +71,7 @@ install_components = ["python_modules"]
 
 
 [tool.cibuildwheel]
-before-all = "uname -a"
+before-all = "cat /proc/cpuinfo"
 enable = [
   "cpython-freethreading",
 ]
