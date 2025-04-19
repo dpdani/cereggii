@@ -71,7 +71,7 @@ install_components = ["python_modules"]
 
 
 [tool.cibuildwheel]
-before-all = "cat /proc/cpuinfo"
+before-all = "cat /proc/cpuinfo || (sysctl -a | grep machdep.cpu)"
 enable = [
   "cpython-freethreading",
 ]
