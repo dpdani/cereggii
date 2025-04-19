@@ -8,6 +8,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
+#include "internal/misc.h"
 
 
 typedef struct atomic_int {
@@ -190,45 +191,45 @@ PyObject *AtomicInt64_Real_Set(AtomicInt64 *self, PyObject *value, void *closure
 
 /// handle
 
-__attribute__((unused)) int64_t AtomicInt64Handle_Get(AtomicInt64Handle *self);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_Get(AtomicInt64Handle *self);
 
 PyObject *AtomicInt64Handle_Get_callable(AtomicInt64Handle *self);
 
-__attribute__((unused)) void AtomicInt64Handle_Set(AtomicInt64Handle *self, int64_t updated);
+CEREGGII_UNUSED void AtomicInt64Handle_Set(AtomicInt64Handle *self, int64_t updated);
 
 PyObject *AtomicInt64Handle_Set_callable(AtomicInt64Handle *self, PyObject *updated);
 
-__attribute__((unused)) int AtomicInt64Handle_CompareAndSet(AtomicInt64Handle *self, int64_t expected, int64_t updated);
+CEREGGII_UNUSED int AtomicInt64Handle_CompareAndSet(AtomicInt64Handle *self, int64_t expected, int64_t updated);
 
 PyObject *AtomicInt64Handle_CompareAndSet_callable(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_GetAndSet(AtomicInt64Handle *self, int64_t updated);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_GetAndSet(AtomicInt64Handle *self, int64_t updated);
 
 PyObject *AtomicInt64Handle_GetAndSet_callable(AtomicInt64Handle *self, PyObject *args, PyObject *kwargs);
 
 PyObject *AtomicInt64Handle_GetHandle(AtomicInt64Handle *self);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_IncrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_IncrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow);
 
 PyObject *AtomicInt64Handle_IncrementAndGet_callable(AtomicInt64Handle *self, PyObject *other);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_GetAndIncrement(AtomicInt64Handle *self, int64_t other, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_GetAndIncrement(AtomicInt64Handle *self, int64_t other, int *overflow);
 
 PyObject *AtomicInt64Handle_GetAndIncrement_callable(AtomicInt64Handle *self, PyObject *other);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_DecrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_DecrementAndGet(AtomicInt64Handle *self, int64_t other, int *overflow);
 
 PyObject *AtomicInt64Handle_DecrementAndGet_callable(AtomicInt64Handle *self, PyObject *other);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_GetAndDecrement(AtomicInt64Handle *self, int64_t other, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_GetAndDecrement(AtomicInt64Handle *self, int64_t other, int *overflow);
 
 PyObject *AtomicInt64Handle_GetAndDecrement_callable(AtomicInt64Handle *self, PyObject *other);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_GetAndUpdate(AtomicInt64Handle *self, PyObject *callable, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_GetAndUpdate(AtomicInt64Handle *self, PyObject *callable, int *overflow);
 
 PyObject *AtomicInt64Handle_GetAndUpdate_callable(AtomicInt64Handle *self, PyObject *callable);
 
-__attribute__((unused)) int64_t AtomicInt64Handle_UpdateAndGet(AtomicInt64Handle *self, PyObject *callable, int *overflow);
+CEREGGII_UNUSED int64_t AtomicInt64Handle_UpdateAndGet(AtomicInt64Handle *self, PyObject *callable, int *overflow);
 
 PyObject *AtomicInt64Handle_UpdateAndGet_callable(AtomicInt64Handle *self, PyObject *callable);
 

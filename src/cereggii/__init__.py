@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-Thread synchronization utilities for free-threaded Python.
+Thread synchronization utilities for Python.
 """
 
 from .__about__ import __license__, __version__, __version_tuple__  # noqa: F401

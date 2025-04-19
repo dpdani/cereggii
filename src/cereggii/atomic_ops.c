@@ -94,11 +94,13 @@ CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t desi
     return atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) obj, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 }
 
+#if !defined(__aarch64__) || defined(__APPLE__)
 inline int
 CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t desired)
 {
     return __sync_bool_compare_and_swap_16(obj, expected, desired);
 }
+#endif
 
 inline int
 CereggiiAtomic_CompareExchangeIntPtr(intptr_t *obj, intptr_t expected, intptr_t desired)
@@ -136,11 +138,13 @@ CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t 
     return atomic_compare_exchange_strong_explicit((_Atomic(uint64_t) *) obj, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 }
 
+#if !defined(__aarch64__) || defined(__APPLE__)
 inline int
 CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t desired)
 {
     return __sync_bool_compare_and_swap_16(obj, expected, desired);
 }
+#endif
 
 inline int
 CereggiiAtomic_CompareExchangeUIntPtr(uintptr_t *obj, uintptr_t expected, uintptr_t desired)
