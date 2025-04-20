@@ -14,8 +14,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-#          - ubuntu-24.04-arm
-          - windows-latest
+          - ubuntu-24.04-arm
+#          - windows-latest # need to fix atomics first
           # macos-13 is an intel runner, macos-14 is Apple Silicon
           - macos-13
           - macos-latest
