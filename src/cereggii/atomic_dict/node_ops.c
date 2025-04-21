@@ -20,16 +20,23 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
         | (node->tag & TAG_MASK(meta));
 }
 
+
+#ifdef __aarch64__
+#  if !defined(__ARM_FEATURE_CRC32)
+#    error "CRC32 hardware support not available"
+#  endif
+#  if __has_builtin(__crc32d) || defined(__crc32d)
+#    define CRC32(x, y) __crc32d((x), (y))
+#  else
+#    define CRC32(x, y) __builtin_arm_crc32d((x), (y))
+#  endif // __crc32d
+#else
+#  define CRC32(x, y) __builtin_ia32_crc32di((x), (y))
+#endif // __aarch64__
+
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
-#ifdef __aarch64__
-#if !defined(__ARM_FEATURE_CRC32)
-#error "CRC32 hardware support not available"
-#endif
-#define REHASH(x) (uint64_t) (__builtin_arm_crc32d((x), LOWER_SEED) | (((uint64_t) __builtin_arm_crc32d((x), UPPER_SEED)) << 32))
-#else
-#define REHASH(x) (uint64_t) (__builtin_ia32_crc32di((x), LOWER_SEED) | (__builtin_ia32_crc32di((x), UPPER_SEED) << 32))
-#endif // __aarch64__
+#define REHASH(x) (uint64_t) (CRC32((x), LOWER_SEED) | (((uint64_t) CRC32((x), UPPER_SEED)) << 32))
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)

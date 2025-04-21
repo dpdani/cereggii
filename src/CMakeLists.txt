@@ -15,6 +15,7 @@ else()
     set(IS_ARM FALSE)
 endif()
 
+add_compile_options("-Werror=implicit-function-declaration")
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     if (IS_ARM)
         add_compile_options("-march=armv8.1-a+crc")
