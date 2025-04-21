@@ -25,10 +25,13 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 #  if !defined(__ARM_FEATURE_CRC32)
 #    error "CRC32 hardware support not available"
 #  endif
-#  if __has_builtin(__crc32d) || defined(__crc32d)
+#  if defined(__GNUC__)
+#    include <arm_acle.h>
 #    define CRC32(x, y) __crc32d((x), (y))
-#  else
+#  elif defined(__clang__)
 #    define CRC32(x, y) __builtin_arm_crc32d((x), (y))
+#  else
+#    error "Unsupported compiler"
 #  endif // __crc32d
 #else
 #  define CRC32(x, y) __builtin_ia32_crc32di((x), (y))
