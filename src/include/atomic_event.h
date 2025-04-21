@@ -6,21 +6,16 @@
 #define CEREGGII_ATOMIC_EVENT_H
 
 #include <Python.h>
-#ifdef _WIN32
-#include <windows.h>
-#else
 #include <pthread.h>
-#endif
+#include <stdio.h>
+#include <stdlib.h>
 
-typedef struct {
+typedef struct AtomicEvent {
     PyObject_HEAD
-#ifdef _WIN32
-    HANDLE event;
-#else
+
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     int state;
-#endif
 } AtomicEvent;
 
 PyObject *AtomicEvent_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds));
