@@ -17,6 +17,7 @@ endif()
 
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
     if (IS_ARM)
+        message(STATUS "adding -march=armv8-a+crc compile option")
         add_compile_options("-march=armv8-a+crc")
     else ()
         add_compile_options("-mcx16")
