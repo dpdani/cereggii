@@ -1,0 +1,34 @@
+[build-system]
+requires = [
+    "cereggii",
+    "py-build-cmake",
+]
+build-backend = "py_build_cmake.build"
+
+[project]
+name = "c_api"
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [
+    { name = "dpdani", email = "git@danieleparmeggiani.me" },
+]
+dependencies = [
+    "cereggii"
+]
+
+[tool.py-build-cmake.module]
+directory = "src"
+
+[tool.py-build-cmake.sdist]
+include = [
+    "CMakeLists.txt",
+    "src/CMakeLists.txt",
+]
+
+[tool.py-build-cmake.cmake]
+minimum_version = "3.18"
+build_type = "Debug"
+source_path = "src"
+args = ["-L"]
+build_args = ["-j"]
+install_components = ["python_modules"]

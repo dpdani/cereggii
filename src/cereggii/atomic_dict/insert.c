@@ -4,12 +4,12 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "constants.h"
-#include "atomic_dict_internal.h"
-#include "atomic_ref.h"
-#include "atomic_ops.h"
+#include "cereggii/constants.h"
+#include "cereggii/atomic_dict_internal.h"
+#include "cereggii/atomic_ref.h"
+#include "cereggii/atomics.h"
 #include "pythread.h"
-#include "_internal_py_core.h"
+#include "cereggii/_internal_py_core.h"
 
 
 int

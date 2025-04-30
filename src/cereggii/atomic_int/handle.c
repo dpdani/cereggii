@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "atomic_int.h"
-#include "atomic_int_internal.h"
+#include "cereggii/atomic_int.h"
+#include "cereggii/atomic_int_internal.h"
 
 int
 AtomicInt64Handle_init(AtomicInt64Handle *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
