@@ -17,22 +17,12 @@ jobs:
       id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
-      - name: download sources to be published
+      - name: download files to be published
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: wheels.yml
           commit: ${{ github.sha }}
-          name: cibw-sdist
-          name_is_regexp: false
-          path: dist
-          if_no_artifact_found: fail
-
-      - name: download wheels to be published
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: wheels.yml
-          commit: ${{ github.sha }}
-          name: cibw-wheels-.*
+          name: cibw-.*
           name_is_regexp: true
           path: dist
           if_no_artifact_found: fail
