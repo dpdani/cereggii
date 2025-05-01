@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: download files to be published
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v9
         with:
           workflow: wheels.yml
           commit: ${{ github.sha }}
