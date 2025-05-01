@@ -17,15 +17,7 @@ jobs:
       id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
-      - name: download wheels to distribute
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          commit: ${{ github.sha }}
-          name: cibw-wheels-.*
-          name_is_regexp: true
-          path: dist
-          if_no_artifact_found: fail
-      - name: download source to distribute
+      - name: download sources to be published
         uses: dawidd6/action-download-artifact@v2
         with:
           commit: ${{ github.sha }}
@@ -33,6 +25,18 @@ jobs:
           name_is_regexp: true
           path: dist
           if_no_artifact_found: fail
+
+      - name: download wheels to be published
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          commit: ${{ github.sha }}
+          name: cibw-wheels-.*
+          name_is_regexp: true
+          path: dist
+          if_no_artifact_found: fail
+
+      - name: list files to be published
+        run: ls -alh dist/
 
       - name: publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
