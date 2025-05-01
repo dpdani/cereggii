@@ -39,7 +39,7 @@ jobs:
 
       - name: move wheels here
         run: |
-          mv */*.whl .
+          mv */* .
           rm -r */
 
       - name: list files to be published
