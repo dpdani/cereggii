@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 major, minor, patch, *_ = __version__.split(".")
 
