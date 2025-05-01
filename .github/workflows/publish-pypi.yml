@@ -10,7 +10,6 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
         python-version:
           - 3.13
@@ -18,14 +17,16 @@ jobs:
       id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v4
+      - name: download artifacts to distribute
+        uses: dawidd6/action-download-artifact@v2
         with:
-          # unpacks all CIBW artifacts into dist/
-          pattern: cibw-*
+          commit: ${{ github.sha }}
+          name: cibw-.*
+          name_is_regexp: true
           path: dist
-          merge-multiple: true
-      - name: publish package
+          if_no_artifact_found: fail
+
+      - name: publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
