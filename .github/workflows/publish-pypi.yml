@@ -39,8 +39,8 @@ jobs:
 
       - name: move wheels here
         run: |
-          mv */* .
-          rm -r */
+          mv dist/*/* dist/
+          rm -r dist/*/
 
       - name: list files to be published
         run: ls -alh dist/
