@@ -6,11 +6,11 @@
 #define CEREGGII_MISC_H
 
 #if defined(_MSC_VER)
-#  define CEREGGII_ALIGN(x) __declspec(align(x))
+#  define CEREGGII_ALIGNED(x) __declspec(align(x))
 #elif defined(__GNUC__) || defined(__clang__)
-#  define CEREGGII_ALIGN(x) __attribute__((aligned(x)))
+#  define CEREGGII_ALIGNED(x) __attribute__((aligned(x)))
 #else
-#  define CEREGGII_ALIGN(x) alignas(x)  // C++11 standard
+#  define CEREGGII_ALIGNED(x) alignas(x)  // C++11 standard
 #endif
 
 #if defined(_MSC_VER)

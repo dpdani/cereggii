@@ -55,7 +55,7 @@ typedef struct AtomicDict_Node {
 #define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
 #define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
 
-CEREGGII_ALIGN(LEVEL1_DCACHE_LINESIZE)
+CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
 typedef struct AtomicDict_PaddedEntry {
     AtomicDict_Entry entry;
     int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(AtomicDict_Entry)];

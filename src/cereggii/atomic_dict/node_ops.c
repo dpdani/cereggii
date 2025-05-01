@@ -31,7 +31,7 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 #  elif defined(__clang__)
 #    define CRC32(x, y) __builtin_arm_crc32d((x), (y))
 #  else
-#    error "Unsupported compiler"
+#    error "Unsupported compiler for __aarch64__"
 #  endif // __crc32d
 #else
 #  define CRC32(x, y) __builtin_ia32_crc32di((x), (y))

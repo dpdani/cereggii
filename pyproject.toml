@@ -76,7 +76,7 @@ enable = [
   "cpython-freethreading",
 ]
 skip = "*i686"
-before-test = "(cat /proc/cpuinfo || (sysctl -a)) && pip install pytest==8.3.3 pytest-reraise==2.1.2"
+before-test = "pip install pytest==8.3.3 pytest-reraise==2.1.2"
 test-command = "pytest {project}"
 
 
