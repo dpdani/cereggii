@@ -22,7 +22,7 @@ jobs:
         with:
           commit: ${{ github.sha }}
           name: cibw-sdist
-          name_is_regexp: true
+          name_is_regexp: false
           path: dist
           if_no_artifact_found: fail
 
