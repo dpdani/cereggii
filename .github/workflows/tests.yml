@@ -14,9 +14,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - macos-latest
         python-version:
-          - 3.13.0
+          - 3.13
           - 3.13t
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
@@ -25,19 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
-        if: "!endsWith(matrix.python-version, 't')"
         with:
           python-version: ${{ matrix.python-version }}
-      - name: set up python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v3
-        if: endsWith(matrix.python-version, 't')
-      - if: endsWith(matrix.python-version, 't')
-        run: |
-          uv python install ${{ matrix.python-version }}
-          uv venv --python ${{ matrix.python-version }}
-          . .venv/bin/activate
-          echo PATH=$PATH >> $GITHUB_ENV
-          uv pip install pip
       - run: python --version --version && which python
       - name: system info
         run: uname -a

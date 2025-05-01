@@ -37,11 +37,6 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->log_size = log_size;
     meta->generation = generation;
     meta->index = index;
-//#if defined(__aarch64__) && !defined(__APPLE__)
-//    meta->nodes_in_zone = 8 / (meta->node_size / 8);
-//#else
-//    meta->nodes_in_zone = 16 / (meta->node_size / 8);
-//#endif
 
     meta->new_gen_metadata = NULL;
     meta->migration_leader = 0;

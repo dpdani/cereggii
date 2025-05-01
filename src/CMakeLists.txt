@@ -3,13 +3,32 @@ project(cereggii)
 
 set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
 
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+message(STATUS "CMAKE_HOST_SYSTEM_PROCESSOR=${CMAKE_HOST_SYSTEM_PROCESSOR}")
+message(STATUS "CMAKE_HOST_SYSTEM_NAME=${CMAKE_HOST_SYSTEM_NAME}")
+
+add_compile_options("-Werror=implicit-function-declaration")
+
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
+    set(IS_ARM TRUE)
+    message(STATUS "Detected ARM architecture")
+else()
+    set(IS_ARM FALSE)
+endif()
+
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-    add_compile_options("-mcx16")
-    add_compile_options("-msse4.2")
-    execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
+    if (IS_ARM)
+        add_compile_options("-march=armv8-a+crc")
+    else ()
+        add_compile_options("-mcx16")
+        add_compile_options("-msse4.2")
+    endif ()
+    execute_process(COMMAND cat /sys/devices/system/cpu/cpu0/cache/index0/coherency_line_size OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 elseif (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin")
+    if (NOT IS_ARM)
+        add_compile_options("-msse4.2")
+    endif ()
     execute_process(COMMAND sysctl -n hw.cachelinesize OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE)
 else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")

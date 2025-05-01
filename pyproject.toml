@@ -1,5 +1,5 @@
 [build-system]
-requires = ["py-build-cmake"]
+requires = ["py-build-cmake>=0.4.3"]
 build-backend = "py_build_cmake.build"
 
 
@@ -68,6 +68,16 @@ source_path = "src"
 args = ["-L"]
 build_args = ["-j"]
 install_components = ["python_modules"]
+
+
+[tool.cibuildwheel]
+before-all = "cat /proc/cpuinfo || (sysctl -a)"
+enable = [
+  "cpython-freethreading",
+]
+skip = "*i686"
+before-test = "pip install pytest==8.3.3 pytest-reraise==2.1.2"
+test-command = "pytest {project}"
 
 
 [tool.black]

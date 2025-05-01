@@ -10,25 +10,30 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: [ "3.13.0" ]
+        python-version:
+          - 3.13
     permissions:
       id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
     steps:
-      - uses: actions/checkout@v3
-      - name: set up python ${{ matrix.python-version }}
-        uses: dpdani/setup-python@nogil
+      - name: download files to be published
+        uses: dawidd6/action-download-artifact@v2
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: install dependencies
+          workflow: wheels.yml
+          commit: ${{ github.sha }}
+          name: cibw-.*
+          name_is_regexp: true
+          path: dist
+          if_no_artifact_found: fail
+
+      - name: move wheels here
         run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
-      - name: build package
-        run: python -m build
-      - name: remove wheels  # TODO
-        run: rm dist/*.whl
-      - name: publish package
+          mv dist/*/* dist/
+          rm -r dist/*/
+
+      - name: list files to be published
+        run: ls -alh dist/
+
+      - name: publish
         uses: pypa/gh-action-pypi-publish@release/v1
