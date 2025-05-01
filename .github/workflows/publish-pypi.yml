@@ -37,6 +37,11 @@ jobs:
           path: dist
           if_no_artifact_found: fail
 
+      - name: move wheels here
+        run: |
+          mv */*.whl .
+          rm -r */
+
       - name: list files to be published
         run: ls -alh dist/
 
