@@ -190,8 +190,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             self->len++; // we want to avoid pos = 0
             AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
-            _Py_DisownAndIncref(key);
-            _Py_DisownAndIncref(value);
+            _Py_SetWeakrefAndIncref(key);
+            _Py_SetWeakrefAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
             entry->hash = hash;
             entry->key = key;

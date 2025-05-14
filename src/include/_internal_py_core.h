@@ -196,7 +196,7 @@ _Py_TryIncref(PyObject *op)
 
 
 static inline void
-_Py_DisownAndIncref(PyObject *obj)
+_Py_SetWeakrefAndIncref(PyObject *obj)
 {
     // the caller must hold a strong reference to obj
 #ifdef Py_GIL_DISABLED
@@ -205,8 +205,6 @@ _Py_DisownAndIncref(PyObject *obj)
     }
 
     _PyObject_SetMaybeWeakref(obj);
-    obj->ob_tid = 0;
-    // obj->ob_tid = 0;
     const int ok = _Py_TryIncRefShared(obj);
     assert(ok);
 #else
