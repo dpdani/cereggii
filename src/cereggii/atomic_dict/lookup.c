@@ -7,6 +7,7 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "constants.h"
+#include "_internal_py_core.h"
 
 
 void
@@ -139,12 +140,15 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
 PyObject *
 AtomicDict_GetItem(AtomicDict *self, PyObject *key)
 {
-    PyObject *value = AtomicDict_GetItemOrDefault(self, key, NULL);
+    PyObject *value = NULL;
+retry:
+    value = AtomicDict_GetItemOrDefault(self, key, NULL);
 
     if (value == NULL) {
         PyErr_SetObject(PyExc_KeyError, key);
     } else {
-        Py_INCREF(value);
+        if (!_Py_TryIncref(value))
+            goto retry;
     }
 
     return value;
@@ -162,8 +166,11 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
     if (default_value == NULL)
         default_value = Py_None;
 
-    PyObject *value = AtomicDict_GetItemOrDefault(self, key, default_value);
-    Py_INCREF(value);
+    PyObject *value = NULL;
+retry:
+    value = AtomicDict_GetItemOrDefault(self, key, default_value);
+    if (!_Py_TryIncref(value))
+        goto retry;
     return value;
 }
 

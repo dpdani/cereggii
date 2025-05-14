@@ -8,6 +8,7 @@
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
+#include "_internal_py_core.h"
 
 
 PyObject *
@@ -189,8 +190,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             self->len++; // we want to avoid pos = 0
             AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
-            Py_INCREF(key);
-            Py_INCREF(value);
+            _Py_DisownAndIncref(key);
+            _Py_DisownAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
             entry->hash = hash;
             entry->key = key;
