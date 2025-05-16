@@ -63,7 +63,7 @@ include = [
 
 [tool.py-build-cmake.cmake]
 minimum_version = "3.18"
-build_type = "RelWithDebInfo"
+build_type = "Debug"
 source_path = "src"
 args = ["-L"]
 build_args = ["-j"]
