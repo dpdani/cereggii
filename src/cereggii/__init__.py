@@ -11,3 +11,4 @@ from .atomic_dict import AtomicDict  # noqa: F401
 from .atomic_int import AtomicInt64, AtomicInt64Handle  # noqa: F401
 from .atomic_ref import AtomicRef  # noqa: F401
 from .constants import *  # noqa: F403
+from .thread_handle import ThreadHandle  # noqa: F401

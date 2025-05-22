@@ -10,6 +10,7 @@
 #include "atomic_ref.h"
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "thread_handle.h"
 
 
 static PyMethodDef AtomicInt64_methods[] = {
@@ -324,6 +325,100 @@ PyTypeObject CereggiiConstant_Type = {
 };
 
 
+static PyNumberMethods ThreadHandle_as_number = {
+    .nb_add = (binaryfunc) ThreadHandle_Add,
+    .nb_subtract = (binaryfunc) ThreadHandle_Subtract,
+    .nb_multiply = (binaryfunc) ThreadHandle_Multiply,
+    .nb_remainder = (binaryfunc) ThreadHandle_Remainder,
+    .nb_divmod = (binaryfunc) ThreadHandle_Divmod,
+    .nb_power = (ternaryfunc) ThreadHandle_Power,
+    .nb_negative = (unaryfunc) ThreadHandle_Negative,
+    .nb_positive = (unaryfunc) ThreadHandle_Positive,
+    .nb_absolute = (unaryfunc) ThreadHandle_Absolute,
+    .nb_bool = (inquiry) ThreadHandle_Bool,
+    .nb_invert = (unaryfunc) ThreadHandle_Invert,
+    .nb_lshift = (binaryfunc) ThreadHandle_Lshift,
+    .nb_rshift = (binaryfunc) ThreadHandle_Rshift,
+    .nb_and = (binaryfunc) ThreadHandle_And,
+    .nb_xor = (binaryfunc) ThreadHandle_Xor,
+    .nb_or = (binaryfunc) ThreadHandle_Or,
+    .nb_int = (unaryfunc) ThreadHandle_Int,
+    .nb_float = (unaryfunc) ThreadHandle_Float,
+
+    .nb_inplace_add = (binaryfunc) ThreadHandle_InPlaceAdd,
+    .nb_inplace_subtract = (binaryfunc) ThreadHandle_InPlaceSubtract,
+    .nb_inplace_multiply = (binaryfunc) ThreadHandle_InPlaceMultiply,
+    .nb_inplace_remainder = (binaryfunc) ThreadHandle_InPlaceRemainder,
+    .nb_inplace_power = (ternaryfunc) ThreadHandle_InPlacePower,
+    .nb_inplace_lshift = (binaryfunc) ThreadHandle_InPlaceLshift,
+    .nb_inplace_rshift = (binaryfunc) ThreadHandle_InPlaceRshift,
+    .nb_inplace_and = (binaryfunc) ThreadHandle_InPlaceAnd,
+    .nb_inplace_xor = (binaryfunc) ThreadHandle_InPlaceXor,
+    .nb_inplace_or = (binaryfunc) ThreadHandle_InPlaceOr,
+
+    .nb_floor_divide = (binaryfunc) ThreadHandle_FloorDivide,
+    .nb_true_divide = (binaryfunc) ThreadHandle_TrueDivide,
+    .nb_inplace_floor_divide = (binaryfunc) ThreadHandle_InPlaceFloorDivide,
+    .nb_inplace_true_divide = (binaryfunc) ThreadHandle_InPlaceTrueDivide,
+
+    .nb_index = (unaryfunc) ThreadHandle_Index,
+
+    .nb_matrix_multiply = (binaryfunc) ThreadHandle_MatrixMultiply,
+    .nb_inplace_matrix_multiply = (binaryfunc) ThreadHandle_InPlaceMatrixMultiply,
+};
+
+static PySequenceMethods ThreadHandle_as_sequence = {
+    .sq_length = (lenfunc) ThreadHandle_Length,
+    .sq_concat = (binaryfunc) ThreadHandle_Concat,
+    .sq_repeat = (ssizeargfunc) ThreadHandle_Repeat,
+    .sq_item = (ssizeargfunc) ThreadHandle_GetItem,
+    .sq_ass_item = (ssizeobjargproc) ThreadHandle_SetItem,
+    .sq_contains = (objobjproc) ThreadHandle_Contains,
+    .sq_inplace_concat = (binaryfunc) ThreadHandle_InPlaceConcat,
+    .sq_inplace_repeat = (ssizeargfunc) ThreadHandle_InPlaceRepeat,
+};
+
+static PyMappingMethods ThreadHandle_as_mapping = {
+    .mp_length = (lenfunc) ThreadHandle_MappingLength,
+    .mp_subscript = (binaryfunc) ThreadHandle_MappingGetItem,
+    .mp_ass_subscript = (objobjargproc) ThreadHandle_MappingSetItem,
+};
+
+// static PyAsyncMethods ThreadHandle_as_async = {
+//     .am_await = (unaryfunc) ThreadHandle_Await,
+//     .am_aiter = (unaryfunc) ThreadHandle_GetAIter,
+//     .am_anext = (unaryfunc) ThreadHandle_AsyncNext,
+//     .am_send = (sendfunc) ThreadHandle_AsyncSend,
+// };
+
+PyTypeObject ThreadHandle_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.ThreadHandle",
+    .tp_doc = PyDoc_STR("A thread-local handle for referencing a shared object."),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
+    .tp_basicsize = sizeof(ThreadHandle),
+    .tp_itemsize = 0,
+    .tp_new = PyType_GenericNew,
+    .tp_init = (initproc) ThreadHandle_init,
+    .tp_traverse = (traverseproc) ThreadHandle_traverse,
+    .tp_clear = (inquiry) ThreadHandle_clear,
+    .tp_dealloc = (destructor) ThreadHandle_dealloc,
+    .tp_richcompare = (richcmpfunc) ThreadHandle_RichCompare,
+    .tp_hash = (hashfunc) ThreadHandle_Hash,
+    .tp_as_number = &ThreadHandle_as_number,
+    .tp_as_sequence = &ThreadHandle_as_sequence,
+    .tp_as_mapping = &ThreadHandle_as_mapping,
+    // .tp_as_async = &ThreadHandle_as_async,
+    .tp_repr = (reprfunc) ThreadHandle_Repr,
+    .tp_str = (reprfunc) ThreadHandle_Repr,
+    .tp_call = (ternaryfunc) ThreadHandle_Call,
+    .tp_iter = (getiterfunc) ThreadHandle_GetIter,
+    // .tp_iternext = (iternextfunc) ThreadHandle_Next,
+    .tp_getattro = (getattrofunc) ThreadHandle_GetAttr,
+    .tp_setattro = (setattrofunc) ThreadHandle_SetAttr,
+};
+
+
 static PyModuleDef cereggii_module = {
     .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
@@ -354,6 +449,9 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicInt64Handle_Type) < 0)
         return NULL;
+    if (PyType_Ready(&ThreadHandle_Type) < 0)
+        return NULL;
+
 
     Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
     if (Cereggii_ExpectationFailed == NULL)
@@ -414,6 +512,10 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "AtomicInt64Handle", (PyObject *) &AtomicInt64Handle_Type) < 0)
         goto fail;
     Py_DECREF(&AtomicInt64Handle_Type);
+
+    if (PyModule_AddObjectRef(m, "ThreadHandle", (PyObject *) &ThreadHandle_Type) < 0)
+        goto fail;
+    Py_DECREF(&ThreadHandle_Type);
 
     return m;
     fail:
