@@ -9,6 +9,7 @@ message(STATUS "CMAKE_HOST_SYSTEM_PROCESSOR=${CMAKE_HOST_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_HOST_SYSTEM_NAME=${CMAKE_HOST_SYSTEM_NAME}")
 
 add_compile_options("-Werror=implicit-function-declaration")
+add_compile_options("-Werror=undefined-inline")
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
     set(IS_ARM TRUE)
@@ -56,6 +57,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/node_ops.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
+        "cereggii/thread_handle/thread_handle.c"
         "cereggii/atomic_event.c"
         "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"

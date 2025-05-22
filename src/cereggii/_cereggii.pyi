@@ -664,3 +664,6 @@ class AtomicInt64Handle(AtomicInt64):
     my_handle = my_atomic_int.get_handle()
     ```
     """
+
+class ThreadHandle[T](T):
+    pass
