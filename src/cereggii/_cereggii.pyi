@@ -15,7 +15,6 @@ Used in `AtomicDict` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
 
-
 class ThreadHandle[T](T):
     """
     A thread-local handle for an object.
@@ -78,7 +77,6 @@ class ThreadHandle[T](T):
     counting operations on the handle itself would use the shared reference
     counter and nullify the performance gains.
     """
-
 
 class AtomicDict[Key, Value]:
     """
