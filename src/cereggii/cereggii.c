@@ -107,6 +107,7 @@ static PyMethodDef AtomicRef_methods[] = {
     {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
     {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
+    {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
     {NULL}
 };
 

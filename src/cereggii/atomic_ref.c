@@ -4,6 +4,7 @@
 
 #include "atomic_ref.h"
 #include "atomic_ops.h"
+#include "thread_handle.h"
 #include "_internal_py_core.h"
 
 
@@ -140,7 +141,8 @@ AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwar
     }
 }
 
-PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
+PyObject *
+AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
 {
     assert(desired != NULL);
 
@@ -148,4 +150,24 @@ PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
     PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
     // don't decref current_reference: passing it to python
     return current_reference;
+}
+
+PyObject *
+AtomicRef_GetHandle(AtomicRef *self)
+{
+    ThreadHandle *handle = NULL;
+
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
+
+    if (handle == NULL)
+        goto fail;
+
+    PyObject *args = Py_BuildValue("(O)", self);
+    if (ThreadHandle_init(handle, args, NULL) < 0)
+        goto fail;
+
+    return (PyObject *) handle;
+
+    fail:
+    return NULL;
 }
