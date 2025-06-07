@@ -18,7 +18,8 @@ ThreadHandle_init(ThreadHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs
     Py_INCREF(obj);
     self->obj = obj;
 
-    PyObject_GC_Track(self);
+    if (!PyObject_GC_IsTracked((PyObject *) self))
+        PyObject_GC_Track(self);
 
     return 0;
 
