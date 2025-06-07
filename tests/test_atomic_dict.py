@@ -583,3 +583,10 @@ def test_reduce():
     assert d["red"] == 6
     assert d["green"] == 42
     assert d["blue"] == 3
+
+
+def test_get_handle():
+    d = AtomicDict()
+    h = d.get_handle()
+    assert isinstance(h, cereggii.ThreadHandle)
+    assert isinstance(h.get_handle(), cereggii.ThreadHandle)

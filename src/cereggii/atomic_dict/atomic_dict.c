@@ -8,6 +8,7 @@
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
+#include "thread_handle.h"
 #include "_internal_py_core.h"
 
 
@@ -624,5 +625,25 @@ AtomicDict_Debug(AtomicDict *self)
     Py_XDECREF(entries);
     Py_XDECREF(entry_tuple);
     Py_XDECREF(block_info);
+    return NULL;
+}
+
+PyObject *
+AtomicDict_GetHandle(AtomicDict *self)
+{
+    ThreadHandle *handle = NULL;
+
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
+
+    if (handle == NULL)
+        goto fail;
+
+    PyObject *args = Py_BuildValue("(O)", self);
+    if (ThreadHandle_init(handle, args, NULL) < 0)
+        goto fail;
+
+    return (PyObject *) handle;
+
+    fail:
     return NULL;
 }
