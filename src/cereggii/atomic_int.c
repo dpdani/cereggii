@@ -555,7 +555,7 @@ AtomicInt64_GetHandle(AtomicInt64 *self)
 {
     ThreadHandle *handle = NULL;
 
-    handle = PyObject_New(ThreadHandle, &ThreadHandle_Type);
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
 
     if (handle == NULL)
         goto fail;

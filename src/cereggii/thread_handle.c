@@ -16,8 +16,9 @@ ThreadHandle_init(ThreadHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs
         obj = ((ThreadHandle *) obj)->obj;
     }
     Py_INCREF(obj);
-
     self->obj = obj;
+
+    PyObject_GC_Track(self);
 
     return 0;
 
@@ -42,6 +43,8 @@ ThreadHandle_clear(ThreadHandle *self)
 void
 ThreadHandle_dealloc(ThreadHandle *self)
 {
+    PyObject_GC_UnTrack(self);
+    ThreadHandle_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
