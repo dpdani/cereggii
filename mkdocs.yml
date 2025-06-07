@@ -11,6 +11,7 @@ nav:
       - 'api/AtomicDict.md'
       - 'api/AtomicInt64.md'
       - 'api/AtomicRef.md'
+      - 'api/ThreadHandle.md'
 #  - 'C-API Reference':
 #      - 'c-api/AtomicDict.md'
 #      - 'c-api/AtomicInt64.md'

@@ -5,6 +5,7 @@
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
 #include "atomic_ops.h"
+#include "thread_handle.h"
 
 #include "pyhash.h"
 
@@ -552,15 +553,15 @@ AtomicInt64_UpdateAndGet_callable(AtomicInt64 *self, PyObject *callable)
 PyObject *
 AtomicInt64_GetHandle(AtomicInt64 *self)
 {
-    AtomicInt64Handle *handle = NULL;
+    ThreadHandle *handle = NULL;
 
-    handle = PyObject_New(AtomicInt64Handle, &AtomicInt64Handle_Type);
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
 
     if (handle == NULL)
         goto fail;
 
     PyObject *args = Py_BuildValue("(O)", self);
-    if (AtomicInt64Handle_init((AtomicInt64Handle *) handle, args, NULL) < 0)
+    if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
 
     return (PyObject *) handle;
@@ -572,7 +573,11 @@ AtomicInt64_GetHandle(AtomicInt64 *self)
 Py_hash_t
 AtomicInt64_Hash(AtomicInt64 *self)
 {
-    return _Py_HashPointer(self); // this will be public in 3.13
+#if PY_VERSION_HEX >= 0x03140000
+    return Py_HashPointer(self);
+#else
+    return _Py_HashPointer(self);
+#endif
 }
 
 inline PyObject *

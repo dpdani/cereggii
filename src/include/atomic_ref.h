@@ -26,6 +26,8 @@ PyObject *AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyOb
 
 PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired);
 
+PyObject *AtomicRef_GetHandle(AtomicRef *self);
+
 
 PyObject *AtomicRef_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 

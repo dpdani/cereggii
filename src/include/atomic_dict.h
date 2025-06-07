@@ -65,6 +65,8 @@ PyObject *AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs
 
 PyObject *AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
+PyObject *AtomicDict_GetHandle(AtomicDict *self);
+
 PyObject *AtomicDict_Debug(AtomicDict *self);
 
 PyObject *AtomicDict_new(PyTypeObject *type, PyObject *args, PyObject *kwds);

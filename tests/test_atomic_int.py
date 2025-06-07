@@ -155,8 +155,8 @@ def test_update_and_get():
 def test_get_handle():
     i = AtomicInt64()
     h = i.get_handle()
-    assert isinstance(h, cereggii.AtomicInt64Handle)
-    assert isinstance(h.get_handle(), cereggii.AtomicInt64Handle)
+    assert isinstance(h, cereggii.ThreadHandle)
+    assert isinstance(h.get_handle(), cereggii.ThreadHandle)
 
 
 def test_dealloc():
