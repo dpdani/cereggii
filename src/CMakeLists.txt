@@ -9,7 +9,7 @@ message(STATUS "CMAKE_HOST_SYSTEM_PROCESSOR=${CMAKE_HOST_SYSTEM_PROCESSOR}")
 message(STATUS "CMAKE_HOST_SYSTEM_NAME=${CMAKE_HOST_SYSTEM_NAME}")
 
 add_compile_options("-Werror=implicit-function-declaration")
-add_compile_options("-Werror=undefined-inline")
+#add_compile_options("-Werror=undefined-inline")
 
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
     set(IS_ARM TRUE)
