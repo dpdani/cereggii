@@ -57,12 +57,12 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/node_ops.c"
         "cereggii/atomic_int/atomic_int.c"
         "cereggii/atomic_int/handle.c"
-        "cereggii/thread_handle/thread_handle.c"
         "cereggii/atomic_event.c"
         "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
         "cereggii/constants.c"
+        "cereggii/thread_handle.c"
 )
 
 # Install the module
