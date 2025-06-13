@@ -4,6 +4,7 @@
 import gc
 import threading
 
+import cereggii
 from cereggii import AtomicRef
 
 
@@ -124,3 +125,10 @@ def test_dealloc():
     while (this := gc.collect()) != previous:
         previous = this
     assert id(obj) == id_obj
+
+
+def test_get_handle():
+    d = AtomicRef()
+    h = d.get_handle()
+    assert isinstance(h, cereggii.ThreadHandle)
+    assert isinstance(h.get_handle(), cereggii.ThreadHandle)

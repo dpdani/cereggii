@@ -13,6 +13,7 @@
             - len_bounds
             - fast_iter
             - batch_getitem 
+            - get_handle
 
 ::: cereggii.NOT_FOUND
     options:

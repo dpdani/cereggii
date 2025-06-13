@@ -13,8 +13,3 @@
             - update_and_get
             - get_and_update
             - get_handle
-
-::: cereggii._cereggii.AtomicInt64Handle
-    options:
-        show_root_heading: true
-        show_root_full_path: false
