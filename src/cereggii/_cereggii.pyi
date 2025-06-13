@@ -19,37 +19,37 @@ class ThreadHandle[T](T):
     """
     A thread-local handle for an object.
     Acts as a proxy for the handled object.
-    It behaves exactly like the object it handles, but provides some performance
+    It behaves exactly like the object it handles, and provides some performance
     benefits.
 
     !!! tip
-        Make sure that the thread that created an instance of `ThreadHandle`
+        Make sure the thread that created an instance of ThreadHandle
         is the only thread that uses the handle.
 
     !!! note
-        `ThreadHandle` is immutable: once instantiated, you cannot change the
+        ThreadHandle is immutable: once instantiated, you cannot change the
         handled object. If you need a mutable shared reference to an object,
         take a look at [AtomicRef][cereggii._cereggii.AtomicRef].
 
     !!! warning
-        `ThreadHandle` does not enforce thread locality.
+        ThreadHandle does not enforce thread locality.
         You may be able to share one handle among several threads, but this is
         not the intended usage.
 
         Furthermore, the intended performance gains would be lost if the handle
         is used by multiple threads.
 
-        Sharing a `ThreadHandle` among multiple threads may become unsupported
+        Sharing a ThreadHandle among multiple threads may become unsupported
         in a future release.
 
-    **How does `ThreadHandle` improve performance?**
+    **How does ThreadHandle improve performance?**
 
     In free-threading Python, each object has new internal structures that
     have become necessary for the interpreter to stay correct in the face of
     multithreaded object use.
     While they are necessary for correctness, they may slow down an individual
     thread's access to an object if that object is used by multiple threads.
-    `ThreadHandle` solves this performance problem by removing the contention
+    ThreadHandle solves this performance problem by removing the contention
     on the new object's internal structures.
 
     The new structures mentioned are essentially a shared reference counter and
@@ -60,20 +60,20 @@ class ThreadHandle[T](T):
     them, please refer to [PEP 703 – Making the Global Interpreter Lock Optional
     in CPython](https://peps.python.org/pep-0703/).
 
-    Since `ThreadHandle` is also an object, it also has its own shared and local
+    Since ThreadHandle is also an object, it also has its own shared and local
     reference counters.
-    When a thread makes a call to a method of `ThreadHandle`, the interpreter
-    implicitly increments the local reference counter* and `ThreadHandle`
+    When a thread makes a call to a method of ThreadHandle, the interpreter
+    implicitly increments the local reference counter and ThreadHandle
     proxies the call to the handled object.
     Once the call is completed, the interpreter decrements the local reference
-    counter of `ThreadHandle`.
+    counter of ThreadHandle.
 
-    If `ThreadHandle` wasn't used and the handled object was used by multiple
+    If ThreadHandle wasn't used and the handled object was used by multiple
     threads, the reference counting operations would have used the object's
     shared reference counter.
     Operations on this counter are atomic and more computationally expensive.
 
-    * If a `ThreadHandle` itself is used by multiple threads, then reference
+    If a ThreadHandle is used by multiple threads, then reference
     counting operations on the handle itself would use the shared reference
     counter and nullify the performance gains.
     """
