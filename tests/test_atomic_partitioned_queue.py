@@ -94,13 +94,14 @@ def test_consumer_producer_threads():
     for t in threads:
         t.join()
 
+
 def test_consumer_waits_for_producer():
     queue = AtomicPartitionedQueue()
     barrier = Barrier(2)
 
     def producer():
         barrier.wait()
-        time.sleep(.1)
+        time.sleep(0.1)
         with queue.producer() as producer:
             for i in range(4096):
                 producer.put(i)
