@@ -7,6 +7,7 @@
 #include <Python.h>
 #include "atomic_partitioned_queue.h"
 #include "atomic_ops.h"
+#include "internal/misc.h"
 
 
 PyObject *
@@ -49,7 +50,7 @@ static inline void
 wait_for_rebalance(_AtomicPartitionedQueue *self)
 {
     while (self->consumers_mx) {
-        sched_yield();
+        cereggii_yield();
     }
 }
 
@@ -100,7 +101,9 @@ beginning:
     while (
         partition->consumer.head_page == partition->producer.tail_page
         && partition->consumer.head_offset == partition->producer.tail_offset
-        ) {}
+        ) {
+        cereggii_yield();
+    }
 
     PyObject *item = NULL;
     item = page->items[++partition->consumer.head_offset]; // don't decref: passing to python

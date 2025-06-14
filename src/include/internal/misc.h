@@ -5,6 +5,8 @@
 #ifndef CEREGGII_MISC_H
 #define CEREGGII_MISC_H
 
+#include "Python.h"
+
 #if defined(_MSC_VER)
 #  define CEREGGII_ALIGNED(x) __declspec(align(x))
 #elif defined(__GNUC__) || defined(__clang__)
@@ -20,5 +22,23 @@
 #else
 #  define CEREGGII_UNUSED
 #endif
+
+#if defined(_WIN32)
+#  include <windows.h>
+#  define CEREGGII_YIELD SwitchToThread()
+#else
+#  include <sched.h>
+#  define CEREGGII_YIELD sched_yield()
+#endif
+
+static inline void
+cereggii_yield()
+{
+    Py_BEGIN_ALLOW_THREADS;
+#ifdef Py_GIL_DISABLED
+    CEREGGII_YIELD;
+#endif
+    Py_END_ALLOW_THREADS;
+}
 
 #endif // CEREGGII_MISC_H

@@ -7,6 +7,7 @@
 #include <Python.h>
 #include "atomic_partitioned_queue.h"
 #include "atomic_ops.h"
+#include "internal/misc.h"
 
 
 PyObject *
@@ -49,7 +50,7 @@ static inline void
 wait_for_rebalance(_AtomicPartitionedQueue *self)
 {
     while (self->producers_mx) {
-        sched_yield();
+        cereggii_yield();
     }
 }
 
