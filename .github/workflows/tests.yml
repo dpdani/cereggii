@@ -2,7 +2,8 @@ name: tests
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches:
+      - main
   pull_request:
 
 jobs:
@@ -14,7 +15,7 @@ jobs:
         os:
           - ubuntu-latest
         python-version:
-          - 3.13.0
+          - 3.13
           - 3.13t
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
@@ -23,24 +24,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
-        if: "!endsWith(matrix.python-version, 't')"
         with:
           python-version: ${{ matrix.python-version }}
-      - name: set up python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v3
-        if: endsWith(matrix.python-version, 't')
-      - if: endsWith(matrix.python-version, 't')
-        run: |
-          uv python install ${{ matrix.python-version }}
-          uv venv --python ${{ matrix.python-version }}
-          . .venv/bin/activate
-          echo PATH=$PATH >> $GITHUB_ENV
-          uv pip install pip
       - run: python --version --version && which python
       - name: system info
-        run: |
-          uname -a
-          cat /proc/cpuinfo
+        run: uname -a
+      - name: processor info
+        if: matrix.os == 'ubuntu-latest'
+        run: cat /proc/cpuinfo
+      - name: processor info
+        if: matrix.os == 'macos-latest'
+        run: system_profiler SPHardwareDataType
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
@@ -48,10 +42,4 @@ jobs:
           pip install .[dev]
       - name: test with pytest
         run: |
-          pytest --junitxml=junit/test-results-${{ matrix.python-version }}.xml
-      - name: upload pytest test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-results-${{ matrix.python-version }}
-          path: junit/test-results-${{ matrix.python-version }}.xml
-        if: ${{ always() }}
+          pytest

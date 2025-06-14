@@ -11,6 +11,7 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "atomic_partitioned_queue.h"
+#include "thread_handle.h"
 
 
 static PyMethodDef AtomicInt64_methods[] = {
@@ -101,100 +102,13 @@ PyTypeObject AtomicInt64_Type = {
     .tp_getset = AtomicInt64_properties,
 };
 
-static PyMethodDef AtomicInt64Handle_methods[] = {
-    {"get",               (PyCFunction) AtomicInt64Handle_Get_callable,             METH_NOARGS,  NULL},
-    {"set",               (PyCFunction) AtomicInt64Handle_Set_callable,             METH_O,       NULL},
-    {"compare_and_set",   (PyCFunction) AtomicInt64Handle_CompareAndSet_callable,   METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",       (PyCFunction) AtomicInt64Handle_GetAndSet_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
-    {"increment_and_get", (PyCFunction) AtomicInt64Handle_IncrementAndGet_callable, METH_VARARGS, NULL},
-    {"get_and_increment", (PyCFunction) AtomicInt64Handle_GetAndIncrement_callable, METH_VARARGS, NULL},
-    {"decrement_and_get", (PyCFunction) AtomicInt64Handle_DecrementAndGet_callable, METH_VARARGS, NULL},
-    {"get_and_decrement", (PyCFunction) AtomicInt64Handle_GetAndDecrement_callable, METH_VARARGS, NULL},
-    {"update_and_get",    (PyCFunction) AtomicInt64Handle_UpdateAndGet_callable,    METH_O,       NULL},
-    {"get_and_update",    (PyCFunction) AtomicInt64Handle_GetAndUpdate_callable,    METH_O,       NULL},
-    {"get_handle",        (PyCFunction) AtomicInt64Handle_GetHandle,                METH_NOARGS,  NULL},
-    {"as_integer_ratio",  (PyCFunction) AtomicInt64Handle_AsIntegerRatio,           METH_NOARGS,  NULL},
-    {"bit_length",        (PyCFunction) AtomicInt64Handle_BitLength,                METH_NOARGS,  NULL},
-    {"conjugate",         (PyCFunction) AtomicInt64Handle_Conjugate,                METH_NOARGS,  NULL},
-    {"from_bytes",        (PyCFunction) AtomicInt64Handle_FromBytes,                METH_VARARGS | METH_KEYWORDS |
-                                                                                  METH_CLASS,                   NULL},
-    {"to_bytes",          (PyCFunction) AtomicInt64Handle_ToBytes,                  METH_NOARGS,  NULL},
-    {NULL}
-};
-
-static PyGetSetDef AtomicInt64Handle_properties[] = {
-    {"denominator", (getter) AtomicInt64Handle_Denominator_Get, (setter) AtomicInt64Handle_Denominator_Set, NULL, NULL},
-    {"numerator",   (getter) AtomicInt64Handle_Numerator_Get,   (setter) AtomicInt64Handle_Numerator_Set,   NULL, NULL},
-    {"imag",        (getter) AtomicInt64Handle_Imag_Get,        (setter) AtomicInt64Handle_Imag_Set,        NULL, NULL},
-    {"real",        (getter) AtomicInt64Handle_Real_Get,        (setter) AtomicInt64Handle_Real_Set,        NULL, NULL},
-    {NULL},
-};
-
-static PyNumberMethods AtomicInt64Handle_as_number = {
-    .nb_add = (binaryfunc) AtomicInt64Handle_Add,
-    .nb_subtract = (binaryfunc) AtomicInt64Handle_Subtract,
-    .nb_multiply = (binaryfunc) AtomicInt64Handle_Multiply,
-    .nb_remainder = (binaryfunc) AtomicInt64Handle_Remainder,
-    .nb_divmod = (binaryfunc) AtomicInt64Handle_Divmod,
-    .nb_power = (ternaryfunc) AtomicInt64Handle_Power,
-    .nb_negative = (unaryfunc) AtomicInt64Handle_Negative,
-    .nb_positive = (unaryfunc) AtomicInt64Handle_Positive,
-    .nb_absolute = (unaryfunc) AtomicInt64Handle_Absolute,
-    .nb_bool = (inquiry) AtomicInt64Handle_Bool,
-    .nb_invert = (unaryfunc) AtomicInt64Handle_Invert,
-    .nb_lshift = (binaryfunc) AtomicInt64Handle_Lshift,
-    .nb_rshift = (binaryfunc) AtomicInt64Handle_Rshift,
-    .nb_and = (binaryfunc) AtomicInt64Handle_And,
-    .nb_xor = (binaryfunc) AtomicInt64Handle_Xor,
-    .nb_or = (binaryfunc) AtomicInt64Handle_Or,
-    .nb_int = (unaryfunc) AtomicInt64Handle_Int,
-    .nb_float = (unaryfunc) AtomicInt64Handle_Float,
-
-    .nb_inplace_add = (binaryfunc) AtomicInt64Handle_InplaceAdd,
-    .nb_inplace_subtract = (binaryfunc) AtomicInt64Handle_InplaceSubtract,
-    .nb_inplace_multiply = (binaryfunc) AtomicInt64Handle_InplaceMultiply,
-    .nb_inplace_remainder = (binaryfunc) AtomicInt64Handle_InplaceRemainder,
-    .nb_inplace_power = (ternaryfunc) AtomicInt64Handle_InplacePower,
-    .nb_inplace_lshift = (binaryfunc) AtomicInt64Handle_InplaceLshift,
-    .nb_inplace_rshift = (binaryfunc) AtomicInt64Handle_InplaceRshift,
-    .nb_inplace_and = (binaryfunc) AtomicInt64Handle_InplaceAnd,
-    .nb_inplace_xor = (binaryfunc) AtomicInt64Handle_InplaceXor,
-    .nb_inplace_or = (binaryfunc) AtomicInt64Handle_InplaceOr,
-
-    .nb_floor_divide = (binaryfunc) AtomicInt64Handle_FloorDivide,
-    .nb_true_divide = (binaryfunc) AtomicInt64Handle_TrueDivide,
-    .nb_inplace_floor_divide = (binaryfunc) AtomicInt64Handle_InplaceFloorDivide,
-    .nb_inplace_true_divide = (binaryfunc) AtomicInt64Handle_InplaceTrueDivide,
-
-    .nb_index = (unaryfunc) AtomicInt64Handle_Index,
-
-    .nb_matrix_multiply = (binaryfunc) AtomicInt64Handle_MatrixMultiply,
-    .nb_inplace_matrix_multiply = (binaryfunc) AtomicInt64Handle_InplaceMatrixMultiply,
-};
-
-PyTypeObject AtomicInt64Handle_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii.AtomicInt64Handle",
-    .tp_doc = PyDoc_STR("An immutable handle for referencing an AtomicInt64."),
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-    .tp_basicsize = sizeof(AtomicInt64Handle),
-    .tp_itemsize = 0,
-    .tp_new = PyType_GenericNew,
-    .tp_init = (initproc) AtomicInt64Handle_init,
-    .tp_dealloc = (destructor) AtomicInt64Handle_dealloc,
-    .tp_methods = AtomicInt64Handle_methods,
-    .tp_as_number = &AtomicInt64Handle_as_number,
-    .tp_richcompare = (richcmpfunc) AtomicInt64Handle_RichCompare,
-    .tp_hash = (hashfunc) AtomicInt64Handle_Hash,
-    .tp_getset = AtomicInt64Handle_properties,
-};
-
 
 static PyMethodDef AtomicRef_methods[] = {
     {"get",             (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
     {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
     {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
+    {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
     {NULL}
 };
 
@@ -217,7 +131,6 @@ PyTypeObject AtomicRef_Type = {
 static PyMethodDef AtomicDict_methods[] = {
     {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
     {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
-    {"compact",         (PyCFunction) AtomicDict_Compact_callable,        METH_NOARGS, NULL},
     {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
     {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
     {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
@@ -225,6 +138,7 @@ static PyMethodDef AtomicDict_methods[] = {
     {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
     {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
     {NULL}
 };
 
@@ -272,16 +186,6 @@ PyTypeObject AtomicDictBlock_Type = {
     .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
     .tp_clear = (inquiry) AtomicDictBlock_clear,
     .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
-};
-
-PyTypeObject AtomicDictAccessorStorage_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._AtomicDictAccessorStorage",
-    .tp_basicsize = sizeof(AtomicDict_AccessorStorage),
-    .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_new = PyType_GenericNew,
-    .tp_dealloc = (destructor) AtomicDict_AccessorStorage_dealloc,
 };
 
 PyTypeObject AtomicDictFastIterator_Type = {
@@ -336,6 +240,100 @@ PyTypeObject CereggiiConstant_Type = {
 };
 
 
+static PyNumberMethods ThreadHandle_as_number = {
+    .nb_add = (binaryfunc) ThreadHandle_Add,
+    .nb_subtract = (binaryfunc) ThreadHandle_Subtract,
+    .nb_multiply = (binaryfunc) ThreadHandle_Multiply,
+    .nb_remainder = (binaryfunc) ThreadHandle_Remainder,
+    .nb_divmod = (binaryfunc) ThreadHandle_Divmod,
+    .nb_power = (ternaryfunc) ThreadHandle_Power,
+    .nb_negative = (unaryfunc) ThreadHandle_Negative,
+    .nb_positive = (unaryfunc) ThreadHandle_Positive,
+    .nb_absolute = (unaryfunc) ThreadHandle_Absolute,
+    .nb_bool = (inquiry) ThreadHandle_Bool,
+    .nb_invert = (unaryfunc) ThreadHandle_Invert,
+    .nb_lshift = (binaryfunc) ThreadHandle_Lshift,
+    .nb_rshift = (binaryfunc) ThreadHandle_Rshift,
+    .nb_and = (binaryfunc) ThreadHandle_And,
+    .nb_xor = (binaryfunc) ThreadHandle_Xor,
+    .nb_or = (binaryfunc) ThreadHandle_Or,
+    .nb_int = (unaryfunc) ThreadHandle_Int,
+    .nb_float = (unaryfunc) ThreadHandle_Float,
+
+    .nb_inplace_add = (binaryfunc) ThreadHandle_InPlaceAdd,
+    .nb_inplace_subtract = (binaryfunc) ThreadHandle_InPlaceSubtract,
+    .nb_inplace_multiply = (binaryfunc) ThreadHandle_InPlaceMultiply,
+    .nb_inplace_remainder = (binaryfunc) ThreadHandle_InPlaceRemainder,
+    .nb_inplace_power = (ternaryfunc) ThreadHandle_InPlacePower,
+    .nb_inplace_lshift = (binaryfunc) ThreadHandle_InPlaceLshift,
+    .nb_inplace_rshift = (binaryfunc) ThreadHandle_InPlaceRshift,
+    .nb_inplace_and = (binaryfunc) ThreadHandle_InPlaceAnd,
+    .nb_inplace_xor = (binaryfunc) ThreadHandle_InPlaceXor,
+    .nb_inplace_or = (binaryfunc) ThreadHandle_InPlaceOr,
+
+    .nb_floor_divide = (binaryfunc) ThreadHandle_FloorDivide,
+    .nb_true_divide = (binaryfunc) ThreadHandle_TrueDivide,
+    .nb_inplace_floor_divide = (binaryfunc) ThreadHandle_InPlaceFloorDivide,
+    .nb_inplace_true_divide = (binaryfunc) ThreadHandle_InPlaceTrueDivide,
+
+    .nb_index = (unaryfunc) ThreadHandle_Index,
+
+    .nb_matrix_multiply = (binaryfunc) ThreadHandle_MatrixMultiply,
+    .nb_inplace_matrix_multiply = (binaryfunc) ThreadHandle_InPlaceMatrixMultiply,
+};
+
+static PySequenceMethods ThreadHandle_as_sequence = {
+    .sq_length = (lenfunc) ThreadHandle_Length,
+    .sq_concat = (binaryfunc) ThreadHandle_Concat,
+    .sq_repeat = (ssizeargfunc) ThreadHandle_Repeat,
+    .sq_item = (ssizeargfunc) ThreadHandle_GetItem,
+    .sq_ass_item = (ssizeobjargproc) ThreadHandle_SetItem,
+    .sq_contains = (objobjproc) ThreadHandle_Contains,
+    .sq_inplace_concat = (binaryfunc) ThreadHandle_InPlaceConcat,
+    .sq_inplace_repeat = (ssizeargfunc) ThreadHandle_InPlaceRepeat,
+};
+
+static PyMappingMethods ThreadHandle_as_mapping = {
+    .mp_length = (lenfunc) ThreadHandle_MappingLength,
+    .mp_subscript = (binaryfunc) ThreadHandle_MappingGetItem,
+    .mp_ass_subscript = (objobjargproc) ThreadHandle_MappingSetItem,
+};
+
+// static PyAsyncMethods ThreadHandle_as_async = {
+//     .am_await = (unaryfunc) ThreadHandle_Await,
+//     .am_aiter = (unaryfunc) ThreadHandle_GetAIter,
+//     .am_anext = (unaryfunc) ThreadHandle_AsyncNext,
+//     .am_send = (sendfunc) ThreadHandle_AsyncSend,
+// };
+
+PyTypeObject ThreadHandle_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.ThreadHandle",
+    .tp_doc = PyDoc_STR("A thread-local handle for referencing a shared object."),
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
+    .tp_basicsize = sizeof(ThreadHandle),
+    .tp_itemsize = 0,
+    .tp_new = PyType_GenericNew,
+    .tp_init = (initproc) ThreadHandle_init,
+    .tp_traverse = (traverseproc) ThreadHandle_traverse,
+    .tp_clear = (inquiry) ThreadHandle_clear,
+    .tp_dealloc = (destructor) ThreadHandle_dealloc,
+    .tp_richcompare = (richcmpfunc) ThreadHandle_RichCompare,
+    .tp_hash = (hashfunc) ThreadHandle_Hash,
+    .tp_as_number = &ThreadHandle_as_number,
+    .tp_as_sequence = &ThreadHandle_as_sequence,
+    .tp_as_mapping = &ThreadHandle_as_mapping,
+    // .tp_as_async = &ThreadHandle_as_async,
+    .tp_repr = (reprfunc) ThreadHandle_Repr,
+    .tp_str = (reprfunc) ThreadHandle_Repr,
+    .tp_call = (ternaryfunc) ThreadHandle_Call,
+    .tp_iter = (getiterfunc) ThreadHandle_GetIter,
+    // .tp_iternext = (iternextfunc) ThreadHandle_Next,
+    .tp_getattro = (getattrofunc) ThreadHandle_GetAttr,
+    .tp_setattro = (setattrofunc) ThreadHandle_SetAttr,
+};
+
+
 static PyModuleDef cereggii_module = {
     .m_base = PyModuleDef_HEAD_INIT,
     .m_name = "_cereggii",
@@ -356,8 +354,6 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicDictBlock_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicDictAccessorStorage_Type) < 0)
-        return NULL;
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicEvent_Type) < 0)
@@ -366,8 +362,9 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicInt64_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicInt64Handle_Type) < 0)
+    if (PyType_Ready(&ThreadHandle_Type) < 0)
         return NULL;
+
 
     Cereggii_ExpectationFailed = PyErr_NewException("cereggii.ExpectationFailed", NULL, NULL);
     if (Cereggii_ExpectationFailed == NULL)
@@ -425,9 +422,9 @@ PyInit__cereggii(void)
         goto fail;
     Py_DECREF(&AtomicInt64_Type);
 
-    if (PyModule_AddObjectRef(m, "AtomicInt64Handle", (PyObject *) &AtomicInt64Handle_Type) < 0)
+    if (PyModule_AddObjectRef(m, "ThreadHandle", (PyObject *) &ThreadHandle_Type) < 0)
         goto fail;
-    Py_DECREF(&AtomicInt64Handle_Type);
+    Py_DECREF(&ThreadHandle_Type);
 
     if (_AtomicPartitionedQueue_mod_init(m) < 0)
         goto fail;

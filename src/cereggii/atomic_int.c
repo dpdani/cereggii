@@ -5,6 +5,7 @@
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
 #include "atomic_ops.h"
+#include "thread_handle.h"
 
 #include "pyhash.h"
 
@@ -42,7 +43,17 @@ AtomicInt64_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, in
 inline int
 AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 {
-    int overflowed = __builtin_saddl_overflow(current, to_add, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_add_overflow(current, to_add, result);
+#else
+    int overflowed = 0;
+    if ((to_add > 0 && current > INT64_MAX - to_add) ||
+        (to_add < 0 && current < INT64_MIN - to_add)) {
+        overflowed = 1;
+    } else {
+        *result = current + to_add;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
@@ -58,7 +69,17 @@ AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 inline int
 AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 {
-    int overflowed = __builtin_ssubl_overflow(current, to_sub, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_sub_overflow(current, to_sub, result);
+#else
+    int overflowed = 0;
+    if ((to_sub < 0 && current > INT64_MAX + to_sub) ||
+        (to_sub > 0 && current < INT64_MIN + to_sub)) {
+        overflowed = 1;
+    } else {
+        *result = current - to_sub;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
@@ -74,7 +95,27 @@ AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 inline int
 AtomicInt64_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
 {
-    int overflowed = __builtin_smull_overflow(current, to_mul, result);
+#if defined(__GNUC__) || defined(__clang__)
+    int overflowed = __builtin_mul_overflow(current, to_mul, result);
+#else
+    int overflowed = 0;
+    if (current > 0) {
+        if (to_mul > 0) {
+            if (current > INT64_MAX / to_mul) overflowed = 1;
+        } else {
+            if (to_mul < INT64_MIN / current) overflowed = 1;
+        }
+    } else {
+        if (to_mul > 0) {
+            if (current < INT64_MIN / to_mul) overflowed = 1;
+        } else {
+            if (current != 0 && to_mul < INT64_MAX / current) overflowed = 1;
+        }
+    }
+    if (!overflowed) {
+        *result = current * to_mul;
+    }
+#endif
 
     if (overflowed) {
         PyErr_SetObject(
@@ -512,15 +553,15 @@ AtomicInt64_UpdateAndGet_callable(AtomicInt64 *self, PyObject *callable)
 PyObject *
 AtomicInt64_GetHandle(AtomicInt64 *self)
 {
-    AtomicInt64Handle *handle = NULL;
+    ThreadHandle *handle = NULL;
 
-    handle = PyObject_New(AtomicInt64Handle, &AtomicInt64Handle_Type);
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
 
     if (handle == NULL)
         goto fail;
 
     PyObject *args = Py_BuildValue("(O)", self);
-    if (AtomicInt64Handle_init((AtomicInt64Handle *) handle, args, NULL) < 0)
+    if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
 
     return (PyObject *) handle;
@@ -532,7 +573,11 @@ AtomicInt64_GetHandle(AtomicInt64 *self)
 Py_hash_t
 AtomicInt64_Hash(AtomicInt64 *self)
 {
-    return _Py_HashPointer(self); // this will be public in 3.13
+#if PY_VERSION_HEX >= 0x03140000
+    return Py_HashPointer(self);
+#else
+    return _Py_HashPointer(self);
+#endif
 }
 
 inline PyObject *

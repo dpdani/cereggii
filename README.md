@@ -22,7 +22,7 @@ This package provides atomic versions of common data structures:
 
 ## Cereus greggii
 
-<img src="./.github/cereggii.jpg" align="right">
+<img src="https://raw.githubusercontent.com/dpdani/cereggii/refs/heads/main/.github/cereggii.jpg" align="right">
 
 The *Peniocereus Greggii* (also known as *Cereus Greggii*) is a flower native to
 Arizona, New Mexico, Texas, and some parts of northern Mexico.
@@ -35,8 +35,3 @@ these flowers bloom in synchrony.
 _Image credits: Patrick Alexander, Peniocereus greggii var. greggii, south of
 Cooke's Range, Luna County, New Mexico, 10 May 2018, CC0.
 [source](https://www.flickr.com/photos/aspidoscelis/42926986382)_
-
-### ARM
-
-This library was successfully used with Apple Silicon, but `aarch64` processors
-are generally not supported.

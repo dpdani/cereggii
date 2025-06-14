@@ -1,9 +1,5 @@
-from collections.abc import Iterable, Iterator, Callable
-from typing import NewType, SupportsComplex, SupportsFloat, SupportsInt
-
-Key = NewType("Key", object)
-Value = NewType("Value", object)
-Cancel = NewType("Cancel", object)
+from collections.abc import Callable, Iterable, Iterator
+from typing import Self, SupportsComplex, SupportsFloat, SupportsInt
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
@@ -19,7 +15,70 @@ Used in `AtomicDict` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
 
-class AtomicDict:
+class ThreadHandle[T](T):
+    """
+    A thread-local handle for an object.
+    Acts as a proxy for the handled object.
+    It behaves exactly like the object it handles, and provides some performance
+    benefits.
+
+    !!! tip
+        Make sure the thread that created an instance of ThreadHandle
+        is the only thread that uses the handle.
+
+    !!! note
+        ThreadHandle is immutable: once instantiated, you cannot change the
+        handled object. If you need a mutable shared reference to an object,
+        take a look at [AtomicRef][cereggii._cereggii.AtomicRef].
+
+    !!! warning
+        ThreadHandle does not enforce thread locality.
+        You may be able to share one handle among several threads, but this is
+        not the intended usage.
+
+        Furthermore, the intended performance gains would be lost if the handle
+        is used by multiple threads.
+
+        Sharing a ThreadHandle among multiple threads may become unsupported
+        in a future release.
+
+    **How does ThreadHandle improve performance?**
+
+    In free-threading Python, each object has new internal structures that
+    have become necessary for the interpreter to stay correct in the face of
+    multithreaded object use.
+    While they are necessary for correctness, they may slow down an individual
+    thread's access to an object if that object is used by multiple threads.
+    ThreadHandle solves this performance problem by removing the contention
+    on the new object's internal structures.
+
+    The new structures mentioned are essentially a shared reference counter and
+    a mutex, individually created with each object, in addition to a
+    thread-local reference counter, which was already present in previous
+    versions of Python.
+    This is a very simplified explanation of these changes, to learn more about
+    them, please refer to [PEP 703 – Making the Global Interpreter Lock Optional
+    in CPython](https://peps.python.org/pep-0703/).
+
+    Since ThreadHandle is also an object, it also has its own shared and local
+    reference counters.
+    When a thread makes a call to a method of ThreadHandle, the interpreter
+    implicitly increments the local reference counter and ThreadHandle
+    proxies the call to the handled object.
+    Once the call is completed, the interpreter decrements the local reference
+    counter of ThreadHandle.
+
+    If ThreadHandle wasn't used and the handled object was used by multiple
+    threads, the reference counting operations would have used the object's
+    shared reference counter.
+    Operations on this counter are atomic and more computationally expensive.
+
+    If a ThreadHandle is used by multiple threads, then reference
+    counting operations on the handle itself would use the shared reference
+    counter and nullify the performance gains.
+    """
+
+class AtomicDict[Key, Value]:
     """
     A concurrent dictionary (hash table).
 
@@ -434,7 +493,17 @@ class AtomicDict:
             `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
         """
 
-    def compact(self) -> None: ...
+    def get_handle(self) -> ThreadHandle[Self]:
+        """
+        Get a thread-local handle for this `AtomicDict`.
+
+        When using a thread-local handle, you can improve the performance of
+        your application.
+
+        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        information on thread-local object handles.
+        """
+
     def _debug(self) -> dict:
         """
         Provide some debugging information.
@@ -451,11 +520,11 @@ class AtomicDict:
         This method is subject to change without a deprecation notice.
         """
 
-class AtomicRef:
+class AtomicRef[T]:
     """An object reference that may be updated atomically."""
 
-    def __init__(self, initial_value: object | None = None): ...
-    def compare_and_set(self, expected: object, desired: object) -> bool:
+    def __init__(self, initial_value: T = None): ...
+    def compare_and_set(self, expected: T, desired: T) -> bool:
         """
         Atomically read the current value of this `AtomicRef`:
 
@@ -463,18 +532,18 @@ class AtomicRef:
           - else, don't change it and return `False`.
         """
 
-    def get(self) -> object:
+    def get(self) -> T:
         """
         Atomically read the current value of this `AtomicRef`.
         """
 
-    def get_and_set(self, desired: object) -> object:
+    def get_and_set(self, desired: T) -> T:
         """
         Atomically swap the value of this `AtomicRef` to `desired` and return
         the previously stored value.
         """
 
-    def set(self, desired: object):  # noqa: A003
+    def set(self, desired: T):  # noqa: A003
         """
         Unconditionally set the value of this `AtomicRef` to `desired`.
 
@@ -487,6 +556,17 @@ class AtomicRef:
             stored is the one being expected -- it may be mutated by another thread before
             this mutation is applied. Use this method only when no other thread may be
             writing to this `AtomicRef`.
+        """
+
+    def get_handle(self) -> ThreadHandle[Self]:
+        """
+        Get a thread-local handle for this `AtomicRef`.
+
+        When using a thread-local handle, you can improve the performance of
+        your application.
+
+        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        information on thread-local object handles.
         """
 
 class AtomicInt64(int):
@@ -615,12 +695,15 @@ class AtomicInt64(int):
         value that was stored before applying this operation.
         """
 
-    def get_handle(self) -> AtomicInt64Handle:
+    def get_handle(self) -> ThreadHandle[Self]:
         """
         Get a thread-local handle for this `AtomicInt64`.
 
         When using a thread-local handle, you can improve the performance of
         your application.
+
+        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        information on thread-local object handles.
         """
 
     def __itruediv__(self, other):
@@ -657,18 +740,6 @@ class AtomicInt64(int):
     @property
     def real(self):
         raise NotImplementedError
-
-class AtomicInt64Handle(AtomicInt64):
-    """
-    A thread-local handle for an [`AtomicInt64`][cereggii._cereggii.AtomicInt64].
-    It behaves exactly like `AtomicInt64`, but provides some performance benefits.
-
-    You cannot instantiate an `AtomicInt64Handle` directly.
-    Create it by calling [`AtomicInt64.get_handle`][cereggii._cereggii.AtomicInt64.get_handle]:
-    ```python
-    my_handle = my_atomic_int.get_handle()
-    ```
-    """
 
 class AtomicPartitionedQueue:
     class AtomicPartitionedQueueProducer:

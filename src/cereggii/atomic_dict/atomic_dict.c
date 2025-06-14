@@ -8,13 +8,15 @@
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
+#include "thread_handle.h"
+#include "_internal_py_core.h"
 
 
 PyObject *
 AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicDict *self = NULL;
-    self = PyObject_GC_New(AtomicDict, &AtomicDict_Type);
+    self = PyObject_GC_New(AtomicDict, type);
     if (self != NULL) {
         self->metadata = NULL;
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
@@ -33,10 +35,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         self->accessor_key = tss_key;
 
         self->accessors = NULL;
-        self->accessors = Py_BuildValue("[]");
-        if (self->accessors == NULL)
-            goto fail;
-
         self->accessors_lock = (PyMutex) {0};
 
         PyObject_GC_Track(self);
@@ -45,7 +43,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 
     fail:
     Py_XDECREF(self->metadata);
-    Py_XDECREF(self->accessors);
     Py_XDECREF(self);
     return NULL;
 }
@@ -194,8 +191,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             self->len++; // we want to avoid pos = 0
             AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
-            Py_INCREF(key);
-            Py_INCREF(value);
+            _Py_SetWeakrefAndIncref(key);
+            _Py_SetWeakrefAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
             entry->hash = hash;
             entry->key = key;
@@ -234,7 +231,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
 
                 if (n > 0) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n, meta);
                 }
             }
         }
@@ -260,14 +257,13 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                     }
                 }
                 if (!found) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1);
+                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
                 }
             }
         }
     }
 
     Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
-    assert(Py_REFCNT(meta) == 1);
     return 0;
     fail:
     Py_XDECREF(meta);
@@ -281,7 +277,9 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    Py_VISIT(self->accessors);
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        Py_VISIT(storage->meta);
+    }
     return 0;
 }
 
@@ -289,7 +287,10 @@ int
 AtomicDict_clear(AtomicDict *self)
 {
     Py_CLEAR(self->metadata);
-    Py_CLEAR(self->accessors);
+    if (self->accessors != NULL) {
+        AtomicDict_FreeAccessorStorageList(self->accessors);
+        self->accessors = NULL;
+    }
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
 
@@ -327,27 +328,18 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
         .index = pos,
         .tag = hash,
     };
-    uint64_t ix = AtomicDict_Distance0Of(hash, meta);
+    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
 
-    for (int probe = 0; probe < meta->max_distance; probe++) {
-        AtomicDict_ReadNodeAt((ix + probe) % meta->size, &temp, meta);
+    for (uint64_t distance = 0; distance < SIZE_OF(meta); distance++) {
+        AtomicDict_ReadNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
 
         if (temp.node == 0) {
-            node.distance = probe;
-            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
+            AtomicDict_WriteNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
             goto done;
         }
-
-        if (temp.distance < probe) {
-            // non-atomic robin hood
-            node.distance = probe;
-            AtomicDict_WriteNodeAt((ix + probe) % meta->size, &node, meta);
-            ix = ix + probe - temp.distance;
-            probe = temp.distance;
-            node = temp;
-        }
     }
-    // probes exhausted
+
+    // full
     return -1;
     done:
     return 0;
@@ -381,7 +373,11 @@ PyObject *
 AtomicDict_LenBounds(AtomicDict *self)
 {
     AtomicDict_Meta *meta = NULL;
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    AtomicDict_AccessorStorage *storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (storage == NULL)
+        goto fail;
+
+    meta = AtomicDict_GetMeta(self, storage);
     if (meta == NULL)
         goto fail;
 
@@ -407,7 +403,6 @@ AtomicDict_LenBounds(AtomicDict *self)
         // visit the grb
         found += AtomicDict_CountKeysInBlock(grb, meta);
     }
-    Py_DECREF(meta);
     meta = NULL;
 
     if (supposedly_full_blocks < 0) {
@@ -416,21 +411,19 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     int64_t upper = supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK;
 
-    Py_ssize_t threads_count = PyList_Size(self->accessors);
-    int64_t lower =
-        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
+    Py_ssize_t threads_count = 0;
+    int64_t lower = 0;
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        threads_count++;
 
-    AtomicDict_ReservationBuffer *rb;
-    for (int i = 0; i < threads_count; ++i) {
-        rb = &(
-            (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i)
-        )->reservation_buffer;
-
+        AtomicDict_ReservationBuffer *rb = &storage->reservation_buffer;
         if (rb == NULL)
             goto fail;
 
         lower += self->reservation_buffer_size - rb->count;
     }
+    lower +=
+        supposedly_full_blocks * ATOMIC_DICT_ENTRIES_IN_BLOCK - threads_count * self->reservation_buffer_size;
 
     if (upper < 0) upper = 0;
     if (lower < 0) lower = 0;
@@ -438,7 +431,6 @@ AtomicDict_LenBounds(AtomicDict *self)
     return Py_BuildValue("(ll)", lower + found, upper + found);
 
     fail:
-    Py_XDECREF(meta);
     return NULL;
 }
 
@@ -497,11 +489,7 @@ AtomicDict_Len_impl(AtomicDict *self)
     if (len == NULL)
         goto fail;
 
-    for (Py_ssize_t i = 0; i < PyList_Size(self->accessors); ++i) {
-        AtomicDict_AccessorStorage *storage = NULL;
-        storage = (AtomicDict_AccessorStorage *) PyList_GetItemRef(self->accessors, i);
-        assert(storage != NULL);
-
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
         local_len = PyLong_FromLong(storage->local_len);
         if (local_len == NULL)
             goto fail;
@@ -548,18 +536,9 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *block_info = NULL;
 
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-    metadata = Py_BuildValue("{sOsOsOsOsOsOsOsOsOsOsOsOsOsOsO}",
+    metadata = Py_BuildValue("{sOsOsOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
-                             "node_size\0", Py_BuildValue("B", meta->node_size),
-                             "distance_size\0", Py_BuildValue("B", meta->distance_size),
-                             "tag_size\0", Py_BuildValue("B", meta->tag_size),
-                             "node_mask\0", Py_BuildValue("k", meta->node_mask),
-                             "index_mask\0", Py_BuildValue("k", meta->index_mask),
-                             "distance_mask\0", Py_BuildValue("k", meta->distance_mask),
-                             "tag_mask\0", Py_BuildValue("k", meta->tag_mask),
-                             "tombstone\0", Py_BuildValue("k", meta->tombstone.node),
-                             "is_compact\0", Py_BuildValue("B", meta->is_compact),
                              "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
                              "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
                              "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
@@ -572,7 +551,7 @@ AtomicDict_Debug(AtomicDict *self)
         goto fail;
 
     AtomicDict_Node node;
-    for (uint64_t i = 0; i < meta->size; i++) {
+    for (uint64_t i = 0; i < SIZE_OF(meta); i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
         PyObject *n = Py_BuildValue("k", node.node);
         if (n == NULL)
@@ -596,8 +575,8 @@ AtomicDict_Debug(AtomicDict *self)
             goto fail;
 
         for (int j = 0; j < 64; j++) {
-            PyObject *key = block->entries[j].key;
-            PyObject *value = block->entries[j].value;
+            PyObject *key = block->entries[j].entry.key;
+            PyObject *value = block->entries[j].entry.value;
             if (key != NULL) {
                 if (value == NULL) {
                     value = PyExc_KeyError;
@@ -605,8 +584,8 @@ AtomicDict_Debug(AtomicDict *self)
                 uint64_t entry_ix = (i << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + j;
                 entry_tuple = Py_BuildValue("(kBlOO)",
                                             entry_ix,
-                                            block->entries[j].flags,
-                                            block->entries[j].hash,
+                                            block->entries[j].entry.flags,
+                                            block->entries[j].entry.hash,
                                             key,
                                             value);
                 if (entry_tuple == NULL)
@@ -646,5 +625,25 @@ AtomicDict_Debug(AtomicDict *self)
     Py_XDECREF(entries);
     Py_XDECREF(entry_tuple);
     Py_XDECREF(block_info);
+    return NULL;
+}
+
+PyObject *
+AtomicDict_GetHandle(AtomicDict *self)
+{
+    ThreadHandle *handle = NULL;
+
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
+
+    if (handle == NULL)
+        goto fail;
+
+    PyObject *args = Py_BuildValue("(O)", self);
+    if (ThreadHandle_init(handle, args, NULL) < 0)
+        goto fail;
+
+    return (PyObject *) handle;
+
+    fail:
     return NULL;
 }

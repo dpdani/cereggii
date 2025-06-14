@@ -1,9 +1,10 @@
 name: publish-docs
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - dev
+      - main
 
 jobs:
   docs:

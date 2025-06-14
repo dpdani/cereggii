@@ -8,7 +8,6 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-//#include <structmember.h>
 #include "atomic_ref.h"
 
 
@@ -27,7 +26,7 @@ typedef struct AtomicDict {
 
     Py_tss_t *accessor_key;
     PyMutex accessors_lock;
-    PyObject *accessors; // PyListObject
+    struct AtomicDict_AccessorStorage *accessors;
 } AtomicDict;
 
 extern PyTypeObject AtomicDict_Type;
@@ -54,10 +53,6 @@ int AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate,
 
 PyObject *AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
-int AtomicDict_Compact(AtomicDict *self);
-
-PyObject *AtomicDict_Compact_callable(AtomicDict *self);
-
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);
@@ -69,6 +64,8 @@ Py_ssize_t AtomicDict_Len_impl(AtomicDict *self);
 PyObject *AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
 PyObject *AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicDict_GetHandle(AtomicDict *self);
 
 PyObject *AtomicDict_Debug(AtomicDict *self);
 

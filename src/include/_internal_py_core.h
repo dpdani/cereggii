@@ -1,3 +1,6 @@
+#ifndef CEREGGII_PY_CORE_H
+#define CEREGGII_PY_CORE_H
+
 #include "Python.h"
 
 #ifdef Py_GIL_DISABLED
@@ -190,3 +193,24 @@ _Py_TryIncref(PyObject *op)
     return 0;
 #endif
 }
+
+
+static inline void
+_Py_SetWeakrefAndIncref(PyObject *obj)
+{
+    // the caller must hold a strong reference to obj
+#ifdef Py_GIL_DISABLED
+    if (_Py_IsImmortal(obj)) {
+        return;
+    }
+
+    _PyObject_SetMaybeWeakref(obj);
+    const int ok = _Py_TryIncRefShared(obj);
+    assert(ok);
+#else
+    Py_INCREF(obj);
+#endif // Py_GIL_DISABLED
+}
+
+
+#endif // CEREGGII_PY_CORE_H

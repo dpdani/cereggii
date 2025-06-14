@@ -4,6 +4,7 @@
 
 #include "atomic_ref.h"
 #include "atomic_ops.h"
+#include "thread_handle.h"
 #include "_internal_py_core.h"
 
 
@@ -36,12 +37,7 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
     }
 
     if (initial_value != NULL) {
-        Py_INCREF(initial_value);
-#ifdef Py_GIL_DISABLED
-        if (!_Py_IsImmortal(initial_value)) {
-            _PyObject_SetMaybeWeakref(initial_value);
-        }
-#endif
+        _Py_SetWeakrefAndIncref(initial_value);
         // decref'ed in destructor
         self->reference = initial_value;
     }
@@ -95,10 +91,7 @@ AtomicRef_Set(AtomicRef *self, PyObject *desired)
 {
     assert(desired != NULL);
 
-    Py_INCREF(desired);
-#ifdef Py_GIL_DISABLED
-    _PyObject_SetMaybeWeakref(desired);
-#endif
+    _Py_SetWeakrefAndIncref(desired);
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
@@ -118,12 +111,7 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
     assert(expected != NULL);
     assert(desired != NULL);
 
-    Py_INCREF(desired);
-#ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(desired)) {
-        _PyObject_SetMaybeWeakref(desired);
-    }
-#endif
+    _Py_SetWeakrefAndIncref(desired);
     int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, desired);
     if (retval) {
         Py_DECREF(expected);
@@ -153,17 +141,33 @@ AtomicRef_CompareAndSet_callable(AtomicRef *self, PyObject *args, PyObject *kwar
     }
 }
 
-PyObject *AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
+PyObject *
+AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
 {
     assert(desired != NULL);
 
-    Py_INCREF(desired);
-#ifdef Py_GIL_DISABLED
-    if (!_Py_IsImmortal(desired)) {
-        _PyObject_SetMaybeWeakref(desired);
-    }
-#endif
+    _Py_SetWeakrefAndIncref(desired);
     PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
     // don't decref current_reference: passing it to python
     return current_reference;
+}
+
+PyObject *
+AtomicRef_GetHandle(AtomicRef *self)
+{
+    ThreadHandle *handle = NULL;
+
+    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
+
+    if (handle == NULL)
+        goto fail;
+
+    PyObject *args = Py_BuildValue("(O)", self);
+    if (ThreadHandle_init(handle, args, NULL) < 0)
+        goto fail;
+
+    return (PyObject *) handle;
+
+    fail:
+    return NULL;
 }

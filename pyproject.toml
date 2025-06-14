@@ -1,5 +1,5 @@
 [build-system]
-requires = ["py-build-cmake"]
+requires = ["py-build-cmake>=0.4.3"]
 build-backend = "py_build_cmake.build"
 
 
@@ -37,16 +37,16 @@ dev = [
 ]
 
 docs = [
-  "mkdocs-material==9.5.34",
-  "mike==2.1.3",
-  "mkdocs-redirects==1.2.1",
-  "mkdocstrings-python==1.11.1",
-  "mkdocs-exclude==1.0.2",
+  "mkdocs-material",
+  "mike",
+  "mkdocs-redirects",
+  "mkdocstrings-python",
+  "mkdocs-exclude",
 ]
 
 
 [project.urls]
-Documentation = "https://github.com/dpdani/cereggii#readme"
+Documentation = "https://dpdani.github.io/cereggii/"
 Issues = "https://github.com/dpdani/cereggii/issues"
 Source = "https://github.com/dpdani/cereggii"
 
@@ -68,6 +68,16 @@ source_path = "src"
 args = ["-L"]
 build_args = ["-j"]
 install_components = ["python_modules"]
+
+
+[tool.cibuildwheel]
+before-all = "cat /proc/cpuinfo || (sysctl -a)"
+enable = [
+  "cpython-freethreading",
+]
+skip = "*i686"
+before-test = "pip install pytest==8.3.3 pytest-reraise==2.1.2"
+test-command = "pytest {project}"
 
 
 [tool.black]
