@@ -10,6 +10,7 @@
 #include "atomic_ref.h"
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "atomic_partitioned_queue.h"
 #include "thread_handle.h"
 
 
@@ -424,6 +425,9 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "ThreadHandle", (PyObject *) &ThreadHandle_Type) < 0)
         goto fail;
     Py_DECREF(&ThreadHandle_Type);
+
+    if (_AtomicPartitionedQueue_mod_init(m) < 0)
+        goto fail;
 
     return m;
     fail:
