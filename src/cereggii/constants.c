@@ -15,6 +15,9 @@ CereggiiConstant_New(char *name)
         goto fail;
 
     constant->name = name;
+#ifdef Py_GIL_DISABLED
+    constant->ob_base.ob_ref_local = _Py_IMMORTAL_REFCNT_LOCAL;
+#endif
 
     Py_INCREF(constant);
     return (PyObject *) constant;
