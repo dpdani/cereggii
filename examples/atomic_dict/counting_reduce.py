@@ -20,10 +20,7 @@ def reduce_example(threads_num):
 
     def incr():
         keys = list(range(10))
-        data = [
-            (keys[_ % len(keys)], 1)
-            for _ in range(iterations)
-        ]
+        data = [(keys[_ % len(keys)], 1) for _ in range(iterations)]
 
         def reduce_sum(key, current, new):
             if current is NOT_FOUND:
@@ -46,8 +43,7 @@ def reduce_example(threads_num):
     total = 0
     for _, v in atomic_dict.fast_iter():
         total += v
-    print(f" - Took {took:.3f}s with {threads_num} threads "
-          f"({took_dict / took:.1f}x faster, {total=})")
+    print(f" - Took {took:.3f}s with {threads_num} threads ({took_dict / took:.1f}x faster, {total=})")
 
 
 gc.disable()
