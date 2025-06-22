@@ -446,7 +446,6 @@ class AtomicDict[Key, Value]:
         self,
         iterable: Iterable[tuple[Key, Value]],
         aggregate: Callable[[Key, Value, Value], Value],
-        chunk_size: int = 0,
     ) -> None:
         """
         Aggregate the values in this dictionary with those found in `iterable`,

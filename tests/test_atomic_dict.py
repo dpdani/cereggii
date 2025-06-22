@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
+import itertools
 import random
 import threading
 from collections import Counter
@@ -583,6 +584,23 @@ def test_reduce():
     assert d["red"] == 6
     assert d["green"] == 42
     assert d["blue"] == 3
+
+
+def test_reduce_specialized_sum():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 4
+
+    def thread():
+        data = ("spam", 1)
+        d.reduce(itertools.repeat(data, iterations), sum)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["spam"] == iterations * n
 
 
 def test_get_handle():
