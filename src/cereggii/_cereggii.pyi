@@ -739,3 +739,25 @@ class AtomicInt64(int):
     @property
     def real(self):
         raise NotImplementedError
+
+class AtomicPartitionedQueue:
+    class AtomicPartitionedQueueProducer:
+        def put(self, item):
+            pass
+
+    class AtomicPartitionedQueueConsumer:
+        def get(self):
+            pass
+
+    def __init__(self, num_partitions: int = 1):
+        pass
+
+    @property
+    def num_partitions(self) -> int:
+        pass
+
+    def producer(self) -> AtomicPartitionedQueueProducer:
+        pass
+
+    def consumer(self) -> AtomicPartitionedQueueConsumer:
+        pass
