@@ -9,6 +9,7 @@
             - compare_and_set
             - reduce
             - reduce_sum
+            - reduce_avg
             - __len__
             - approx_len
             - len_bounds
