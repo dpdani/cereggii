@@ -523,8 +523,43 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the sum operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a handwritten sum function.
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten function.
+        """
+
+    def reduce_avg(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `sum() / len()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] = (atomic_dict[key] + value) / 2
+        ```
+
+        Behaves exactly as if reduce had been called like this:
+
+        ```python
+        def avg_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return (current + new) / 2
+
+        d.reduce(..., avg_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:
