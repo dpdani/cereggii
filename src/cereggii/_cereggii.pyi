@@ -488,8 +488,43 @@ class AtomicDict[Key, Value]:
 
             This method exploits the skewness in the data.
 
-            First, an intermediate result is aggregated into a thread-local dictionary, and then applied to the shared
+            First, an intermediate result is aggregated into a thread-local dictionary and then applied to the shared
             `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
+        """
+
+    def reduce_sum(
+            self,
+            iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `sum`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] += value
+        ```
+
+        Behaves exactly as if reduce had been called like this:
+
+        ```python
+        def sum_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return current + new
+
+        d.reduce(..., sum_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the sum operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten sum function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:

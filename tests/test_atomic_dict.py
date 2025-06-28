@@ -593,7 +593,7 @@ def test_reduce_specialized_sum():
 
     def thread():
         data = ("spam", 1)
-        d.reduce(itertools.repeat(data, iterations), sum)
+        d.reduce_sum(itertools.repeat(data, iterations))
 
     threads = [threading.Thread(target=thread) for _ in range(n)]
     for t in threads:

@@ -5,7 +5,7 @@ import time
 from cereggii import AtomicDict, NOT_FOUND
 
 
-use_optimized_sum = False
+use_optimized_sum = True
 print(f"{use_optimized_sum=}")
 
 expected_total = 3628800
@@ -28,7 +28,7 @@ def reduce_example(threads_num):
             return current + new
 
         if use_optimized_sum:
-            atomic_dict.reduce(data, sum)
+            atomic_dict.reduce_sum(data)
         else:
             atomic_dict.reduce(data, reduce_sum)
 

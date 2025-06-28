@@ -53,6 +53,10 @@ int AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
 
 PyObject *AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
+int AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);

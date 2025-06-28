@@ -450,31 +450,15 @@ reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *ne
     return PyNumber_Add(current, new);
 }
 
-static inline int
-reduce_try_specialize(PyObject *aggregate, PyObject *(**specialized)(PyObject *, PyObject *, PyObject *))
+static int
+AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate,
+    PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), const int is_specialized)
 {
-    assert(aggregate != NULL);
-    assert(PyCallable_Check(aggregate));
+    // is_specialized => specialized != NULL
+    assert(!is_specialized || specialized != NULL);
+    // !is_specialized => aggregate != NULL
+    assert(is_specialized || aggregate != NULL);
 
-    PyObject *builtin_sum = NULL;
-    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "sum", &builtin_sum) < 0)
-        goto fail;
-
-    if (aggregate == builtin_sum) {
-        *specialized = reduce_specialized_sum;
-        return 1;
-    }
-    Py_DECREF(builtin_sum);
-
-    return 0;
-    fail:
-    return -1;
-}
-
-
-int
-AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
-{
     PyObject *item = NULL;
     PyObject *key = NULL;
     PyObject *value = NULL;
@@ -485,15 +469,12 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
     PyObject *local_buffer = NULL;
     PyObject *iterator = NULL;
 
-    if (!PyCallable_Check(aggregate)) {
-        PyErr_Format(PyExc_TypeError, "%R is not callable.", aggregate);
-        goto fail;
+    if (!is_specialized) {
+        if (!PyCallable_Check(aggregate)) {
+            PyErr_Format(PyExc_TypeError, "%R is not callable.", aggregate);
+            goto fail;
+        }
     }
-
-    PyObject *(*specialized)(PyObject *, PyObject *, PyObject *);
-    const int is_specialized = reduce_try_specialize(aggregate, &specialized);
-    if (is_specialized < 0)
-        goto fail;
 
     local_buffer = PyDict_New();
     if (local_buffer == NULL)
@@ -577,6 +558,12 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
     return -1;
 }
 
+int
+AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
+{
+    return AtomicDict_Reduce_impl(self, iterable, aggregate, NULL, 0);
+}
+
 PyObject *
 AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
@@ -589,6 +576,33 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     int res = AtomicDict_Reduce(self, iterable, aggregate);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+int
+AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_sum, 1);
+}
+
+
+PyObject *
+AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceSum(self, iterable);
     if (res < 0)
         goto fail;
 
