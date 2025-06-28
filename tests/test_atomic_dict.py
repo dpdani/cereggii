@@ -603,50 +603,6 @@ def test_reduce_specialized_sum():
     assert d["spam"] == iterations * n
 
 
-def test_reduce_specialized_avg():
-    d = AtomicDict()
-    b = threading.Barrier(3)
-
-    thread_data_1 = [
-        ("and", 10), ("now", 5), ("different", 0), ("and", 20), ("for", 100),
-    ]
-    thread_data_2 = [
-        ("now", 10), ("something", -1), ("and", 30), ("something", 1),
-    ]
-    thread_data_3 = [
-        ("completely", 0), ("different", 0), ("and", 0),
-    ]
-
-    def thread(data):
-        b.wait()
-        d.reduce_avg(data)
-
-    threads = [
-        threading.Thread(target=thread, args=(thread_data_1,)),
-        threading.Thread(target=thread, args=(thread_data_2,)),
-        threading.Thread(target=thread, args=(thread_data_3,)),
-    ]
-
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    # and: (10 + 20 + 30 + 0) / 4 = 60 / 4 = 15.0
-    assert d["and"] == pytest.approx(15.0)
-    # now: (5 + 10) / 2 = 15 / 2 = 7.5
-    assert d["now"] == pytest.approx(7.5)
-    # for: 100 / 1 = 100.0
-    assert d["for"] == pytest.approx(100.0)
-    # something: (-1 + 1) / 2 = 0 / 2 = 0.0
-    assert d["something"] == pytest.approx(0.0)
-    # completely: 0 / 1 = 0.0
-    assert d["completely"] == pytest.approx(0.0)
-    # different: (0 + 0) / 2 = 0.0
-    assert d["different"] == pytest.approx(0.0)
-
-
-
 def test_get_handle():
     d = AtomicDict()
     h = d.get_handle()

@@ -138,7 +138,6 @@ static PyMethodDef AtomicDict_methods[] = {
     {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce_sum",      (PyCFunction) AtomicDict_ReduceSum_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_avg",      (PyCFunction) AtomicDict_ReduceAvg_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
     {NULL}
 };

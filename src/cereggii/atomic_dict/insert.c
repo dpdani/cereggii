@@ -439,6 +439,17 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyOb
     return -1;
 }
 
+static inline PyObject *
+reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    return PyNumber_Add(current, new);
+}
+
 static int
 AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate,
     PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), const int is_specialized)
@@ -574,17 +585,6 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     return NULL;
 }
 
-static inline PyObject *
-reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
-{
-    assert(current != NULL);
-    assert(new != NULL);
-    if (current == NOT_FOUND) {
-        return new;
-    }
-    return PyNumber_Add(current, new);
-}
-
 int
 AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable)
 {
@@ -603,50 +603,6 @@ AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
         goto fail;
 
     int res = AtomicDict_ReduceSum(self, iterable);
-    if (res < 0)
-        goto fail;
-
-    Py_RETURN_NONE;
-
-    fail:
-    return NULL;
-}
-
-static inline PyObject *
-reduce_specialized_avg(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
-{
-    assert(current != NULL);
-    assert(new != NULL);
-    if (current == NOT_FOUND) {
-        return new;
-    }
-    PyObject *sum = PyNumber_Add(current, new);
-    if (sum == NULL)
-        return NULL;
-    PyObject *two = PyLong_FromLong(2);
-    if (two == NULL)
-        return NULL;
-    return PyNumber_TrueDivide(sum, two);
-}
-
-int
-AtomicDict_ReduceAvg(AtomicDict *self, PyObject *iterable)
-{
-    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_avg, 1);
-}
-
-
-PyObject *
-AtomicDict_ReduceAvg_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
-{
-    PyObject *iterable = NULL;
-
-    char *kw_list[] = {"iterable", NULL};
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
-        goto fail;
-
-    int res = AtomicDict_ReduceAvg(self, iterable);
     if (res < 0)
         goto fail;
 
