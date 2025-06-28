@@ -493,8 +493,8 @@ class AtomicDict[Key, Value]:
         """
 
     def reduce_sum(
-            self,
-            iterable: Iterable[tuple[Key, Value]],
+        self,
+        iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
         Aggregate the values in this dictionary with those found in `iterable`,
