@@ -61,6 +61,10 @@ int AtomicDict_ReduceAnd(AtomicDict *self, PyObject *iterable);
 
 PyObject *AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
+int AtomicDict_ReduceOr(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);

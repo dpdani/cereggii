@@ -499,7 +499,7 @@ class AtomicDict[Key, Value]:
     ) -> None:
         """
         Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `sum`.
+        as computed by `sum()`.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
@@ -511,7 +511,7 @@ class AtomicDict[Key, Value]:
                 atomic_dict[key] += value
         ```
 
-        Behaves exactly as if reduce had been called like this:
+        Behaves exactly as if [`reduce`][cereggii._cereggii.AtomicDict.reduce] had been called like this:
 
         ```python
         def sum_fn(key, current, new):
@@ -534,7 +534,7 @@ class AtomicDict[Key, Value]:
     ) -> None:
         """
         Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `all`.
+        as computed by `all()`.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
@@ -546,7 +546,7 @@ class AtomicDict[Key, Value]:
                 atomic_dict[key] = atomic_dict[key] and (not not value)
         ```
 
-        Behaves exactly as if reduce had been called like this:
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
 
         ```python
         def and_fn(key, current, new):
@@ -555,6 +555,41 @@ class AtomicDict[Key, Value]:
             return current and (not not new)
 
         d.reduce(..., and_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten function.
+        """
+
+    def reduce_or(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `any()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = not not value
+            else:
+                atomic_dict[key] = atomic_dict[key] or (not not value)
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def or_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return not not new
+            return current or (not not new)
+
+        d.reduce(..., or_fn)
         ```
 
         !!! tip
