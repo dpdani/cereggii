@@ -462,6 +462,7 @@ class AtomicDict[Key, Value]:
             - **total** &mdash; it should handle both the case in which the key is present and in which it is not
             - **state-less** &mdash; you should not rely on the number of times this function is called (it will be
             called at least once for each item in `iterable`, but there is no upper bound)
+            - **commutative** and **associative** &mdash; the result must not depend on the order of calls to `aggregate`
 
         !!! example
             **Counter**
@@ -523,8 +524,43 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the sum operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a handwritten sum function.
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten function.
+        """
+
+    def reduce_and(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `all`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = not not value
+            else:
+                atomic_dict[key] = atomic_dict[key] and (not not value)
+        ```
+
+        Behaves exactly as if reduce had been called like this:
+
+        ```python
+        def and_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return not not new
+            return current and (not not new)
+
+        d.reduce(..., and_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a handwritten function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:

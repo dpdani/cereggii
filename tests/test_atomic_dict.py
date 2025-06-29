@@ -603,6 +603,37 @@ def test_reduce_specialized_sum():
     assert d["spam"] == iterations * n
 
 
+def test_reduce_specialized_and():
+    d = AtomicDict()
+    iterations = 100
+    n = 4
+
+    def thread():
+        truthy = [True, "spam", 1, [[]], (42,), {0}]
+        falsy = [False, "", 0, [], tuple(), set()]
+        data = [
+            ("norwegian", truthy[_ % len(truthy)])
+            for _ in range(iterations)
+        ] + [
+            ("blue", truthy[_ % len(truthy)])
+            for _ in range(iterations)
+        ] + [
+            ("voom", truthy[_ % len(truthy)])
+            for _ in range(iterations)
+        ] + [
+            ("voom", falsy[_ % len(falsy)])
+            for _ in range(iterations)
+        ]
+        d.reduce_and(data)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["norwegian"] and d["blue"] and not d["voom"]
+
+
 def test_get_handle():
     d = AtomicDict()
     h = d.get_handle()

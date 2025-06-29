@@ -611,3 +611,44 @@ AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     fail:
     return NULL;
 }
+
+static inline PyObject *
+reduce_specialized_and(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    if (PyObject_IsTrue(current) && PyObject_IsTrue(new)) {
+        return Py_True;  // Py_INCREF() called externally
+    }
+    return Py_False;  // Py_INCREF() called externally
+}
+
+int
+AtomicDict_ReduceAnd(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_and, 1);
+}
+
+
+PyObject *
+AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceAnd(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
