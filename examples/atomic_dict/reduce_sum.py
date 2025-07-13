@@ -13,9 +13,9 @@ def make_keys():
     return list(range(10))
 
 
-def make_data(iterations):
+def make_data(data_size):
     keys = make_keys()
-    return [(keys[_ % len(keys)], 5) for _ in range(iterations)]
+    return [(keys[_ % len(keys)], 5) for _ in range(data_size)]
 
 
 def builtin_dict_sum():
@@ -46,10 +46,10 @@ def thread_specialized(atomic_dict, iterations):
 
 def threaded_sum(threads_num, thread_target):
     atomic_dict = AtomicDict()
-    iterations = size // threads_num
+    data_size = size // threads_num
 
     threads = [
-        threading.Thread(target=thread_target, args=(atomic_dict, iterations))
+        threading.Thread(target=thread_target, args=(atomic_dict, data_size))
         for _ in range(threads_num)
     ]
     for t in threads:
@@ -75,17 +75,17 @@ def time_and_run(func, *args):
     return average, ret
 
 
-print("\nCounting keys using the built-in dict with a single thread:")
+print("\nSummation using the built-in dict with a single thread:")
 took_dict, total = time_and_run(builtin_dict_sum)
 print(f" - Took {took_dict:.3f}s ({total=})")
 
 thread_counts = [1, 2, 3, 4]
-print("\nCounting keys using cereggii.AtomicDict.reduce():")
+print("\nSummation using cereggii.AtomicDict.reduce():")
 for count in thread_counts:
     took, total = time_and_run(threaded_sum, count, thread)
     print(f" - Took {took:.3f}s with {count} threads ({took_dict / took:.1f}x faster, {total=})")
 
-print("\nCounting keys using cereggii.AtomicDict.reduce_sum():")
+print("\nSummation using cereggii.AtomicDict.reduce_sum():")
 for count in thread_counts:
     took, total = time_and_run(threaded_sum, count, thread_specialized)
     print(f" - Took {took:.3f}s with {count} threads ({took_dict / took:.1f}x faster, {total=})")

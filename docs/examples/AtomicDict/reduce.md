@@ -8,17 +8,14 @@ both single-threaded and multithreaded scenarios.
 The example consists of:
 
 - synthetic dataset generation
-- baseline single-threaded dictionary summation
+- baseline single-threaded dictionary summation using `dict`
 - multithreaded implementation using [`AtomicDict.reduce()`][cereggii._cereggii.AtomicDict.reduce]
   and [`reduce_sum()`][cereggii._cereggii.AtomicDict.reduce_sum]
 - a performance comparison between the approaches
 
-In this example we feed some synthetic data into an AtomicDict to compute the
-per-key sum of the values in the input.
-
 ## Source Code
 
-The source code is available [on GitHub](https://github.com/dpdani/cereggii/blob/main/examples/atomic_dict/counting_reduce.py).
+The source code is available [on GitHub](https://github.com/dpdani/cereggii/blob/main/examples/atomic_dict/reduce_sum.py).
 We'll briefly go through its structure.
 
 ### Generating Data
@@ -29,7 +26,7 @@ We use 5 as the value for each item in the data so that we have a predictable
 total which we can later use to check the outputs.
 
 ```python
---8<-- "examples/atomic_dict/counting_reduce.py:7:18"
+--8<-- "examples/atomic_dict/reduce_sum.py:7:18"
 ```
 
 ### Single-threaded Baseline
@@ -41,12 +38,12 @@ with an initial value of 0, proceed with summing the values in the input, and th
 return the sum of the values in the dictionary.
 
 ```python
---8<-- "examples/atomic_dict/counting_reduce.py:21:28"
+--8<-- "examples/atomic_dict/reduce_sum.py:21:28"
 ```
 
 ### Multithreaded Implementation
 
-Now we let's go through the multithreaded implementation of `builtin_dict_sum`.
+Now let's go through the multithreaded equivalent of `builtin_dict_sum`.
 This is what's going on in the function below:
 
 1. create a new `AtomicDict()`
@@ -56,7 +53,7 @@ This is what's going on in the function below:
 5. sum the values in the dictionary
 
 ```python
---8<-- "examples/atomic_dict/counting_reduce.py:47:63"
+--8<-- "examples/atomic_dict/reduce_sum.py:47:63"
 ```
 
 !!! Note
@@ -65,14 +62,14 @@ This is what's going on in the function below:
     A more serious program that doesn't use synthetic data should look for a better
     way to partition it.
 
-What has been intentionally left out of the snippet above is the target function
-that the threads actually run.
-This is because we'll compare two variants of that: one uses a handwritten input function
+The target function that the threads actually run has been intentionally left out 
+of the snippet above.
+This is because we'll compare two variants of that: one uses a custom input function
 for `reduce()` (the `aggregate` argument), while the other uses a specialized reduce
-function that sums the values in the input data, exactly as the handwritten variant does.
+function that sums the values in the input data, exactly as the custom variant does.
 As we'll see later, this results not only in more convenience but also better performance.
 
-### Understanding `reduce()` — Using a Handwritten Function
+### Understanding `reduce()` — Using a Custom Function
 
 [`AtomicDict.reduce()`][cereggii._cereggii.AtomicDict.reduce] applies a user-defined
 function to every key-value pair in a thread-safe way.
@@ -88,7 +85,7 @@ When `current is NOT_FOUND`, it means that `key` is not present in the dictionar
 in this case, it makes sense to return the `new` value.
 
 ```python
---8<-- "examples/atomic_dict/counting_reduce.py:31:39"
+--8<-- "examples/atomic_dict/reduce_sum.py:31:39"
 ```
 
 This is somewhat more compact than the single-threaded version based on `dict`.
@@ -118,20 +115,20 @@ More on how to cope with this limitation in the [Using `reduce()` for Averaging 
 ### Specialized Function
 
 Summation is a simple and common way of using `reduce()`.
-Since it is so, a specialized version is available in [
-`AtomicDict.reduce_sum()`][cereggii._cereggii.AtomicDict.reduce_sum].
+Since it is so, a specialized version is available in [`AtomicDict.reduce_sum()`][cereggii._cereggii.AtomicDict.reduce_sum].
 The code using the specialized reduction is very compact:
 
 ```python
---8<-- "examples/atomic_dict/counting_reduce.py:42:44"
+--8<-- "examples/atomic_dict/reduce_sum.py:42:44"
 ```
 
 Multithreaded summation is a solved problem.
-We believe it should be easily accessible, too.
+It should be easily accessible, too.
 
 ## Results
 
-The results shown here have been run with a beta version of free-threading Python 3.14.
+The results shown here have been run with a beta version of [free-threading](https://py-free-threading.github.io/)
+Python 3.14.
 
 ```text
 $ python -VV
@@ -141,6 +138,26 @@ Python 3.14.0b2 experimental free-threading build (main, Jun 13 2025, 18:57:59) 
 !!! Note
     Speedup is relative to the single-threaded baseline.
     A value below 1.0x means it performed worse than the baseline.
+
+### Correctness
+
+We'll go through the performance numbers soon, I promise, but first let me spend
+a few words about the correctness of the results.
+
+As you'll see from the program outputs below, all methods we've used, both based
+on dict and AtomicDict, have produced the expected total.
+For dict this really isn't big news, but I think it's worth observing how AtomicDict
+has made the correct result show.
+
+There are data races in this multithreaded operation.
+Multiple threads have computed their partial sum and have all concurrently tried
+to update the shared dictionary, racing one against the others.
+This is not a problem for `reduce()`: the races are transparently coped with, without
+explicit intervention in the code.
+Internally, a race has been detected and the operation retried.
+
+The family of `reduce()` methods effectively guarantees to observe the single-threaded
+result, regardless of the number of threads.
 
 ### Specialization
 
@@ -161,9 +178,10 @@ Counting keys using cereggii.AtomicDict.reduce_sum():
  - Took 0.086s with 4 threads (5.0x faster, total=18144000)
 ```
 
-### Using the handwritten reduce function
+### Using the Custom Reduce Function
 
-Looking at the runtime of the non-specialized function, we can observe lower performance.
+Looking at the running time of the non-specialized function, we can observe lower 
+performance.
 It is recommended to use one of the specialized reduce functions, whenever possible.
 
 If you're implementing a custom function to use with `reduce()`, make sure to read the
@@ -196,12 +214,17 @@ Counting keys using cereggii.AtomicDict.reduce():
 |                           | 3       | 0.113    | 3.8x    |
 |                           | 4       | 0.086    | 5.0x    |
 
+!!! Note
+    We haven't considered multithreaded scenarios for `dict` because performance
+    would be strictly worse than the single-threaded scenario.
+
 ## Summary
 
-- complying with the requirements of `reduce()` lets us easily write 
-  data-race-free code
+- complying with the requirements of `reduce()` lets us write data-race-free 
+  aggregations for `AtomicDict`
 - `reduce_sum()` is both more convenient and more performant
 - multithreading brings significant speedups when using `AtomicDict`
 
 Refer to the [`AtomicDict.reduce()` documentation][cereggii._cereggii.AtomicDict.reduce]
-for full details on writing compatible reduce functions.
+for full details on writing compatible reduce functions, or check the [Using `reduce()` for Averaging example](./reduce-average.md)
+for a more advanced use case.
