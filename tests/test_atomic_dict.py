@@ -590,8 +590,10 @@ def test_reduce_specialized_sum():
     d = AtomicDict()
     iterations = 1_000
     n = 4
+    b = threading.Barrier(n)
 
     def thread():
+        b.wait()
         data = ("spam", 1)
         d.reduce_sum(itertools.repeat(data, iterations))
 
@@ -607,8 +609,10 @@ def test_reduce_specialized_and():
     d = AtomicDict()
     iterations = 100
     n = 4
+    b = threading.Barrier(n)
 
     def thread():
+        b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
         data = [
@@ -638,8 +642,10 @@ def test_reduce_specialized_or():
     d = AtomicDict()
     iterations = 100
     n = 4
+    b = threading.Barrier(n)
 
     def thread():
+        b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
         data = [
@@ -663,6 +669,50 @@ def test_reduce_specialized_or():
     for t in threads:
         t.join()
     assert not d["norwegian"] and not d["blue"] and d["voom"]
+
+
+def test_reduce_specialized_max():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [
+            ("spam", _ * i)
+            for _ in range(iterations)
+        ]
+        d.reduce_max(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["spam"] == (n - 1) * (iterations - 1)
+
+
+def test_reduce_specialized_min():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [
+            ("spam", _ * i)
+            for _ in range(iterations)
+        ]
+        d.reduce_min(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["spam"] == 0
 
 
 def test_get_handle():
