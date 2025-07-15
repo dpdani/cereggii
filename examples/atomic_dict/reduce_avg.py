@@ -53,7 +53,7 @@ def thread(atomic_dict, iterations):
     atomic_dict.reduce(data, my_reduce_avg)
 
 
-def threaded_sum(threads_num, thread_target):
+def threaded_avg(threads_num, thread_target):
     atomic_dict = AtomicDict()
     data_size = size // threads_num
 
@@ -93,5 +93,5 @@ print(f" - Took {took_dict:.3f}s ({average=:.2f})")
 thread_counts = [1, 2, 3, 4]
 print("\nAveraging using cereggii.AtomicDict.reduce():")
 for count in thread_counts:
-    took, average = time_and_run(threaded_sum, count, thread)
+    took, average = time_and_run(threaded_avg, count, thread)
     print(f" - Took {took:.3f}s with {count} threads ({took_dict / took:.1f}x faster, {average=:.2f})")
