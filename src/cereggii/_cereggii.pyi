@@ -525,7 +525,7 @@ class AtomicDict[Key, Value]:
         !!! tip
 
             The implementation of the operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a handwritten function.
+            instead of calling `reduce` with a custom function.
         """
 
     def reduce_and(
@@ -560,7 +560,7 @@ class AtomicDict[Key, Value]:
         !!! tip
 
             The implementation of the operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a handwritten function.
+            instead of calling `reduce` with a custom function.
         """
 
     def reduce_or(
@@ -595,7 +595,77 @@ class AtomicDict[Key, Value]:
         !!! tip
 
             The implementation of the operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a handwritten function.
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_max(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `max()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] = max(value, atomic_dict[key])
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def max_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return max(new, current)
+
+        d.reduce(..., max_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_min(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `min()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] = min(value, atomic_dict[key])
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def min_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return min(new, current)
+
+        d.reduce(..., min_fn)
+        ```
+
+        !!! tip
+
+            The implementation of the operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:

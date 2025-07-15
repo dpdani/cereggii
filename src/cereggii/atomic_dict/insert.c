@@ -439,17 +439,6 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyOb
     return -1;
 }
 
-static inline PyObject *
-reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
-{
-    assert(current != NULL);
-    assert(new != NULL);
-    if (current == NOT_FOUND) {
-        return new;
-    }
-    return PyNumber_Add(current, new);
-}
-
 static int
 AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate,
     PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), const int is_specialized)
@@ -585,6 +574,17 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     return NULL;
 }
 
+static inline PyObject *
+reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    return PyNumber_Add(current, new);
+}
+
 int
 AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable)
 {
@@ -632,7 +632,6 @@ AtomicDict_ReduceAnd(AtomicDict *self, PyObject *iterable)
     return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_and, 1);
 }
 
-
 PyObject *
 AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
@@ -652,7 +651,6 @@ AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     fail:
     return NULL;
 }
-
 
 static inline PyObject *
 reduce_specialized_or(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
@@ -674,7 +672,6 @@ AtomicDict_ReduceOr(AtomicDict *self, PyObject *iterable)
     return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_or, 1);
 }
 
-
 PyObject *
 AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
@@ -686,6 +683,96 @@ AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     int res = AtomicDict_ReduceOr(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_max(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    Py_INCREF(current);
+    Py_INCREF(new);
+    const int cmp = PyObject_RichCompareBool(current, new, Py_GE);
+    if (cmp < 0)
+        return NULL;
+    if (cmp) {
+        return current;
+    }
+    return new;
+}
+
+int
+AtomicDict_ReduceMax(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_max, 1);
+}
+
+PyObject *
+AtomicDict_ReduceMax_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceMax(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_min(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    Py_INCREF(current);
+    Py_INCREF(new);
+    const int cmp = PyObject_RichCompareBool(current, new, Py_LE);
+    if (cmp < 0)
+        return NULL;
+    if (cmp) {
+        return current;
+    }
+    return new;
+}
+
+int
+AtomicDict_ReduceMin(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_min, 1);
+}
+
+PyObject *
+AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceMin(self, iterable);
     if (res < 0)
         goto fail;
 

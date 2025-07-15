@@ -9,6 +9,10 @@
             - compare_and_set
             - reduce
             - reduce_sum
+            - reduce_and
+            - reduce_or
+            - reduce_max
+            - reduce_min
             - __len__
             - approx_len
             - len_bounds

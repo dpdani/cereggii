@@ -139,7 +139,9 @@ static PyMethodDef AtomicDict_methods[] = {
     {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce_sum",      (PyCFunction) AtomicDict_ReduceSum_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce_and",      (PyCFunction) AtomicDict_ReduceAnd_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_or",      (PyCFunction) AtomicDict_ReduceOr_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_or",       (PyCFunction) AtomicDict_ReduceOr_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_max",      (PyCFunction) AtomicDict_ReduceMax_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_min",      (PyCFunction) AtomicDict_ReduceMin_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
     {NULL}
 };
