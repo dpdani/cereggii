@@ -19,7 +19,7 @@ nav:
   - 'Examples':
       - 'AtomicDict':
           - 'Reduce': 'examples/AtomicDict/reduce.md'
-          - 'Reduce Average': 'examples/AtomicDict/reduce-average.md'
+          - 'Advanced Reduce': 'examples/AtomicDict/reduce-average.md'
   - 'Concurrency 101':
       - 'concurrency-101/index.md'
       - 'concurrency-101/safety.md'
