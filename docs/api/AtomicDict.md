@@ -14,6 +14,7 @@
             - reduce_max
             - reduce_min
             - reduce_list
+            - reduce_count
             - __len__
             - approx_len
             - len_bounds

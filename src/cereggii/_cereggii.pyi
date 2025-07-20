@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable, Iterator
-from typing import Self, SupportsComplex, SupportsFloat, SupportsInt
+from typing import Any, Self, SupportsComplex, SupportsFloat, SupportsInt
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
@@ -705,6 +705,62 @@ class AtomicDict[Key, Value]:
             return to_list(current) + to_list(new)
 
         d.reduce(..., list_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_count(
+        self,
+        iterable: Iterable[Key] | dict[Any, int],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        by counting the number of occurrences of each key.
+        (This is similar to the behavior of
+        [`collections.Counter`](https://docs.python.org/3/library/collections.html#collections.Counter).)
+
+        !!! Note
+            Differently from [reduce][cereggii._cereggii.AtomicDict.reduce], this
+            method does not interpret the input as an iterable of key-value pairs,
+            but rather as an iterable of keys.
+
+        !!! Info "From a dict"
+            A `dict[Any, int]` can also be used, instead of an `Iterable[Key]`.
+            This follows the behavior of `collections.Counter`.
+
+            ```python
+            my_atomic_dict = AtomicDict({"spam": 1})
+            my_atomic_dict.reduce_count({"spam": 10, "eggs": 2, "ham": 3})
+            assert my_atomic_dict["spam"] == 11
+            assert my_atomic_dict["eggs"] == 2
+            assert my_atomic_dict["ham"] == 3
+            ```
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = 1
+            else:
+                atomic_dict[key] += 1
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        import itertools
+
+        def sum_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return current + new
+
+        d.reduce(zip(..., itertools.repeat(1)), sum_fn)
         ```
 
         !!! tip

@@ -888,3 +888,114 @@ AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwarg
     fail:
     return NULL;
 }
+
+static inline PyObject *
+reduce_count_zip_iter_with_ones(AtomicDict *self, PyObject *iterable)
+{
+    // we want to return `zip(iterable, itertools.repeat(1))`
+    PyObject *iterator = NULL;
+    PyObject *builtin_zip = NULL;
+    PyObject *itertools = NULL;
+    PyObject *itertools_namespace = NULL;
+    PyObject *itertools_repeat = NULL;
+    PyObject *one = NULL;
+    PyObject *repeat_one = NULL;
+    PyObject *zipped = NULL;
+
+    iterator = PyObject_GetIter(iterable);
+    if (iterator == NULL) {
+        PyErr_Format(PyExc_TypeError, "%R is not iterable.", iterable);
+        goto fail;
+    }
+
+    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "zip", &builtin_zip) < 0)
+        goto fail;
+
+    // the following lines implement this Python code:
+    //     import itertools
+    //     itertools.repeat(1)
+    itertools = PyImport_ImportModule("itertools");
+    if (itertools == NULL)
+        goto fail;
+    itertools_namespace = PyModule_GetDict(itertools);
+    if (itertools_namespace == NULL)
+        goto fail;
+    Py_INCREF(itertools_namespace);
+    if (PyDict_GetItemStringRef(itertools_namespace, "repeat", &itertools_repeat) < 0)
+        goto fail;
+    Py_CLEAR(itertools_namespace);
+    one = PyLong_FromLong(1);
+    if (one == NULL)
+        goto fail;
+    repeat_one = PyObject_CallFunctionObjArgs(itertools_repeat, one, NULL);
+    if (repeat_one == NULL)
+        goto fail;
+
+    zipped = PyObject_CallFunctionObjArgs(builtin_zip, iterator, repeat_one, NULL);
+    if (zipped == NULL)
+        goto fail;
+
+    Py_DECREF(iterator);
+    Py_DECREF(builtin_zip);
+    Py_DECREF(itertools);
+    Py_DECREF(itertools_repeat);
+    Py_DECREF(one);
+    Py_DECREF(repeat_one);
+    return zipped;
+    fail:
+    Py_XDECREF(iterator);
+    Py_XDECREF(builtin_zip);
+    Py_XDECREF(itertools);
+    Py_XDECREF(itertools_namespace);
+    Py_XDECREF(itertools_repeat);
+    Py_XDECREF(one);
+    Py_XDECREF(repeat_one);
+    return NULL;
+}
+
+int
+AtomicDict_ReduceCount(AtomicDict *self, PyObject *iterable)
+{
+    PyObject *it = NULL;
+
+    // todo: extend to all mappings
+    //   the problem is that PyMapping_Check(iterable) returns 1 also when iterable is a list or tuple
+    if (PyDict_Check(iterable)) {  // cannot fail: no error check
+        it = PyDict_Items(iterable);
+    } else {
+        it = reduce_count_zip_iter_with_ones(self, iterable);
+    }
+    if (it == NULL)
+        goto fail;
+
+    const int res = AtomicDict_Reduce_impl(self, it, NULL, reduce_specialized_sum, 1);
+    if (res < 0)
+        goto fail;
+
+    Py_DECREF(it);
+    return 0;
+    fail:
+    Py_XDECREF(it);
+    return -1;
+}
+
+PyObject *
+AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceCount(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+

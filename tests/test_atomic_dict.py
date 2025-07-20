@@ -737,6 +737,49 @@ def test_reduce_specialized_list():
     expected = [_ * i for _ in range(iterations) for i in range(n)]
     assert sorted(d["spam"]) == sorted(expected)
 
+def as_dict(atomic_dict: AtomicDict):
+    dict_ = {}
+    for key, value in atomic_dict.fast_iter():
+        dict_[key] = value
+    return dict_
+
+def test_reduce_specialized_count():
+    d = AtomicDict()
+    d.reduce_count([])
+    assert as_dict(d) == {}
+
+    d = AtomicDict()
+    d.reduce_count("gallahad")
+    assert as_dict(d) == {'g': 1, 'a': 3, 'l': 2, 'h': 1, 'd': 1}
+
+    d = AtomicDict()
+    d.reduce_count({"red": 4, "blue": 2})
+    assert as_dict(d) == {"red": 4, "blue": 2}
+
+    # Counter(cats=4, dogs=8) kwargs syntax not supported
+
+
+def test_reduce_specialized_count_threads():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread():
+        b.wait()
+        data = [
+            "spam"
+            for _ in range(iterations)
+        ]
+        d.reduce_count(data)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert as_dict(d) == {"spam": iterations * n}
+
 
 def test_get_handle():
     d = AtomicDict()
