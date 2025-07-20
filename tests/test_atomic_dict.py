@@ -615,19 +615,12 @@ def test_reduce_specialized_and():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
-        data = [
-            ("norwegian", truthy[_ % len(truthy)])
-            for _ in range(iterations)
-        ] + [
-            ("blue", truthy[_ % len(truthy)])
-            for _ in range(iterations)
-        ] + [
-            ("voom", truthy[_ % len(truthy)])
-            for _ in range(iterations)
-        ] + [
-            ("voom", falsy[_ % len(falsy)])
-            for _ in range(iterations)
-        ]
+        data = (
+            [("norwegian", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("blue", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", falsy[_ % len(falsy)]) for _ in range(iterations)]
+        )
         d.reduce_and(data)
 
     threads = [threading.Thread(target=thread) for _ in range(n)]
@@ -648,19 +641,12 @@ def test_reduce_specialized_or():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
-        data = [
-            ("norwegian", falsy[_ % len(falsy)])
-            for _ in range(iterations)
-        ] + [
-            ("blue", falsy[_ % len(falsy)])
-            for _ in range(iterations)
-        ] + [
-            ("voom", truthy[_ % len(truthy)])
-            for _ in range(iterations)
-        ] + [
-            ("voom", truthy[_ % len(truthy)])
-            for _ in range(iterations)
-        ]
+        data = (
+            [("norwegian", falsy[_ % len(falsy)]) for _ in range(iterations)]
+            + [("blue", falsy[_ % len(falsy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+        )
         d.reduce_and(data)
 
     threads = [threading.Thread(target=thread) for _ in range(n)]
@@ -679,10 +665,7 @@ def test_reduce_specialized_max():
 
     def thread(i):
         b.wait()
-        data = [
-            ("spam", _ * i)
-            for _ in range(iterations)
-        ]
+        data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_max(data)
 
     threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
@@ -701,10 +684,7 @@ def test_reduce_specialized_min():
 
     def thread(i):
         b.wait()
-        data = [
-            ("spam", _ * i)
-            for _ in range(iterations)
-        ]
+        data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_min(data)
 
     threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
@@ -723,10 +703,7 @@ def test_reduce_specialized_list():
 
     def thread(i):
         b.wait()
-        data = [
-            ("spam", _ * i)
-            for _ in range(iterations)
-        ]
+        data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_list(data)
 
     threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
@@ -737,11 +714,13 @@ def test_reduce_specialized_list():
     expected = [_ * i for _ in range(iterations) for i in range(n)]
     assert sorted(d["spam"]) == sorted(expected)
 
+
 def as_dict(atomic_dict: AtomicDict):
     dict_ = {}
     for key, value in atomic_dict.fast_iter():
         dict_[key] = value
     return dict_
+
 
 def test_reduce_specialized_count():
     d = AtomicDict()
@@ -767,10 +746,7 @@ def test_reduce_specialized_count_threads():
 
     def thread():
         b.wait()
-        data = [
-            "spam"
-            for _ in range(iterations)
-        ]
+        data = ["spam" for _ in range(iterations)]
         d.reduce_count(data)
 
     threads = [threading.Thread(target=thread) for _ in range(n)]
