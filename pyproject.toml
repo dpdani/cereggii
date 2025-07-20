@@ -84,6 +84,8 @@ test-command = "pytest {project}"
 target-version = ["py313"]
 line-length = 120
 skip-string-normalization = true
+# remove this after line-length is reset to the default of 88
+extend_exclude = "(examples/atomic_dict/reduce_sum.py|examples/atomic_dict/reduce_avg.py)"
 
 [tool.ruff]
 target-version = "py313"

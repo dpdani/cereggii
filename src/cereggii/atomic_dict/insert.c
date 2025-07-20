@@ -371,6 +371,68 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
 
 
 static inline int
+flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
+{
+    assert(key != NULL);
+    assert(expected != NULL);
+    assert(new != NULL);
+    assert(expected == NOT_FOUND);
+
+    Py_INCREF(key);
+    Py_INCREF(expected);
+    Py_INCREF(new);
+
+    PyObject *previous = NULL;
+    PyObject *current = NULL;
+    PyObject *desired = new;
+    PyObject *new_desired = NULL;
+
+    while (1) {
+        previous = AtomicDict_CompareAndSet(self, key, expected, desired);
+
+        if (previous == NULL)
+            goto fail;
+
+        if (previous != EXPECTATION_FAILED) {
+            break;
+        }
+
+        current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
+
+        // the aggregate function must always be called with `new`, not `desired`
+        new_desired = NULL;
+        if (is_specialized) {
+            new_desired = specialized(key, current, new);
+        } else {
+            new_desired = PyObject_CallFunctionObjArgs(aggregate, key, current, new, NULL);
+        }
+        if (new_desired == NULL)
+            goto fail;
+
+        Py_DECREF(expected);
+        expected = current;
+        current = NULL;
+        Py_DECREF(desired);
+        desired = new_desired;
+        new_desired = NULL;
+    }
+    Py_XDECREF(previous);
+    Py_XDECREF(key);
+    if (current != expected) {
+        Py_XDECREF(current);
+    }
+    Py_XDECREF(expected);
+    if (desired != new) {
+        Py_DECREF(desired);
+    }
+    Py_XDECREF(new);
+    return 0;
+    fail:
+    return -1;
+}
+
+
+static inline int
 reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
 {
     Py_ssize_t pos = 0;
@@ -389,48 +451,17 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyOb
         assert(tuple != NULL);
         assert(PyTuple_Size(tuple) == 2);
         expected = PyTuple_GetItem(tuple, 0);
-        desired = PyTuple_GetItem(tuple, 1);
-        // Py_CLEAR(tuple);
-        Py_INCREF(key);
+        new = PyTuple_GetItem(tuple, 1);
+        // don't Py_DECREF(tuple) because PyDict_Next returns borrowed references
 
-    retry:
-        Py_INCREF(expected);
-        Py_INCREF(desired);
-        previous = AtomicDict_CompareAndSet(self, key, expected, desired);
-
-        if (previous == NULL)
+        int error = flush_one(self, key, expected, new, aggregate, specialized, is_specialized);
+        if (error) {
             goto fail;
-
-        if (previous == EXPECTATION_FAILED) {
-            current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
-
-            if (is_specialized) {
-                new = specialized(key, current, desired);
-            } else {
-                new = PyObject_CallFunctionObjArgs(aggregate, key, current, desired, NULL);
-            }
-            if (new == NULL)
-                goto fail;
-
-            Py_DECREF(expected);
-            expected = current;
-            current = NULL;
-            Py_DECREF(desired);
-            desired = new;
-            new = NULL;
-
-            goto retry;
         }
-        Py_XDECREF(previous);
-        Py_XDECREF(key);
-        Py_XDECREF(expected);
-        Py_XDECREF(current);
-        Py_XDECREF(desired);
     }
     return 0;
     fail:
     Py_XDECREF(key);
-    Py_XDECREF(tuple);
     Py_XDECREF(expected);
     Py_XDECREF(current);
     Py_XDECREF(desired);
@@ -439,42 +470,15 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyOb
     return -1;
 }
 
-static inline PyObject *
-reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+static int
+AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate,
+    PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), const int is_specialized)
 {
-    assert(current != NULL);
-    assert(new != NULL);
-    if (current == NOT_FOUND) {
-        return new;
-    }
-    return PyNumber_Add(current, new);
-}
+    // is_specialized => specialized != NULL
+    assert(!is_specialized || specialized != NULL);
+    // !is_specialized => aggregate != NULL
+    assert(is_specialized || aggregate != NULL);
 
-static inline int
-reduce_try_specialize(PyObject *aggregate, PyObject *(**specialized)(PyObject *, PyObject *, PyObject *))
-{
-    assert(aggregate != NULL);
-    assert(PyCallable_Check(aggregate));
-
-    PyObject *builtin_sum = NULL;
-    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "sum", &builtin_sum) < 0)
-        goto fail;
-
-    if (aggregate == builtin_sum) {
-        *specialized = reduce_specialized_sum;
-        return 1;
-    }
-    Py_DECREF(builtin_sum);
-
-    return 0;
-    fail:
-    return -1;
-}
-
-
-int
-AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
-{
     PyObject *item = NULL;
     PyObject *key = NULL;
     PyObject *value = NULL;
@@ -485,15 +489,12 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
     PyObject *local_buffer = NULL;
     PyObject *iterator = NULL;
 
-    if (!PyCallable_Check(aggregate)) {
-        PyErr_Format(PyExc_TypeError, "%R is not callable.", aggregate);
-        goto fail;
+    if (!is_specialized) {
+        if (!PyCallable_Check(aggregate)) {
+            PyErr_Format(PyExc_TypeError, "%R is not callable.", aggregate);
+            goto fail;
+        }
     }
-
-    PyObject *(*specialized)(PyObject *, PyObject *, PyObject *);
-    const int is_specialized = reduce_try_specialize(aggregate, &specialized);
-    if (is_specialized < 0)
-        goto fail;
 
     local_buffer = PyDict_New();
     if (local_buffer == NULL)
@@ -549,7 +550,7 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
 
         Py_CLEAR(item);
         Py_CLEAR(key);
-        Py_CLEAR(value);
+        // don't Py_CLEAR(value): borrowed references shenanigans
         Py_CLEAR(current);
         Py_CLEAR(expected);
         Py_CLEAR(desired);
@@ -577,6 +578,12 @@ AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
     return -1;
 }
 
+int
+AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
+{
+    return AtomicDict_Reduce_impl(self, iterable, aggregate, NULL, 0);
+}
+
 PyObject *
 AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
@@ -597,3 +604,398 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     fail:
     return NULL;
 }
+
+static inline PyObject *
+reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    return PyNumber_Add(current, new);
+}
+
+int
+AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_sum, 1);
+}
+
+
+PyObject *
+AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceSum(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_and(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    if (PyObject_IsTrue(current) && PyObject_IsTrue(new)) {
+        return Py_True;  // Py_INCREF() called externally
+    }
+    return Py_False;  // Py_INCREF() called externally
+}
+
+int
+AtomicDict_ReduceAnd(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_and, 1);
+}
+
+PyObject *
+AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceAnd(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_or(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    if (PyObject_IsTrue(current) || PyObject_IsTrue(new)) {
+        return Py_True;  // Py_INCREF() called externally
+    }
+    return Py_False;  // Py_INCREF() called externally
+}
+
+int
+AtomicDict_ReduceOr(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_or, 1);
+}
+
+PyObject *
+AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceOr(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_max(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    Py_INCREF(current);
+    Py_INCREF(new);
+    const int cmp = PyObject_RichCompareBool(current, new, Py_GE);
+    if (cmp < 0)
+        return NULL;
+    if (cmp) {
+        return current;
+    }
+    return new;
+}
+
+int
+AtomicDict_ReduceMax(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_max, 1);
+}
+
+PyObject *
+AtomicDict_ReduceMax_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceMax(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_specialized_min(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return new;
+    }
+    Py_INCREF(current);
+    Py_INCREF(new);
+    const int cmp = PyObject_RichCompareBool(current, new, Py_LE);
+    if (cmp < 0)
+        return NULL;
+    if (cmp) {
+        return current;
+    }
+    return new;
+}
+
+int
+AtomicDict_ReduceMin(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_min, 1);
+}
+
+PyObject *
+AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceMin(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+to_list(PyObject *maybe_list)
+{
+    assert(maybe_list != NULL);
+    if (PyList_CheckExact(maybe_list))
+        return maybe_list;
+
+    PyObject *list = NULL;
+    list = PyList_New(1);
+    if (list == NULL)
+        return NULL;
+    Py_INCREF(maybe_list); // not a list
+    if (PyList_SetItem(list, 0, maybe_list) < 0) {
+        Py_DECREF(list);
+        return NULL;
+    }
+    return list;
+}
+
+static inline PyObject *
+reduce_specialized_list(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return to_list(new);
+    }
+    PyObject *current_list = to_list(current);
+    if (current_list == NULL)
+        return NULL;
+    PyObject *new_list = to_list(new);
+    if (new_list == NULL) {
+        if (current != current_list) {
+            Py_DECREF(current_list);
+        }
+        return NULL;
+    }
+    PyObject *concat = PyNumber_Add(current_list, new_list);
+    if (concat == NULL) {
+        if (current_list != current) {
+            Py_DECREF(current_list);
+        }
+        if (new_list != new) {
+            Py_DECREF(new_list);
+        }
+        return NULL;
+    }
+    return concat;
+}
+
+int
+AtomicDict_ReduceList(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_list, 1);
+}
+
+PyObject *
+AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceList(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+
+static inline PyObject *
+reduce_count_zip_iter_with_ones(AtomicDict *self, PyObject *iterable)
+{
+    // we want to return `zip(iterable, itertools.repeat(1))`
+    PyObject *iterator = NULL;
+    PyObject *builtin_zip = NULL;
+    PyObject *itertools = NULL;
+    PyObject *itertools_namespace = NULL;
+    PyObject *itertools_repeat = NULL;
+    PyObject *one = NULL;
+    PyObject *repeat_one = NULL;
+    PyObject *zipped = NULL;
+
+    iterator = PyObject_GetIter(iterable);
+    if (iterator == NULL) {
+        PyErr_Format(PyExc_TypeError, "%R is not iterable.", iterable);
+        goto fail;
+    }
+
+    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "zip", &builtin_zip) < 0)
+        goto fail;
+
+    // the following lines implement this Python code:
+    //     import itertools
+    //     itertools.repeat(1)
+    itertools = PyImport_ImportModule("itertools");
+    if (itertools == NULL)
+        goto fail;
+    itertools_namespace = PyModule_GetDict(itertools);
+    if (itertools_namespace == NULL)
+        goto fail;
+    Py_INCREF(itertools_namespace);
+    if (PyDict_GetItemStringRef(itertools_namespace, "repeat", &itertools_repeat) < 0)
+        goto fail;
+    Py_CLEAR(itertools_namespace);
+    one = PyLong_FromLong(1);
+    if (one == NULL)
+        goto fail;
+    repeat_one = PyObject_CallFunctionObjArgs(itertools_repeat, one, NULL);
+    if (repeat_one == NULL)
+        goto fail;
+
+    zipped = PyObject_CallFunctionObjArgs(builtin_zip, iterator, repeat_one, NULL);
+    if (zipped == NULL)
+        goto fail;
+
+    Py_DECREF(iterator);
+    Py_DECREF(builtin_zip);
+    Py_DECREF(itertools);
+    Py_DECREF(itertools_repeat);
+    Py_DECREF(one);
+    Py_DECREF(repeat_one);
+    return zipped;
+    fail:
+    Py_XDECREF(iterator);
+    Py_XDECREF(builtin_zip);
+    Py_XDECREF(itertools);
+    Py_XDECREF(itertools_namespace);
+    Py_XDECREF(itertools_repeat);
+    Py_XDECREF(one);
+    Py_XDECREF(repeat_one);
+    return NULL;
+}
+
+int
+AtomicDict_ReduceCount(AtomicDict *self, PyObject *iterable)
+{
+    PyObject *it = NULL;
+
+    // todo: extend to all mappings
+    //   the problem is that PyMapping_Check(iterable) returns 1 also when iterable is a list or tuple
+    if (PyDict_Check(iterable)) {  // cannot fail: no error check
+        it = PyDict_Items(iterable);
+    } else {
+        it = reduce_count_zip_iter_with_ones(self, iterable);
+    }
+    if (it == NULL)
+        goto fail;
+
+    const int res = AtomicDict_Reduce_impl(self, it, NULL, reduce_specialized_sum, 1);
+    if (res < 0)
+        goto fail;
+
+    Py_DECREF(it);
+    return 0;
+    fail:
+    Py_XDECREF(it);
+    return -1;
+}
+
+PyObject *
+AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceCount(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}
+

@@ -8,6 +8,13 @@
             - get
             - compare_and_set
             - reduce
+            - reduce_sum
+            - reduce_and
+            - reduce_or
+            - reduce_max
+            - reduce_min
+            - reduce_list
+            - reduce_count
             - __len__
             - approx_len
             - len_bounds

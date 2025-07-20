@@ -590,10 +590,12 @@ def test_reduce_specialized_sum():
     d = AtomicDict()
     iterations = 1_000
     n = 4
+    b = threading.Barrier(n)
 
     def thread():
+        b.wait()
         data = ("spam", 1)
-        d.reduce(itertools.repeat(data, iterations), sum)
+        d.reduce_sum(itertools.repeat(data, iterations))
 
     threads = [threading.Thread(target=thread) for _ in range(n)]
     for t in threads:
@@ -601,6 +603,158 @@ def test_reduce_specialized_sum():
     for t in threads:
         t.join()
     assert d["spam"] == iterations * n
+
+
+def test_reduce_specialized_and():
+    d = AtomicDict()
+    iterations = 100
+    n = 4
+    b = threading.Barrier(n)
+
+    def thread():
+        b.wait()
+        truthy = [True, "spam", 1, [[]], (42,), {0}]
+        falsy = [False, "", 0, [], tuple(), set()]
+        data = (
+            [("norwegian", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("blue", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", falsy[_ % len(falsy)]) for _ in range(iterations)]
+        )
+        d.reduce_and(data)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["norwegian"] and d["blue"] and not d["voom"]
+
+
+def test_reduce_specialized_or():
+    d = AtomicDict()
+    iterations = 100
+    n = 4
+    b = threading.Barrier(n)
+
+    def thread():
+        b.wait()
+        truthy = [True, "spam", 1, [[]], (42,), {0}]
+        falsy = [False, "", 0, [], tuple(), set()]
+        data = (
+            [("norwegian", falsy[_ % len(falsy)]) for _ in range(iterations)]
+            + [("blue", falsy[_ % len(falsy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+            + [("voom", truthy[_ % len(truthy)]) for _ in range(iterations)]
+        )
+        d.reduce_and(data)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not d["norwegian"] and not d["blue"] and d["voom"]
+
+
+def test_reduce_specialized_max():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [("spam", _ * i) for _ in range(iterations)]
+        d.reduce_max(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["spam"] == (n - 1) * (iterations - 1)
+
+
+def test_reduce_specialized_min():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [("spam", _ * i) for _ in range(iterations)]
+        d.reduce_min(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert d["spam"] == 0
+
+
+def test_reduce_specialized_list():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [("spam", _ * i) for _ in range(iterations)]
+        d.reduce_list(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    expected = [_ * i for _ in range(iterations) for i in range(n)]
+    assert sorted(d["spam"]) == sorted(expected)
+
+
+def as_dict(atomic_dict: AtomicDict):
+    dict_ = {}
+    for key, value in atomic_dict.fast_iter():
+        dict_[key] = value
+    return dict_
+
+
+def test_reduce_specialized_count():
+    d = AtomicDict()
+    d.reduce_count([])
+    assert as_dict(d) == {}
+
+    d = AtomicDict()
+    d.reduce_count("gallahad")
+    assert as_dict(d) == {'g': 1, 'a': 3, 'l': 2, 'h': 1, 'd': 1}
+
+    d = AtomicDict()
+    d.reduce_count({"red": 4, "blue": 2})
+    assert as_dict(d) == {"red": 4, "blue": 2}
+
+    # Counter(cats=4, dogs=8) kwargs syntax not supported
+
+
+def test_reduce_specialized_count_threads():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread():
+        b.wait()
+        data = ["spam" for _ in range(iterations)]
+        d.reduce_count(data)
+
+    threads = [threading.Thread(target=thread) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert as_dict(d) == {"spam": iterations * n}
 
 
 def test_get_handle():
