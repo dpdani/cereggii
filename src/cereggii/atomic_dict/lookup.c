@@ -132,6 +132,13 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
         result.entry.value = default_value;
     }
 
+    if (result.entry.value == NULL) {
+        return NULL;
+    }
+
+    if (!_Py_TryIncref(result.entry.value))
+        goto retry;
+
     return result.entry.value;
     fail:
     return NULL;
@@ -141,14 +148,10 @@ PyObject *
 AtomicDict_GetItem(AtomicDict *self, PyObject *key)
 {
     PyObject *value = NULL;
-retry:
     value = AtomicDict_GetItemOrDefault(self, key, NULL);
 
     if (value == NULL) {
         PyErr_SetObject(PyExc_KeyError, key);
-    } else {
-        if (!_Py_TryIncref(value))
-            goto retry;
     }
 
     return value;
