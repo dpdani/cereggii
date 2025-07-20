@@ -51,11 +51,11 @@ If we want good multithreading performance, we must strive to avoid sharing obje
 Threads would access those objects in a tight loop.
 We need to take care of that contention:
 
-1. instead of using the module-global `Random()` instance, we create one for each
-   thread; and
+1. instead of using the module-global `Random()` instance, we create a new one for
+   each thread; and
 2. instead of accessing the `values` list directly, we wrap it in a `ThreadHandle()`
 
-The `ThreadHandle()` provided by cereggii, is an object that mediates calls to a
+The `ThreadHandle()` provided by cereggii is an object that mediates calls to a
 thread-shared object.
 This proxying of calls through the thread-local handle avoids implicit shared object
 contention.
@@ -103,7 +103,7 @@ multithreading-friendly.
 Without further ado, let's see the custom `aggregate` function for `reduce()`:
 
 ```python
---8<-- "examples/atomic_dict/reduce_avg.py:44:51"
+--8<-- "examples/atomic_dict/reduce_avg.py:48:55"
 ```
 
 This is not as simple as the function we've seen in the [previous example](./reduce.md).
@@ -124,17 +124,17 @@ The rest should be pretty straightforward if you followed the previous example o
 
 ### Dividing
 
-Now that we computed the sum in a multithreading-friendly way, it's a good time
-to look at the function that starts the threads.
+Now that we computed the two sums in a multithreading-friendly way, it's a good
+time to look at the function that starts the threads.
 It's been slightly modified from the previous example:
 
-```python
---8<-- "examples/atomic_dict/reduce_avg.py:56:74"
+```python 
+--8<-- "examples/atomic_dict/reduce_avg.py:60:81"
 ```
 
 The ending of the function is where we do the division.
-For simplicity, we average again the values pertaining to different keys, but we
-could've also kept them separate in order to check them separately.
+For simplifying result checks, we average again the values pertaining to different
+keys, but we could've also kept them separate in order to check them separately.
 
 The thing I want to point out here is that there is one constraint for where in
 this code we can or cannot compute the division.
@@ -154,7 +154,7 @@ for the sake of simplicity in checking the result.)
 You might contend that I've kept it intentionally complicated, but I disagree.
 
 ```python
---8<-- "examples/atomic_dict/reduce_avg.py:25:38"
+--8<-- "examples/atomic_dict/reduce_avg.py:25:42"
 ```
 
 ## Results

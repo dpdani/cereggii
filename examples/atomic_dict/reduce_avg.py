@@ -30,11 +30,15 @@ def builtin_dict_avg():
     for k, v in make_data(size):
         tot, cnt = d[k]
         d[k] = (tot + v, cnt + 1)
+
+    for k, (tot, cnt) in d.items():
+        d[k] = tot / cnt
+
     total = 0
     count = 0
-    for k, (tot, cnt) in d.items():
-        total += tot
-        count += cnt
+    for k, avg in d.items():
+        total += avg
+        count += 1
     return total / count
 
 
@@ -66,11 +70,14 @@ def threaded_avg(threads_num, thread_target):
     for t in threads:
         t.join()
 
+    for k, (tot, cnt) in atomic_dict.fast_iter():
+        atomic_dict[k] = tot / cnt
+
     total = 0
     count = 0
-    for k, (tot, cnt) in atomic_dict.fast_iter():
-        total += tot
-        count += cnt
+    for k, avg in atomic_dict.fast_iter():
+        total += avg
+        count += 1
     return total / count
 
 
