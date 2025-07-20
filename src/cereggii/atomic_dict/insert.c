@@ -371,6 +371,68 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
 
 
 static inline int
+flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
+{
+    assert(key != NULL);
+    assert(expected != NULL);
+    assert(new != NULL);
+    assert(expected == NOT_FOUND);
+
+    Py_INCREF(key);
+    Py_INCREF(expected);
+    Py_INCREF(new);
+
+    PyObject *previous = NULL;
+    PyObject *current = NULL;
+    PyObject *desired = new;
+    PyObject *new_desired = NULL;
+
+    while (1) {
+        previous = AtomicDict_CompareAndSet(self, key, expected, desired);
+
+        if (previous == NULL)
+            goto fail;
+
+        if (previous != EXPECTATION_FAILED) {
+            break;
+        }
+
+        current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
+
+        // the aggregate function must always be called with `new`, not `desired`
+        new_desired = NULL;
+        if (is_specialized) {
+            new_desired = specialized(key, current, new);
+        } else {
+            new_desired = PyObject_CallFunctionObjArgs(aggregate, key, current, new, NULL);
+        }
+        if (new_desired == NULL)
+            goto fail;
+
+        Py_DECREF(expected);
+        expected = current;
+        current = NULL;
+        Py_DECREF(desired);
+        desired = new_desired;
+        new_desired = NULL;
+    }
+    Py_XDECREF(previous);
+    Py_XDECREF(key);
+    if (current != expected) {
+        Py_XDECREF(current);
+    }
+    Py_XDECREF(expected);
+    if (desired != new) {
+        Py_DECREF(desired);
+    }
+    Py_XDECREF(new);
+    return 0;
+    fail:
+    return -1;
+}
+
+
+static inline int
 reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
 {
     Py_ssize_t pos = 0;
@@ -389,48 +451,17 @@ reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyOb
         assert(tuple != NULL);
         assert(PyTuple_Size(tuple) == 2);
         expected = PyTuple_GetItem(tuple, 0);
-        desired = PyTuple_GetItem(tuple, 1);
-        // Py_CLEAR(tuple);
-        Py_INCREF(key);
+        new = PyTuple_GetItem(tuple, 1);
+        // don't Py_DECREF(tuple) because PyDict_Next returns borrowed references
 
-    retry:
-        Py_INCREF(expected);
-        Py_INCREF(desired);
-        previous = AtomicDict_CompareAndSet(self, key, expected, desired);
-
-        if (previous == NULL)
+        int error = flush_one(self, key, expected, new, aggregate, specialized, is_specialized);
+        if (error) {
             goto fail;
-
-        if (previous == EXPECTATION_FAILED) {
-            current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
-
-            if (is_specialized) {
-                new = specialized(key, current, desired);
-            } else {
-                new = PyObject_CallFunctionObjArgs(aggregate, key, current, desired, NULL);
-            }
-            if (new == NULL)
-                goto fail;
-
-            Py_DECREF(expected);
-            expected = current;
-            current = NULL;
-            Py_DECREF(desired);
-            desired = new;
-            new = NULL;
-
-            goto retry;
         }
-        Py_XDECREF(previous);
-        Py_XDECREF(key);
-        Py_XDECREF(expected);
-        Py_XDECREF(current);
-        Py_XDECREF(desired);
     }
     return 0;
     fail:
     Py_XDECREF(key);
-    Py_XDECREF(tuple);
     Py_XDECREF(expected);
     Py_XDECREF(current);
     Py_XDECREF(desired);
