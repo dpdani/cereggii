@@ -550,7 +550,7 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
 
         Py_CLEAR(item);
         Py_CLEAR(key);
-        Py_CLEAR(value);
+        // don't Py_CLEAR(value): borrowed references shenanigans
         Py_CLEAR(current);
         Py_CLEAR(expected);
         Py_CLEAR(desired);
