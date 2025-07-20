@@ -455,6 +455,16 @@ class AtomicDict[Key, Value]:
         in the dictionary,
         and the new value from `iterator`. It returns the aggregated value.
 
+        Several specialized methods are available to perform common operations:
+
+        - [`reduce_sum`][cereggii._cereggii.AtomicDict.reduce_sum]
+        - [`reduce_and`][cereggii._cereggii.AtomicDict.reduce_and]
+        - [`reduce_or`][cereggii._cereggii.AtomicDict.reduce_or]
+        - [`reduce_max`][cereggii._cereggii.AtomicDict.reduce_max]
+        - [`reduce_min`][cereggii._cereggii.AtomicDict.reduce_min]
+        - [`reduce_list`][cereggii._cereggii.AtomicDict.reduce_list]
+        - [`reduce_count`][cereggii._cereggii.AtomicDict.reduce_count]
+
         !!! note
 
             The `aggregate` function **must** be:
