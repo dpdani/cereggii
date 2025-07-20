@@ -715,6 +715,29 @@ def test_reduce_specialized_min():
     assert d["spam"] == 0
 
 
+def test_reduce_specialized_list():
+    d = AtomicDict()
+    iterations = 1_000
+    n = 10
+    b = threading.Barrier(n)
+
+    def thread(i):
+        b.wait()
+        data = [
+            ("spam", _ * i)
+            for _ in range(iterations)
+        ]
+        d.reduce_list(data)
+
+    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    expected = [_ * i for _ in range(iterations) for i in range(n)]
+    assert sorted(d["spam"]) == sorted(expected)
+
+
 def test_get_handle():
     d = AtomicDict()
     h = d.get_handle()

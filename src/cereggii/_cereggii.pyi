@@ -524,7 +524,7 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the operation is internally optimized. It is recommended to use this method
+            The implementation of this operation is internally optimized. It is recommended to use this method
             instead of calling `reduce` with a custom function.
         """
 
@@ -559,7 +559,7 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the operation is internally optimized. It is recommended to use this method
+            The implementation of this operation is internally optimized. It is recommended to use this method
             instead of calling `reduce` with a custom function.
         """
 
@@ -594,7 +594,7 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the operation is internally optimized. It is recommended to use this method
+            The implementation of this operation is internally optimized. It is recommended to use this method
             instead of calling `reduce` with a custom function.
         """
 
@@ -629,7 +629,7 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the operation is internally optimized. It is recommended to use this method
+            The implementation of this operation is internally optimized. It is recommended to use this method
             instead of calling `reduce` with a custom function.
         """
 
@@ -664,7 +664,52 @@ class AtomicDict[Key, Value]:
 
         !!! tip
 
-            The implementation of the operation is internally optimized. It is recommended to use this method
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_list(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `list()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        def to_list(obj):
+            if type(obj) is list:
+                return obj
+            return [obj]
+
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = to_list(value)
+            else:
+                atomic_dict[key] = to_list(atomic_dict[key]) + to_list(value)
+        ```
+
+        !!! Warning
+            The order of the elements in the returned list is undefined.
+            This method will put all the elements from the input in the resulting
+            list: their presence is guaranteed, but the order is not.
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def list_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return to_list(new)
+            return to_list(current) + to_list(new)
+
+        d.reduce(..., list_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
             instead of calling `reduce` with a custom function.
         """
 

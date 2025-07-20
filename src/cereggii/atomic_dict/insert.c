@@ -812,3 +812,79 @@ AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     fail:
     return NULL;
 }
+
+static inline PyObject *
+to_list(PyObject *maybe_list)
+{
+    assert(maybe_list != NULL);
+    if (PyList_CheckExact(maybe_list))
+        return maybe_list;
+
+    PyObject *list = NULL;
+    list = PyList_New(1);
+    if (list == NULL)
+        return NULL;
+    Py_INCREF(maybe_list); // not a list
+    if (PyList_SetItem(list, 0, maybe_list) < 0) {
+        Py_DECREF(list);
+        return NULL;
+    }
+    return list;
+}
+
+static inline PyObject *
+reduce_specialized_list(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new)
+{
+    assert(current != NULL);
+    assert(new != NULL);
+    if (current == NOT_FOUND) {
+        return to_list(new);
+    }
+    PyObject *current_list = to_list(current);
+    if (current_list == NULL)
+        return NULL;
+    PyObject *new_list = to_list(new);
+    if (new_list == NULL) {
+        if (current != current_list) {
+            Py_DECREF(current_list);
+        }
+        return NULL;
+    }
+    PyObject *concat = PyNumber_Add(current_list, new_list);
+    if (concat == NULL) {
+        if (current_list != current) {
+            Py_DECREF(current_list);
+        }
+        if (new_list != new) {
+            Py_DECREF(new_list);
+        }
+        return NULL;
+    }
+    return concat;
+}
+
+int
+AtomicDict_ReduceList(AtomicDict *self, PyObject *iterable)
+{
+    return AtomicDict_Reduce_impl(self, iterable, NULL, reduce_specialized_list, 1);
+}
+
+PyObject *
+AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
+{
+    PyObject *iterable = NULL;
+
+    char *kw_list[] = {"iterable", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
+        goto fail;
+
+    int res = AtomicDict_ReduceList(self, iterable);
+    if (res < 0)
+        goto fail;
+
+    Py_RETURN_NONE;
+
+    fail:
+    return NULL;
+}

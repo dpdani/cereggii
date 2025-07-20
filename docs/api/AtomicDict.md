@@ -13,6 +13,7 @@
             - reduce_or
             - reduce_max
             - reduce_min
+            - reduce_list
             - __len__
             - approx_len
             - len_bounds
