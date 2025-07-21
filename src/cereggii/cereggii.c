@@ -128,17 +128,17 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"_debug", (PyCFunction) AtomicDict_Debug, METH_NOARGS, NULL},
-    {"_rehash", (PyCFunction) AtomicDict_ReHash, METH_O, NULL},
-    {"get", (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"len_bounds", (PyCFunction) AtomicDict_LenBounds, METH_NOARGS, NULL},
-    {"approx_len", (PyCFunction) AtomicDict_ApproxLen, METH_NOARGS, NULL},
-    {"fast_iter", (PyCFunction) AtomicDict_FastIter, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"batch_getitem", (PyCFunction) AtomicDict_BatchGetItem, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce", (PyCFunction) AtomicDict_Reduce_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_handle", (PyCFunction) AtomicDict_GetHandle, METH_NOARGS, NULL},
-    {"__class_getitem__", (PyCFunction) AtomicDict_class_getitem, METH_O | METH_CLASS, NULL},
+    {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
+    {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
+    {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
+    {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
+    {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
+    {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
+    {"__class_getitem__", (PyCFunction) AtomicDict_class_getitem,           METH_O | METH_CLASS, NULL},
     {NULL}
 };
 
