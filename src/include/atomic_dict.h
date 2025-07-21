@@ -81,7 +81,5 @@ void AtomicDict_dealloc(AtomicDict *self);
 
 PyObject *AtomicDict_ReHash(AtomicDict *self, PyObject *ob);
 
-PyObject *AtomicDict_class_getitem(PyObject *cls, PyObject *item);
-
 
 #endif //CEREGGII_ATOMIC_DICT_H

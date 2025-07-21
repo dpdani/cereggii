@@ -13,6 +13,14 @@
 #include "thread_handle.h"
 
 
+struct PyObject *
+_generic_class_getitem(PyObject *cls, PyObject *Py_UNUSED(item))
+{
+    Py_INCREF(cls);
+    return cls;
+}
+
+
 static PyMethodDef AtomicInt64_methods[] = {
     {"get",               (PyCFunction) AtomicInt64_Get_callable,             METH_NOARGS,  NULL},
     {"set",               (PyCFunction) AtomicInt64_Set_callable,             METH_O,       NULL},
@@ -108,6 +116,7 @@ static PyMethodDef AtomicRef_methods[] = {
     {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
     {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem,           METH_O | METH_CLASS, NULL},
     {NULL}
 };
 
@@ -138,7 +147,7 @@ static PyMethodDef AtomicDict_methods[] = {
     {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
     {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
-    {"__class_getitem__", (PyCFunction) AtomicDict_class_getitem,           METH_O | METH_CLASS, NULL},
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem,           METH_O | METH_CLASS, NULL},
     {NULL}
 };
 

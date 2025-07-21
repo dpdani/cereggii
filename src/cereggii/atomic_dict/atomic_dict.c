@@ -647,10 +647,3 @@ AtomicDict_GetHandle(AtomicDict *self)
     fail:
     return NULL;
 }
-
-PyObject *
-AtomicDict_class_getitem(PyObject *cls, PyObject *item)
-{
-    Py_INCREF(cls);
-    return cls;
-}
