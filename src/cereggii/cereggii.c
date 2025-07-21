@@ -111,11 +111,11 @@ PyTypeObject AtomicInt64_Type = {
 
 
 static PyMethodDef AtomicRef_methods[] = {
-    {"get",             (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
-    {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
-    {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
-    {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
+    {"get",               (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
+    {"set",               (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
+    {"compare_and_set",   (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",       (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
+    {"get_handle",        (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
     {"__class_getitem__", (PyCFunction) _generic_class_getitem,           METH_O | METH_CLASS, NULL},
     {NULL}
 };
