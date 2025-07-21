@@ -485,7 +485,8 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
     PyObject *current = NULL;
     PyObject *expected = NULL;
     PyObject *desired = NULL;
-    PyObject *tuple = NULL;
+    PyObject *tuple_get = NULL;
+    PyObject *tuple_set = NULL;
     PyObject *local_buffer = NULL;
     PyObject *iterator = NULL;
 
@@ -518,19 +519,24 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         }
 
         key = PyTuple_GetItem(item, 0);
+        Py_INCREF(key);
         value = PyTuple_GetItem(item, 1);
+        Py_INCREF(value);
         if (PyDict_Contains(local_buffer, key)) {
-            if (PyDict_GetItemRef(local_buffer, key, &tuple) < 0)
+            if (PyDict_GetItemRef(local_buffer, key, &tuple_get) < 0)
                 goto fail;
 
-            expected = PyTuple_GetItem(tuple, 0);
-            current = PyTuple_GetItem(tuple, 1);
-            Py_CLEAR(tuple);
+            expected = PyTuple_GetItem(tuple_get, 0);
+            Py_INCREF(expected);
+            current = PyTuple_GetItem(tuple_get, 1);
+            Py_INCREF(current);
+            Py_CLEAR(tuple_get);
         } else {
             expected = NOT_FOUND;
+            Py_INCREF(expected);
             current = NOT_FOUND;
+            Py_INCREF(current);
         }
-        Py_INCREF(expected);
 
         if (is_specialized) {
             desired = specialized(key, current, value);
@@ -541,20 +547,20 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
             goto fail;
         Py_INCREF(desired);
 
-        tuple = PyTuple_Pack(2, expected, desired);
-        if (tuple == NULL)
+        tuple_set = PyTuple_Pack(2, expected, desired);
+        if (tuple_set == NULL)
             goto fail;
 
-        if (PyDict_SetItem(local_buffer, key, tuple) < 0)
+        if (PyDict_SetItem(local_buffer, key, tuple_set) < 0)
             goto fail;
 
         Py_CLEAR(item);
         Py_CLEAR(key);
-        // don't Py_CLEAR(value): borrowed references shenanigans
+        Py_CLEAR(value);
         Py_CLEAR(current);
         Py_CLEAR(expected);
         Py_CLEAR(desired);
-        Py_CLEAR(tuple);
+        Py_CLEAR(tuple_set);
     }
 
     Py_DECREF(iterator);
@@ -574,7 +580,8 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
     Py_XDECREF(current);
     Py_XDECREF(expected);
     Py_XDECREF(desired);
-    Py_XDECREF(tuple);
+    Py_XDECREF(tuple_get);
+    Py_XDECREF(tuple_set);
     return -1;
 }
 
