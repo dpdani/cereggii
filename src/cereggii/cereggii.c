@@ -322,6 +322,10 @@ static PyMappingMethods ThreadHandle_as_mapping = {
 //     .am_send = (sendfunc) ThreadHandle_AsyncSend,
 // };
 
+static PyMethodDef ThreadHandle_methods[] = {
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem, METH_O | METH_CLASS, NULL},
+};
+
 PyTypeObject ThreadHandle_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.ThreadHandle",
@@ -345,6 +349,7 @@ PyTypeObject ThreadHandle_Type = {
     .tp_call = (ternaryfunc) ThreadHandle_Call,
     .tp_iter = (getiterfunc) ThreadHandle_GetIter,
     // .tp_iternext = (iternextfunc) ThreadHandle_Next,
+    .tp_methods = ThreadHandle_methods,
     .tp_getattro = (getattrofunc) ThreadHandle_GetAttr,
     .tp_setattro = (setattrofunc) ThreadHandle_SetAttr,
 };
