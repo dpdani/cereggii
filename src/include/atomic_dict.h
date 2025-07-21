@@ -53,6 +53,34 @@ int AtomicDict_Reduce(AtomicDict *self, PyObject *iterable, PyObject *aggregate)
 
 PyObject *AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
 
+int AtomicDict_ReduceSum(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceAnd(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceAnd_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceOr(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceMax(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceMax_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceMin(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceList(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
+int AtomicDict_ReduceCount(AtomicDict *self, PyObject *iterable);
+
+PyObject *AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwargs);
+
 PyObject *AtomicDict_LenBounds(AtomicDict *self);
 
 PyObject *AtomicDict_ApproxLen(AtomicDict *self);

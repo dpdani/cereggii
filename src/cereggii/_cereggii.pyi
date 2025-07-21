@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable, Iterator
-from typing import Self, SupportsComplex, SupportsFloat, SupportsInt
+from typing import Any, Self, SupportsComplex, SupportsFloat, SupportsInt
 
 Number = SupportsInt | SupportsFloat | SupportsComplex
 
@@ -455,6 +455,16 @@ class AtomicDict[Key, Value]:
         in the dictionary,
         and the new value from `iterator`. It returns the aggregated value.
 
+        Several specialized methods are available to perform common operations:
+
+        - [`reduce_sum`][cereggii._cereggii.AtomicDict.reduce_sum]
+        - [`reduce_and`][cereggii._cereggii.AtomicDict.reduce_and]
+        - [`reduce_or`][cereggii._cereggii.AtomicDict.reduce_or]
+        - [`reduce_max`][cereggii._cereggii.AtomicDict.reduce_max]
+        - [`reduce_min`][cereggii._cereggii.AtomicDict.reduce_min]
+        - [`reduce_list`][cereggii._cereggii.AtomicDict.reduce_list]
+        - [`reduce_count`][cereggii._cereggii.AtomicDict.reduce_count]
+
         !!! note
 
             The `aggregate` function **must** be:
@@ -462,6 +472,7 @@ class AtomicDict[Key, Value]:
             - **total** &mdash; it should handle both the case in which the key is present and in which it is not
             - **state-less** &mdash; you should not rely on the number of times this function is called (it will be
             called at least once for each item in `iterable`, but there is no upper bound)
+            - **commutative** and **associative** &mdash; the result must not depend on the order of calls to `aggregate`
 
         !!! example
             **Counter**
@@ -488,8 +499,284 @@ class AtomicDict[Key, Value]:
 
             This method exploits the skewness in the data.
 
-            First, an intermediate result is aggregated into a thread-local dictionary, and then applied to the shared
+            First, an intermediate result is aggregated into a thread-local dictionary and then applied to the shared
             `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
+        """
+
+    def reduce_sum(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `sum()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] += value
+        ```
+
+        Behaves exactly as if [`reduce`][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def sum_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return current + new
+
+        d.reduce(..., sum_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_and(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `all()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = not not value
+            else:
+                atomic_dict[key] = atomic_dict[key] and (not not value)
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def and_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return not not new
+            return current and (not not new)
+
+        d.reduce(..., and_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_or(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `any()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = not not value
+            else:
+                atomic_dict[key] = atomic_dict[key] or (not not value)
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def or_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return not not new
+            return current or (not not new)
+
+        d.reduce(..., or_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_max(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `max()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] = max(value, atomic_dict[key])
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def max_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return max(new, current)
+
+        d.reduce(..., max_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_min(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `min()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = value
+            else:
+                atomic_dict[key] = min(value, atomic_dict[key])
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def min_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return min(new, current)
+
+        d.reduce(..., min_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_list(
+        self,
+        iterable: Iterable[tuple[Key, Value]],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        as computed by `list()`.
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        def to_list(obj):
+            if type(obj) is list:
+                return obj
+            return [obj]
+
+        for key, value in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = to_list(value)
+            else:
+                atomic_dict[key] = to_list(atomic_dict[key]) + to_list(value)
+        ```
+
+        !!! Warning
+            The order of the elements in the returned list is undefined.
+            This method will put all the elements from the input in the resulting
+            list: their presence is guaranteed, but the order is not.
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        def list_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return to_list(new)
+            return to_list(current) + to_list(new)
+
+        d.reduce(..., list_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
+        """
+
+    def reduce_count(
+        self,
+        iterable: Iterable[Key] | dict[Any, int],
+    ) -> None:
+        """
+        Aggregate the values in this dictionary with those found in `iterable`,
+        by counting the number of occurrences of each key.
+        (This is similar to the behavior of
+        [`collections.Counter`](https://docs.python.org/3/library/collections.html#collections.Counter).)
+
+        !!! Note
+            Differently from [reduce][cereggii._cereggii.AtomicDict.reduce], this
+            method does not interpret the input as an iterable of key-value pairs,
+            but rather as an iterable of keys.
+
+        !!! Info "From a dict"
+            A `dict[Any, int]` can also be used, instead of an `Iterable[Key]`.
+            This follows the behavior of `collections.Counter`.
+
+            ```python
+            my_atomic_dict = AtomicDict({"spam": 1})
+            my_atomic_dict.reduce_count({"spam": 10, "eggs": 2, "ham": 3})
+            assert my_atomic_dict["spam"] == 11
+            assert my_atomic_dict["eggs"] == 2
+            assert my_atomic_dict["ham"] == 3
+            ```
+
+        Multiple threads calling this method would effectively parallelize this single-threaded program:
+
+        ```python
+        for key in iterable:
+            if key not in atomic_dict:
+                atomic_dict[key] = 1
+            else:
+                atomic_dict[key] += 1
+        ```
+
+        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+
+        ```python
+        import itertools
+
+        def sum_fn(key, current, new):
+            if current is cereggii.NOT_FOUND:
+                return new
+            return current + new
+
+        d.reduce(zip(..., itertools.repeat(1)), sum_fn)
+        ```
+
+        !!! tip
+
+            The implementation of this operation is internally optimized. It is recommended to use this method
+            instead of calling `reduce` with a custom function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:
