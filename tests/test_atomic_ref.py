@@ -19,6 +19,7 @@ def test_init():
     r = AtomicRef(initial_value=obj)
     assert r.get() is obj
     assert id(obj) == id_obj
+    AtomicRef[bool](True)
 
 
 def test_set():
