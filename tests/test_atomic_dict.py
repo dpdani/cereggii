@@ -26,6 +26,7 @@ def test_init():
     )
     AtomicDict(min_size=120)
     AtomicDict(min_size=64, initial={1: 0})
+    AtomicDict[str, int]({"spam": 42})
 
     with raises(TypeError):
         AtomicDict(None)

@@ -13,6 +13,14 @@
 #include "thread_handle.h"
 
 
+struct PyObject *
+_generic_class_getitem(PyObject *cls, PyObject *Py_UNUSED(item))
+{
+    Py_INCREF(cls);
+    return cls;
+}
+
+
 static PyMethodDef AtomicInt64_methods[] = {
     {"get",               (PyCFunction) AtomicInt64_Get_callable,             METH_NOARGS,  NULL},
     {"set",               (PyCFunction) AtomicInt64_Set_callable,             METH_O,       NULL},
@@ -103,11 +111,12 @@ PyTypeObject AtomicInt64_Type = {
 
 
 static PyMethodDef AtomicRef_methods[] = {
-    {"get",             (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
-    {"set",             (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
-    {"compare_and_set", (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_and_set",     (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
-    {"get_handle",      (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
+    {"get",               (PyCFunction) AtomicRef_Get,                    METH_NOARGS, NULL},
+    {"set",               (PyCFunction) AtomicRef_Set,                    METH_O,      NULL},
+    {"compare_and_set",   (PyCFunction) AtomicRef_CompareAndSet_callable, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_and_set",       (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
+    {"get_handle",        (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem,           METH_O | METH_CLASS, NULL},
     {NULL}
 };
 
@@ -128,23 +137,24 @@ PyTypeObject AtomicRef_Type = {
 
 
 static PyMethodDef AtomicDict_methods[] = {
-    {"_debug",          (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
-    {"_rehash",         (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
-    {"get",             (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
-    {"len_bounds",      (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
-    {"approx_len",      (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
-    {"fast_iter",       (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
-    {"compare_and_set", (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
-    {"batch_getitem",   (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce",          (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_sum",      (PyCFunction) AtomicDict_ReduceSum_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_and",      (PyCFunction) AtomicDict_ReduceAnd_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_or",       (PyCFunction) AtomicDict_ReduceOr_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_max",      (PyCFunction) AtomicDict_ReduceMax_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_min",      (PyCFunction) AtomicDict_ReduceMin_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_list",     (PyCFunction) AtomicDict_ReduceList_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
-    {"reduce_count",    (PyCFunction) AtomicDict_ReduceCount_callable,    METH_VARARGS | METH_KEYWORDS, NULL},
-    {"get_handle",      (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
+    {"_debug",            (PyCFunction) AtomicDict_Debug,                   METH_NOARGS, NULL},
+    {"_rehash",           (PyCFunction) AtomicDict_ReHash,                  METH_O,      NULL},
+    {"get",               (PyCFunction) AtomicDict_GetItemOrDefaultVarargs, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"len_bounds",        (PyCFunction) AtomicDict_LenBounds,               METH_NOARGS, NULL},
+    {"approx_len",        (PyCFunction) AtomicDict_ApproxLen,               METH_NOARGS, NULL},
+    {"fast_iter",         (PyCFunction) AtomicDict_FastIter,                METH_VARARGS | METH_KEYWORDS, NULL},
+    {"compare_and_set",   (PyCFunction) AtomicDict_CompareAndSet_callable,  METH_VARARGS | METH_KEYWORDS, NULL},
+    {"batch_getitem",     (PyCFunction) AtomicDict_BatchGetItem,            METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce",            (PyCFunction) AtomicDict_Reduce_callable,         METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_sum",        (PyCFunction) AtomicDict_ReduceSum_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_and",        (PyCFunction) AtomicDict_ReduceAnd_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_or",         (PyCFunction) AtomicDict_ReduceOr_callable,       METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_max",        (PyCFunction) AtomicDict_ReduceMax_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_min",        (PyCFunction) AtomicDict_ReduceMin_callable,      METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_list",       (PyCFunction) AtomicDict_ReduceList_callable,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"reduce_count",      (PyCFunction) AtomicDict_ReduceCount_callable,    METH_VARARGS | METH_KEYWORDS, NULL},
+    {"get_handle",        (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem,             METH_O | METH_CLASS, NULL},
     {NULL}
 };
 
@@ -312,6 +322,11 @@ static PyMappingMethods ThreadHandle_as_mapping = {
 //     .am_send = (sendfunc) ThreadHandle_AsyncSend,
 // };
 
+static PyMethodDef ThreadHandle_methods[] = {
+    {"__class_getitem__", (PyCFunction) _generic_class_getitem, METH_O | METH_CLASS, NULL},
+    {NULL}
+};
+
 PyTypeObject ThreadHandle_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.ThreadHandle",
@@ -335,6 +350,7 @@ PyTypeObject ThreadHandle_Type = {
     .tp_call = (ternaryfunc) ThreadHandle_Call,
     .tp_iter = (getiterfunc) ThreadHandle_GetIter,
     // .tp_iternext = (iternextfunc) ThreadHandle_Next,
+    .tp_methods = ThreadHandle_methods,
     .tp_getattro = (getattrofunc) ThreadHandle_GetAttr,
     .tp_setattro = (setattrofunc) ThreadHandle_SetAttr,
 };
