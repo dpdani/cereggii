@@ -324,6 +324,7 @@ static PyMappingMethods ThreadHandle_as_mapping = {
 
 static PyMethodDef ThreadHandle_methods[] = {
     {"__class_getitem__", (PyCFunction) _generic_class_getitem, METH_O | METH_CLASS, NULL},
+    {NULL}
 };
 
 PyTypeObject ThreadHandle_Type = {
