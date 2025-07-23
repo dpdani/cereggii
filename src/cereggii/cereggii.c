@@ -13,7 +13,7 @@
 #include "thread_handle.h"
 
 
-struct PyObject *
+PyObject *
 _generic_class_getitem(PyObject *cls, PyObject *Py_UNUSED(item))
 {
     Py_INCREF(cls);
