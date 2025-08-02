@@ -123,4 +123,4 @@ extra_javascript:
 
 watch:
   - ./src/cereggii/_cereggii.pyi
-  - ./src/cereggii/atomic_int.py
+  - ./src/cereggii/count_down_latch.py
