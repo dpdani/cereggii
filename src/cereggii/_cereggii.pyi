@@ -1026,3 +1026,18 @@ class AtomicInt64(int):
     @property
     def real(self):
         raise NotImplementedError
+
+class AtomicEvent:
+    """An atomic event based on pthread's condition locks."""
+
+    def __init__(self):
+        pass
+
+    def wait(self):
+        """Wait for this `AtomicEvent` to be set."""
+
+    def set(self):
+        """Atomically set this `AtomicEvent`."""
+
+    def is_set(self):
+        """Atomically check if this `AtomicEvent` is set."""
