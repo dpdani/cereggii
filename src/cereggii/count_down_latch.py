@@ -86,5 +86,4 @@ class CountDownLatch:
         return self._reached_zero.wait()
 
     def __repr__(self):
-        return (f"<{self.__class__.__name__}(count={self._count.get()}) "
-                f"at {id(self):#x}>")
+        return f"<{self.__class__.__name__}(count={self._count.get()}) at {id(self):#x}>"
