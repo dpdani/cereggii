@@ -31,7 +31,7 @@ class CountDownLatch:
         :param count: The number of times
             [`decrement()`][cereggii.CountDownLatch.decrement] or
             [`decrement_and_get()`][cereggii.CountDownLatch.decrement_and_get]
-            must be invoked before threads can pass through
+            must be called before threads can pass through
             [`wait()`][cereggii.CountDownLatch.wait].
             Must be a non-negative integer.
 
