@@ -51,6 +51,7 @@ class CountDownLatch:
         """
         while True:
             current_count = self._count.get()
+            assert current_count >= 0
             if current_count == 0:
                 return 0
             if self._count.compare_and_set(current_count, current_count - 1):

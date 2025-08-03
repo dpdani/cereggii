@@ -35,12 +35,12 @@ AtomicEvent_dealloc(AtomicEvent *self)
 }
 
 void
-AtomicEvent_Set(AtomicEvent *lock)
+AtomicEvent_Set(AtomicEvent *self)
 {
-    pthread_mutex_lock(&lock->mutex);
-    lock->state = 1;
-    pthread_cond_broadcast(&lock->cond);
-    pthread_mutex_unlock(&lock->mutex);
+    pthread_mutex_lock(&self->mutex);
+    self->state = 1;
+    pthread_cond_broadcast(&self->cond);
+    pthread_mutex_unlock(&self->mutex);
 }
 
 int
@@ -49,16 +49,22 @@ AtomicEvent_IsSet(AtomicEvent *self)
     return self->state;
 }
 
-void
-AtomicEvent_Wait(AtomicEvent *lock)
+static void
+wait_gil_released(AtomicEvent *self)
 {
-    pthread_mutex_lock(&lock->mutex);
-    while (lock->state == 0) {
-        Py_BEGIN_ALLOW_THREADS
-        pthread_cond_wait(&lock->cond, &lock->mutex);
-        Py_END_ALLOW_THREADS
+    pthread_mutex_lock(&self->mutex);
+    while (self->state == 0) {
+        pthread_cond_wait(&self->cond, &self->mutex);
     }
-    pthread_mutex_unlock(&lock->mutex);
+    pthread_mutex_unlock(&self->mutex);
+}
+
+void
+AtomicEvent_Wait(AtomicEvent *self)
+{
+    Py_BEGIN_ALLOW_THREADS
+    wait_gil_released(self);
+    Py_END_ALLOW_THREADS
 }
 
 PyObject *AtomicEvent_Set_callable(AtomicEvent *self)
