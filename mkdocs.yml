@@ -90,6 +90,8 @@ markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.snippets
+  - toc:
+      permalink: true
 
 extra:
   social:
