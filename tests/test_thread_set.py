@@ -8,10 +8,7 @@ def dummy_thread():
 
 
 def test_basics():
-    threads = [
-        threading.Thread(target=dummy_thread)
-        for _ in range(3)
-    ]
+    threads = [threading.Thread(target=dummy_thread) for _ in range(3)]
     ts = ThreadSet(*threads)
     for t in threads:
         assert "initial" in repr(t)
@@ -23,20 +20,11 @@ def test_basics():
 
 def test_union():
     len_part = 3
-    ts_a = ThreadSet(*[
-        threading.Thread(target=dummy_thread)
-        for _ in range(len_part)
-    ])
-    ts_b = ThreadSet(*[
-        threading.Thread(target=dummy_thread)
-        for _ in range(len_part)
-    ])
+    ts_a = ThreadSet(*[threading.Thread(target=dummy_thread) for _ in range(len_part)])
+    ts_b = ThreadSet(*[threading.Thread(target=dummy_thread) for _ in range(len_part)])
     ts_union = ts_a | ts_b
     assert len(ts_union) == len_part * 2
-    ts_union |= ThreadSet(*[
-        threading.Thread(target=dummy_thread)
-        for _ in range(len_part)
-    ])
+    ts_union |= ThreadSet(*[threading.Thread(target=dummy_thread) for _ in range(len_part)])
     assert len(ts_union) == len_part * 3
     for t in ts_union._threads:
         assert "initial" in repr(t)
@@ -50,9 +38,7 @@ def test_join_timeout():
         stop.wait(3.14)
 
     event = threading.Event()
-    ts = ThreadSet(
-        threading.Thread(target=infinite_wait_thread, args=(event,))
-    )
+    ts = ThreadSet(threading.Thread(target=infinite_wait_thread, args=(event,)))
     ts.start_and_join(join_timeout=0.01)
     assert all(ts.is_alive())
     event.set()
