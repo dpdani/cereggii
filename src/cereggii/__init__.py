@@ -14,4 +14,4 @@ from .atomic_ref import AtomicRef  # noqa: F401
 from .constants import *  # noqa: F403
 from .count_down_latch import CountDownLatch  # noqa: F401
 from .thread_handle import ThreadHandle  # noqa: F401
-from .thread_set import ThreadSet
+from .thread_set import ThreadSet  # noqa: F401
