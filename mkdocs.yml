@@ -13,6 +13,7 @@ nav:
       - 'api/CountDownLatch.md'
       - 'api/AtomicRef.md'
       - 'api/ThreadHandle.md'
+      - 'api/ThreadSet.md'
 #  - 'C-API Reference':
 #      - 'c-api/AtomicDict.md'
 #      - 'c-api/AtomicInt64.md'
@@ -126,3 +127,4 @@ extra_javascript:
 watch:
   - ./src/cereggii/_cereggii.pyi
   - ./src/cereggii/count_down_latch.py
+  - ./src/cereggii/thread_set.py
