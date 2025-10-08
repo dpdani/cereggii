@@ -40,10 +40,10 @@ def test_join_timeout():
     event = threading.Event()
     ts = ThreadSet(threading.Thread(target=infinite_wait_thread, args=(event,)))
     ts.start_and_join(join_timeout=0.01)
-    assert all(ts.is_alive())
+    assert ts.all_are_alive()
     event.set()
     ts.join()
-    assert not any(ts.is_alive())
+    assert ts.all_are_not_alive()
 
 
 def test_with_args():

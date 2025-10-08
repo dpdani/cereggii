@@ -75,6 +75,15 @@ class ThreadSet:
     def is_alive(self) -> Iterable[bool]:
         return (t.is_alive() for t in self._threads)
 
+    def any_is_alive(self) -> bool:
+        return any(self.is_alive())
+
+    def all_are_alive(self) -> bool:
+        return all(self.is_alive())
+
+    def all_are_not_alive(self) -> bool:
+        return not self.any_is_alive()
+
     def __or__(self, other):
         if not isinstance(other, self.__class__):
             raise TypeError(f"cannot make union of {self.__class__} and {other!r}")
