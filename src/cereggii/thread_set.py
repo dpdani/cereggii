@@ -44,6 +44,17 @@ class ThreadSet:
 
     @classmethod
     def target[**P](cls, target: Callable[P, None]) -> Callable[P, Thread]:
+        """
+        @ThreadSet.target
+        def spam(thread_id: int, color: str):
+            ...
+
+        threads = ThreadSet(
+            spam(1, color="red"),
+            spam(2, "blue"),
+        )
+        threads.start_and_join()
+        """
         def inner(*args: P.args, **kwargs: P.kwargs) -> Thread:
             return Thread(target=target, args=args, kwargs=kwargs)
 
