@@ -10,6 +10,7 @@ class ThreadSet:
     See Python's [`threading.Thread`](https://docs.python.org/3/library/threading.html#thread-objects)
     documentation for general information on Python threads.
     """
+
     def __init__(self, *threads: Thread):
         """
         You can initialize a `ThreadSet` with any threads you already defined:
@@ -69,6 +70,7 @@ class ThreadSet:
 
     class Args:
         """A class to hold function arguments to feed to threads."""
+
         def __init__(self, *args, **kwargs):
             self.args = args
             self.kwargs = kwargs
@@ -122,6 +124,7 @@ class ThreadSet:
         threads.start_and_join()
         ```
         """
+
         def inner(*args: P.args, **kwargs: P.kwargs) -> Thread:
             return Thread(target=target, args=args, kwargs=kwargs)
 
@@ -152,7 +155,7 @@ class ThreadSet:
 
     def is_alive(self) -> Iterable[bool]:
         """Call [`Thread.is_alive()`](https://docs.python.org/3/library/threading.html#threading.Thread.is_alive)
-         for each thread in this `ThreadSet`."""
+        for each thread in this `ThreadSet`."""
         return (t.is_alive() for t in self._threads)
 
     def any_is_alive(self) -> bool:
