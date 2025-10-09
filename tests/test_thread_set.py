@@ -86,3 +86,27 @@ def test_repeat():
     assert len(spam) == times
     spam.start_and_join()
     assert results == ["spam" for _ in range(times)]
+
+
+def test_range():
+    identifiers = set()
+    n = 10
+
+    @ThreadSet.range(n)
+    def workers(thread_id):
+        identifiers.add(thread_id)
+
+    workers.start_and_join()
+    for i in range(n):
+        assert i in identifiers
+
+    identifiers.clear()
+    start, stop, step = 0, 10, 2
+
+    @ThreadSet.range(start, stop, step)
+    def workers(thread_id):
+        identifiers.add(thread_id)
+
+    workers.start_and_join()
+    for i in range(start, stop, step):
+        assert i in identifiers

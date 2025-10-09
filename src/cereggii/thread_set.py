@@ -1,6 +1,7 @@
 import itertools
 from collections.abc import Callable, Iterable
 from threading import Thread
+from typing import overload
 
 
 class ThreadSet:
@@ -10,6 +11,8 @@ class ThreadSet:
     See Python's [`threading.Thread`](https://docs.python.org/3/library/threading.html#thread-objects)
     documentation for general information on Python threads.
     """
+
+    thread_factory = Thread
 
     def __init__(self, *threads: Thread):
         """
@@ -91,7 +94,7 @@ class ThreadSet:
             threads = []
             for arg in args:
                 assert isinstance(arg, cls.Args)
-                threads.append(Thread(target=target, args=arg.args, kwargs=arg.kwargs))
+                threads.append(cls.thread_factory(target=target, args=arg.args, kwargs=arg.kwargs))
             return cls(*threads)
 
         return decorator
@@ -108,6 +111,32 @@ class ThreadSet:
         ```
         """
         return cls.with_args(*itertools.repeat(cls.Args(), times))
+
+    @overload
+    @classmethod
+    def range(cls, stop: int) -> Callable[[Callable], "ThreadSet"]: ...
+    @overload
+    @classmethod
+    def range(cls, start: int, stop: int, step: int = 1) -> Callable[[Callable], "ThreadSet"]: ...
+    @classmethod
+    def range(cls, start: int, stop: int | None = None, step: int = 1) -> Callable[[Callable], "ThreadSet"]:
+        """
+        ```python
+        identifiers = set()
+
+        @ThreadSet.range(5)
+        def workers(thread_id):
+            identifiers.add(thread_id)
+
+        workers.start_and_join()
+        for i in range(5):
+            assert i in identifiers
+        ```
+        The meaning of the parameters follows Python's [`range()`](https://docs.python.org/3.13/library/stdtypes.html#range).
+        """
+        if stop is None:
+            start, stop = 0, start
+        return cls.with_args(*(cls.Args(i) for i in range(start, stop, step)))
 
     @classmethod
     def target[**P](cls, target: Callable[P, None]) -> Callable[P, Thread]:
@@ -126,7 +155,7 @@ class ThreadSet:
         """
 
         def inner(*args: P.args, **kwargs: P.kwargs) -> Thread:
-            return Thread(target=target, args=args, kwargs=kwargs)
+            return cls.thread_factory(target=target, args=args, kwargs=kwargs)
 
         return inner
 
