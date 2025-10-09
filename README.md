@@ -1,9 +1,9 @@
 # cereggii
 
 [![supports free-threading](https://github.com/dpdani/free-threading-badges/raw/main/supported.svg)](https://py-free-threading.github.io/)
-![PyPI - Version](https://img.shields.io/pypi/v/cereggii?color=blue)
-![GitHub License](https://img.shields.io/github/license/dpdani/cereggii)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cereggii)
+[![PyPI - Version](https://img.shields.io/pypi/v/cereggii?color=blue)](https://pypi.org/project/cereggii/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cereggii)](https://pypi.org/project/cereggii/)
+[![GitHub License](https://img.shields.io/github/license/dpdani/cereggii)](https://github.com/dpdani/cereggii/blob/main/LICENSE)
 
 Thread synchronization utilities for Python.
 
