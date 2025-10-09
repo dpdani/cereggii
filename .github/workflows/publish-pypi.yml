@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.13
+          - 3.14
     permissions:
       id-token: write  # OIDC publishing https://docs.pypi.org/trusted-publishers/adding-a-publisher/
 
