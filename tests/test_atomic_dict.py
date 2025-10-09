@@ -14,6 +14,7 @@ from cereggii import AtomicDict
 from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
+from .utils import TestingThreadSet
 
 
 def test_init():
@@ -154,28 +155,22 @@ def test_dealloc():
         previous = this
 
 
-def test_concurrent_insert(reraise):
+def test_concurrent_insert():
     d = AtomicDict(min_size=64 * 2)
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def thread_1():
         d[0] = 1
         d[1] = 1
         d[2] = 1
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def thread_2():
         d[3] = 2
         d[4] = 2
         d[2] = 2
 
-    t1 = threading.Thread(target=thread_1)
-    t2 = threading.Thread(target=thread_2)
-
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+    (thread_1 | thread_2).start_and_join()
 
     assert d[0] == 1
     assert d[1] == 1
@@ -293,13 +288,13 @@ def test_delete():
     # assert debug["index"][16] == debug["meta"]["tombstone"]
 
 
-def test_delete_concurrent(reraise):
+def test_delete_concurrent():
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
 
     key_error_1 = False
     key_error_2 = False
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def thread_1():
         del d["spam"]
         try:
@@ -308,7 +303,7 @@ def test_delete_concurrent(reraise):
             nonlocal key_error_1
             key_error_1 = True
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def thread_2():
         del d["atomic"]
         try:
@@ -317,13 +312,7 @@ def test_delete_concurrent(reraise):
             nonlocal key_error_2
             key_error_2 = True
 
-    t1 = threading.Thread(target=thread_1)
-    t2 = threading.Thread(target=thread_2)
-
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+    (thread_1 | thread_2).start_and_join()
 
     with raises(KeyError):
         d["spam"]
@@ -470,7 +459,7 @@ def test_len_bounds():
     assert d.approx_len() == 0
 
 
-def test_fast_iter(reraise):
+def test_fast_iter():
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
     for _ in range(1, 64):  # must offset for entry number 0
@@ -484,7 +473,7 @@ def test_fast_iter(reraise):
         for _ in range(p * 128, p * 128 + 64):
             d[_ + 64] = 2
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def partition_1():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=0):
@@ -492,7 +481,7 @@ def test_fast_iter(reraise):
             n += 1
         assert n == 4 * 64 - 1
 
-    @reraise.wrap
+    @TestingThreadSet.repeat(1)
     def partition_2():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=1):
@@ -500,14 +489,7 @@ def test_fast_iter(reraise):
             n += 1
         assert n == 4 * 64
 
-    threads = [
-        threading.Thread(target=partition_1),
-        threading.Thread(target=partition_2),
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    (partition_1 | partition_2).start_and_join()
 
 
 def test_compare_and_set():
@@ -593,16 +575,13 @@ def test_reduce_specialized_sum():
     n = 4
     b = threading.Barrier(n)
 
-    def thread():
+    @TestingThreadSet.repeat(n)
+    def threads():
         b.wait()
         data = ("spam", 1)
         d.reduce_sum(itertools.repeat(data, iterations))
 
-    threads = [threading.Thread(target=thread) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert d["spam"] == iterations * n
 
 
@@ -612,7 +591,8 @@ def test_reduce_specialized_and():
     n = 4
     b = threading.Barrier(n)
 
-    def thread():
+    @TestingThreadSet.repeat(n)
+    def threads():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
@@ -624,11 +604,7 @@ def test_reduce_specialized_and():
         )
         d.reduce_and(data)
 
-    threads = [threading.Thread(target=thread) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert d["norwegian"] and d["blue"] and not d["voom"]
 
 
@@ -638,7 +614,8 @@ def test_reduce_specialized_or():
     n = 4
     b = threading.Barrier(n)
 
-    def thread():
+    @TestingThreadSet.repeat(n)
+    def threads():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
         falsy = [False, "", 0, [], tuple(), set()]
@@ -650,11 +627,7 @@ def test_reduce_specialized_or():
         )
         d.reduce_and(data)
 
-    threads = [threading.Thread(target=thread) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert not d["norwegian"] and not d["blue"] and d["voom"]
 
 
@@ -664,16 +637,13 @@ def test_reduce_specialized_max():
     n = 10
     b = threading.Barrier(n)
 
-    def thread(i):
+    @TestingThreadSet.range(n)
+    def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_max(data)
 
-    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert d["spam"] == (n - 1) * (iterations - 1)
 
 
@@ -683,16 +653,13 @@ def test_reduce_specialized_min():
     n = 10
     b = threading.Barrier(n)
 
-    def thread(i):
+    @TestingThreadSet.range(n)
+    def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_min(data)
 
-    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert d["spam"] == 0
 
 
@@ -702,16 +669,13 @@ def test_reduce_specialized_list():
     n = 10
     b = threading.Barrier(n)
 
-    def thread(i):
+    @TestingThreadSet.range(n)
+    def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
         d.reduce_list(data)
 
-    threads = [threading.Thread(target=thread, args=(_,)) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     expected = [_ * i for _ in range(iterations) for i in range(n)]
     assert sorted(d["spam"]) == sorted(expected)
 
@@ -745,16 +709,13 @@ def test_reduce_specialized_count_threads():
     n = 10
     b = threading.Barrier(n)
 
-    def thread():
+    @TestingThreadSet.repeat(n)
+    def threads():
         b.wait()
         data = ["spam" for _ in range(iterations)]
         d.reduce_count(data)
 
-    threads = [threading.Thread(target=thread) for _ in range(n)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    threads.start_and_join()
     assert as_dict(d) == {"spam": iterations * n}
 
 

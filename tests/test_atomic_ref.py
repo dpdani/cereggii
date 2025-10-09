@@ -2,10 +2,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import gc
-import threading
 
 import cereggii
 from cereggii import AtomicRef
+
+from .utils import TestingThreadSet
 
 
 def test_init():
@@ -41,19 +42,18 @@ def test_cas():
     result_0 = Result()
     result_1 = Result()
 
+    @TestingThreadSet.target
     def thread(result, ref):
         result.result = r.compare_and_set(None, ref)
 
     obj_0 = object()
     id_0 = id(obj_0)
-    t0 = threading.Thread(target=thread, args=(result_0, obj_0))
     obj_1 = object()
     id_1 = id(obj_1)
-    t1 = threading.Thread(target=thread, args=(result_1, obj_1))
-    t0.start()
-    t1.start()
-    t0.join()
-    t1.join()
+    TestingThreadSet(
+        thread(result_0, obj_0),
+        thread(result_1, obj_1),
+    ).start_and_join()
 
     assert sorted([result_0.result, result_1.result]) == [False, True]
     assert id(obj_0) == id_0 and id(obj_1) == id_1
@@ -62,18 +62,14 @@ def test_cas():
 def test_counter():
     r = AtomicRef(0)
 
-    def thread():
+    @TestingThreadSet.repeat(2)
+    def threads():
         for _ in range(1_000):
             expected = r.get()
             while not r.compare_and_set(expected, expected + 1):
                 expected = r.get()
 
-    t0 = threading.Thread(target=thread)
-    t1 = threading.Thread(target=thread)
-    t0.start()
-    t1.start()
-    t0.join()
-    t1.join()
+    threads.start_and_join()
 
     assert r.get() == 2_000
 
@@ -83,6 +79,7 @@ def test_swap():
     result_0 = Result()
     result_1 = Result()
 
+    @TestingThreadSet.target
     def thread(result, ref):
         result.result = r.get_and_set(ref)
 
@@ -90,24 +87,10 @@ def test_swap():
     id_0 = id(obj_0)
     obj_1 = object()
     id_1 = id(obj_1)
-    t0 = threading.Thread(
-        target=thread,
-        args=(
-            result_0,
-            obj_0,
-        ),
-    )
-    t1 = threading.Thread(
-        target=thread,
-        args=(
-            result_1,
-            obj_1,
-        ),
-    )
-    t0.start()
-    t1.start()
-    t0.join()
-    t1.join()
+    TestingThreadSet(
+        thread(result_0, obj_0),
+        thread(result_1, obj_1),
+    ).start_and_join()
     results = [result_0.result, result_1.result]
 
     assert None in results

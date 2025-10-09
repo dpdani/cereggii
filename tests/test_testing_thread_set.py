@@ -4,7 +4,7 @@ This tests an internal cereggii testing utility.
 
 import pytest
 
-from tests.utils import TestingThreadSet
+from .utils import TestingThreadSet
 
 
 def test_raises():

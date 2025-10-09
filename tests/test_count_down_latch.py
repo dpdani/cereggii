@@ -4,6 +4,8 @@ import time
 import pytest
 from cereggii import CountDownLatch
 
+from .utils import TestingThreadSet
+
 
 def test_init():
     latch = CountDownLatch(1)
@@ -63,13 +65,13 @@ def test_wait_blocks_until_count_reaches_zero():
     wait_completed = threading.Event()
     barrier = threading.Barrier(2)
 
+    @TestingThreadSet.repeat(1)
     def waiter():
         barrier.wait()
         latch.wait()
         wait_completed.set()
 
-    wait_thread = threading.Thread(target=waiter)
-    wait_thread.start()
+    waiter.start()
     barrier.wait()
     # Give some time to ensure wait() is blocking
     time.sleep(0.01)
@@ -77,7 +79,7 @@ def test_wait_blocks_until_count_reaches_zero():
     # Decrement to release the wait
     latch.decrement()
     # Wait should complete now
-    wait_thread.join(timeout=1.0)
+    waiter.join(timeout=1.0)
     assert wait_completed.is_set()
 
 
@@ -87,25 +89,21 @@ def test_multiple_threads_waiting():
     completed_waiters = []
     barrier = threading.Barrier(num_waiters + 1)
 
-    def waiter(waiter_id):
+    @TestingThreadSet.range(num_waiters)
+    def waiters(waiter_id):
         barrier.wait()
         latch.wait()
         completed_waiters.append(waiter_id)
 
-    threads = []
-    for i in range(num_waiters):
-        thread = threading.Thread(target=waiter, args=(i,))
-        thread.start()
-        threads.append(thread)
+    waiters.start()
     # Give time for all threads to start waiting
-    barrier.wait()
+    barrier.wait(timeout=1.0)
     time.sleep(0.01)
     assert len(completed_waiters) == 0
     # Release all waiters
     latch.decrement()
     # Wait for all threads to complete
-    for thread in threads:
-        thread.join(timeout=1.0)
+    waiters.join(timeout=1.0)
     assert len(completed_waiters) == num_waiters
     assert set(completed_waiters) == set(range(num_waiters))
 
@@ -115,17 +113,12 @@ def test_multiple_decrements_by_different_threads():
     latch = CountDownLatch(initial_count)
     barrier = threading.Barrier(initial_count)
 
-    def decrementer():
+    @TestingThreadSet.repeat(initial_count)
+    def decrementers():
         barrier.wait()
         latch.decrement()
 
-    threads = []
-    for _ in range(initial_count):
-        thread = threading.Thread(target=decrementer)
-        thread.start()
-        threads.append(thread)
-    for thread in threads:
-        thread.join(timeout=1.0)
+    decrementers.start_and_join(join_timeout=1.0)
     assert latch.get() == 0
 
 
@@ -154,27 +147,19 @@ def test_concurrent_decrement_and_wait():
     barrier = threading.Barrier(num_waiters + num_decrementers)
     log = []
 
-    def waiter(waiter_id):
+    @TestingThreadSet.range(num_waiters)
+    def waiters(waiter_id):
         barrier.wait()
         latch.wait()
         log.append(f"waiter_{waiter_id}_completed")
 
-    def decrementer(decrementer_id):
+    @TestingThreadSet.range(num_decrementers)
+    def decrementers(decrementer_id):
         barrier.wait()
         result = latch.decrement_and_get()
         log.append(f"decrementer_{decrementer_id}_result_{result}")
 
-    threads = []
-    for i in range(num_waiters):
-        thread = threading.Thread(target=waiter, args=(i,))
-        thread.start()
-        threads.append(thread)
-    for i in range(num_decrementers):
-        thread = threading.Thread(target=decrementer, args=(i,))
-        thread.start()
-        threads.append(thread)
-    for thread in threads:
-        thread.join(timeout=2.0)
+    (waiters | decrementers).start_and_join(join_timeout=2.0)
 
     waiter_completions = [r for r in log if "waiter" in r]
     assert len(waiter_completions) == 2
@@ -191,28 +176,20 @@ def test_many_operations():
     log = []
     barrier = threading.Barrier(num_waiters + num_decrementers)
 
-    def waiter(waiter_id):
+    @TestingThreadSet.range(num_waiters)
+    def waiters(waiter_id):
         barrier.wait()
         latch.wait()
         log.append(f"wait_{waiter_id}")
 
-    def decrementer(decrementer_id):
+    @TestingThreadSet.range(num_decrementers)
+    def decrementers(decrementer_id):
         barrier.wait()
         for i in range(decrements_per_thread):
             result = latch.decrement_and_get()
             log.append(f"dec_{decrementer_id}_{i}_{result}")
 
-    threads = []
-    for i in range(num_waiters):
-        thread = threading.Thread(target=waiter, args=(i,))
-        thread.start()
-        threads.append(thread)
-    for i in range(num_decrementers):
-        thread = threading.Thread(target=decrementer, args=(i,))
-        thread.start()
-        threads.append(thread)
-    for thread in threads:
-        thread.join(timeout=5.0)
+    (waiters | decrementers).start_and_join(join_timeout=5.0)
 
     assert latch.get() == 0
     wait_logs = [op for op in log if op.startswith("wait_")]

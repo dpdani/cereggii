@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import gc
-import threading
 from fractions import Fraction
 
 import cereggii
 from cereggii import AtomicInt64
 from pytest import raises
+
+from .utils import TestingThreadSet
 
 
 def test_init():
@@ -38,19 +39,18 @@ def test_cas():
     result_0 = Result()
     result_1 = Result()
 
+    @TestingThreadSet.target
     def thread(result, updated):
         result.result = r.compare_and_set(0, updated)
 
     obj_0 = 300
     id_0 = id(obj_0)
-    t0 = threading.Thread(target=thread, args=(result_0, obj_0))
     obj_1 = 400
     id_1 = id(obj_1)
-    t1 = threading.Thread(target=thread, args=(result_1, obj_1))
-    t0.start()
-    t1.start()
-    t0.join()
-    t1.join()
+    TestingThreadSet(
+        thread(result_0, obj_0),
+        thread(result_1, obj_1),
+    ).start_and_join()
 
     assert sorted([result_0.result, result_1.result]) == [False, True]
     assert id(obj_0) == id_0 and id(obj_1) == id_1
@@ -61,6 +61,7 @@ def test_swap():
     result_0 = Result()
     result_1 = Result()
 
+    @TestingThreadSet.target
     def thread(result, updated):
         result.result = i.get_and_set(updated)
 
@@ -68,24 +69,10 @@ def test_swap():
     id_0 = id(obj_0)
     obj_1 = 600
     id_1 = id(obj_1)
-    t0 = threading.Thread(
-        target=thread,
-        args=(
-            result_0,
-            obj_0,
-        ),
-    )
-    t1 = threading.Thread(
-        target=thread,
-        args=(
-            result_1,
-            obj_1,
-        ),
-    )
-    t0.start()
-    t1.start()
-    t0.join()
-    t1.join()
+    TestingThreadSet(
+        thread(result_0, obj_0),
+        thread(result_1, obj_1),
+    ).start_and_join()
     results = [result_0.result, result_1.result]
 
     assert 400 in results
