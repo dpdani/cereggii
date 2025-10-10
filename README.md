@@ -50,7 +50,7 @@ git clone https://github.com/dpdani/cereggii
 Then, install the build requirements (do this in a virtualenv):
 
 ```shell
-pip install -e .[dev]
+pip install -e ".[dev]"
 ```
 
 Finally, run the tests:
