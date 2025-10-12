@@ -72,6 +72,17 @@ build_args = ["-j"]
 install_components = ["python_modules"]
 
 
+[tool.pytest.ini_options]
+filterwarnings = [
+  "error",
+  "ignore::pytest.PytestUnhandledThreadExceptionWarning",
+  # PytestUnhandledThreadExceptionWarning conflicts with TestingThreadSet.
+  # When a thread incurs in an exception without handling it, TestingThreadSet
+  # reraises the exception when calling join(), so that the exception is raised
+  # in the main thread.
+  # See test_testing_thread_set.py::test_raises.
+]
+
 [tool.cibuildwheel]
 before-all = "cat /proc/cpuinfo || (sysctl -a)"
 enable = [
