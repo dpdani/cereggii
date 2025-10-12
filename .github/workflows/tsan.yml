@@ -19,5 +19,5 @@ jobs:
           pip install ".[dev]"
       - name: Test
         run: |
-          TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/ci/tsan_suppressions.txt" \
+          TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/tsan/suppressions.txt" \
           pytest -s
