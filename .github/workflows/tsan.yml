@@ -1,0 +1,23 @@
+name: Thread Sanitizer
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  tsan:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nascheme/cpython-tsan:3.14t
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          CEREGGII_TSAN=enabled \
+          pip install ".[dev]"
+      - name: Test
+        run: |
+          TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/ci/tsan_suppressions.txt" \
+          pytest -s
