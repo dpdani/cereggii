@@ -6,8 +6,6 @@
 pip install cereggii
 ```
 
-*This library is beta quality: expect things to change.*
-
 This package provides atomic versions of common data structures:
 
 - [AtomicDict][cereggii._cereggii.AtomicDict]

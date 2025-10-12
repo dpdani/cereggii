@@ -7,8 +7,6 @@
 
 Thread synchronization utilities for Python.
 
-This library is beta quality: expect things to change.
-
 [Documentation is here.](https://dpdani.github.io/cereggii)
 
 ```python
