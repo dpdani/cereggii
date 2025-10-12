@@ -1,3 +1,5 @@
+# See https://github.com/dpdani/cereggii/issues/67
+
 race:AtomicDict_ReadNodeAt
 race:AtomicDict_GetEmptyEntry
 race:AtomicDict_ReadEntry
