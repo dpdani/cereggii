@@ -32,4 +32,6 @@ class ReraiseThread(Thread):
 
 
 class TestingThreadSet(ThreadSet):
+    __test__ = False
+
     thread_factory = ReraiseThread
