@@ -11,6 +11,13 @@ message(STATUS "CMAKE_HOST_SYSTEM_NAME=${CMAKE_HOST_SYSTEM_NAME}")
 add_compile_options("-Werror=implicit-function-declaration")
 #add_compile_options("-Werror=undefined-inline")
 
+if (DEFINED ENV{CEREGGII_TSAN})
+    add_compile_options("-fsanitize=thread")
+    add_link_options("-fsanitize=thread")
+    add_compile_options("-g")
+    add_compile_options("-fno-omit-frame-pointer")
+endif ()
+
 if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
     set(IS_ARM TRUE)
     message(STATUS "Detected ARM architecture")
