@@ -1,7 +1,7 @@
-race:AtomicDict_ReadNodeAt
-race:AtomicDict_GetEmptyEntry
-race:AtomicDict_ReadEntry
-race:CereggiiAtomic_CompareExchangePtr  # AtomicRef_CompareAndSet
-race:AtomicRef_Get
-race:AtomicInt64_Get_callable
-race:CereggiiAtomic_CompareExchangeInt64  # AtomicInt64_CompareAndSet_callable
+#race:AtomicDict_ReadNodeAt
+#race:AtomicDict_GetEmptyEntry
+#race:AtomicDict_ReadEntry
+#race:CereggiiAtomic_CompareExchangePtr  # AtomicRef_CompareAndSet
+#race:AtomicRef_Get
+#race:AtomicInt64_Get_callable
+#race:CereggiiAtomic_CompareExchangeInt64  # AtomicInt64_CompareAndSet_callable
