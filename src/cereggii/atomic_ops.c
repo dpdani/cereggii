@@ -321,6 +321,10 @@ inline void *
 CereggiiAtomic_LoadPtr(const void **obj)
 { return (void *) atomic_load_explicit((_Atomic(void *) *) obj, memory_order_acquire); }
 
+inline void *
+CereggiiAtomic_LoadPtrRelaxed(const void **obj)
+{ return (void *) atomic_load_explicit((_Atomic(void *) *) obj, memory_order_relaxed); }
+
 
 inline void
 CereggiiAtomic_StoreInt(int *obj, int value)

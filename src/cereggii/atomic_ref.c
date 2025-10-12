@@ -71,16 +71,17 @@ void AtomicRef_dealloc(AtomicRef *self)
 }
 
 
-PyObject *AtomicRef_Get(AtomicRef *self)
+PyObject *
+AtomicRef_Get(AtomicRef *self)
 {
     PyObject *reference;
-    reference = self->reference;
+    reference = CereggiiAtomic_LoadPtrRelaxed((const void **) &self->reference);
 
 #ifndef Py_GIL_DISABLED
     Py_INCREF(reference);
 #else
     while (!_Py_TryIncref(reference)) {
-        reference = self->reference;
+        reference = CereggiiAtomic_LoadPtrRelaxed((const void **) &self->reference);
     }
 #endif
     return reference;

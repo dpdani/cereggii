@@ -201,7 +201,7 @@ unsigned int CereggiiAtomic_LoadUIntRelaxed(const unsigned int *obj);
 
 Py_ssize_t CereggiiAtomic_LoadSsizeRelaxed(const Py_ssize_t *obj);
 
-void *CereggiiAtomic_LoadPtrRelaxed(const void *obj);
+void *CereggiiAtomic_LoadPtrRelaxed(const void **obj);
 
 
 // --- CereggiiAtomic_store ------------------------------------------------------
