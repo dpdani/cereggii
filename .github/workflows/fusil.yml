@@ -19,17 +19,29 @@ jobs:
           export PYENV_ROOT="./.pyenv"
           export PYENV_BIN="$PYENV_ROOT/bin"
           export PYENV_SHIMS="$PYENV_ROOT/shims"
-#          export PYENV_CACHE="$PYENV_ROOT/cache"
+          export PYENV_CACHE="$PYENV_ROOT/cache"
           git clone --single-branch --depth=1 --no-tags \
           https://github.com/pyenv/pyenv.git "./.pyenv"
-#          mkdir -p "$PYENV_CACHE"
+          mkdir -p "$PYENV_CACHE"
+          #          echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
+          #          echo "PYENV_BIN=$PYENV_BIN" >> $GITHUB_ENV
+          #          echo "PYENV_SHIMS=$PYENV_SHIMS" >> $GITHUB_ENV
+          #          echo "PYENV_CACHE=$PYENV_CACHE" >> $GITHUB_ENV
+          #      - name: build python with sanitizers
+          #        run: |
           export CONFIGURE_OPTS="--disable-gil --with-pydebug --with-address-sanitizer --without-pymalloc --without-system-libmpdec --config-cache" 
           ./.pyenv/bin/pyenv install --verbose --keep ${{ matrix.python-version }}
           ./.pyenv/bin/pyenv global ${{ matrix.python-version }}
           export CUSTOM_PYTHON="$(./.pyenv/bin/pyenv which python)"
           echo "CUSTOM_PYTHON=$CUSTOM_PYTHON" >> $GITHUB_ENV
+          #      - name: install dependencies
+          #        run: |
           "$CUSTOM_PYTHON" -m pip install python-ptrace git+https://github.com/devdanzin/fusil.git ".[dev]"
+          #      - name: prepare runs directory
+          #        run: |
           mkdir -p -m 777 ./fusil/runs
+          #      - name: run fusil
+          #        run: |
           export ASAN_OPTIONS=detect_leaks=0
           export PYTHON_GIL=0
           "$CUSTOM_PYTHON" -m fusil-python-threaded \
