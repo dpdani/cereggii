@@ -19,10 +19,10 @@ jobs:
           export PYENV_ROOT="./.pyenv"
           export PYENV_BIN="$PYENV_ROOT/bin"
           export PYENV_SHIMS="$PYENV_ROOT/shims"
-          export PYENV_CACHE="$PYENV_ROOT/cache"
+#          export PYENV_CACHE="$PYENV_ROOT/cache"
           git clone --single-branch --depth=1 --no-tags \
           https://github.com/pyenv/pyenv.git "./.pyenv"
-          mkdir -p "$PYENV_CACHE"
+#          mkdir -p "$PYENV_CACHE"
           export CONFIGURE_OPTS="--disable-gil --with-pydebug --with-address-sanitizer --without-pymalloc --without-system-libmpdec --config-cache" 
           ./.pyenv/bin/pyenv install --verbose --keep ${{ matrix.python-version }}
           ./.pyenv/bin/pyenv global ${{ matrix.python-version }}
