@@ -21,7 +21,7 @@ jobs:
           export PYENV_BIN="$PYENV_ROOT/bin"
           export PYENV_SHIMS="$PYENV_ROOT/shims"
           export PYENV_CACHE="$PYENV_ROOT/cache"
-          mkdir "$PYENV_CACHE"
+          mkdir -p "$PYENV_CACHE"
           echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
           echo "PYENV_BIN=$PYENV_BIN" >> $GITHUB_ENV
           echo "PYENV_SHIMS=$PYENV_SHIMS" >> $GITHUB_ENV
