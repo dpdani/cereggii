@@ -19,10 +19,10 @@ jobs:
           export PYENV_ROOT="./.pyenv"
           export PYENV_BIN="$PYENV_ROOT/bin"
           export PYENV_SHIMS="$PYENV_ROOT/shims"
-          export PYENV_CACHE="$PYENV_ROOT/cache"
+          #          export PYENV_CACHE="$PYENV_ROOT/cache"
           git clone --single-branch --depth=1 --no-tags \
           https://github.com/pyenv/pyenv.git "./.pyenv"
-          mkdir -p "$PYENV_CACHE"
+          #          mkdir -p "$PYENV_CACHE"
           #          echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
           #          echo "PYENV_BIN=$PYENV_BIN" >> $GITHUB_ENV
           #          echo "PYENV_SHIMS=$PYENV_SHIMS" >> $GITHUB_ENV
