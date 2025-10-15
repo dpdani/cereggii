@@ -17,13 +17,14 @@ jobs:
         run: |
           git clone --single-branch --depth=1 --no-tags \
           https://github.com/pyenv/pyenv.git "./.pyenv"
-      - name: build python with sanitizers
-        run: |
           export PYENV_ROOT="./.pyenv"
           export PYENV_BIN="$PYENV_ROOT/bin"
           export PYENV_SHIMS="$PYENV_ROOT/shims"
           export PYENV_CACHE="$PYENV_ROOT/cache"
           mkdir "$PYENV_CACHE"
+          alias pyenv='./.pyenv/bin/pyenv'
+      - name: build python with sanitizers
+        run: |
           export CONFIGURE_OPTS="--disable-gil --with-pydebug --with-address-sanitizer --without-pymalloc --without-system-libmpdec --config-cache" 
           pyenv install --verbose --keep ${{ matrix.python-version }}
           pyenv global ${{ matrix.python-version }}
