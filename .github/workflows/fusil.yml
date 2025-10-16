@@ -55,6 +55,7 @@ jobs:
             --fast \
             --test-private \
             --packages=cereggii \
+            --modules=cereggii \
             --no-async \
             --no-numpy \
             --no-tstrings'
