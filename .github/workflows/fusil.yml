@@ -36,6 +36,9 @@ jobs:
           echo "CUSTOM_PYTHON=$CUSTOM_PYTHON" >> $GITHUB_ENV
       - name: install dependencies
         run: |
+          # CMake must be able to find the pyenv python installation
+          # before the system's python.
+          export PATH="$(dirname $CUSTOM_PYTHON)":$PATH
           "$CUSTOM_PYTHON" -m pip install \
             python-ptrace \
             git+https://github.com/devdanzin/fusil.git \
