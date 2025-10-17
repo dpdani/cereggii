@@ -580,6 +580,29 @@ AtomicInt64_Hash(AtomicInt64 *self)
 #endif
 }
 
+
+#define ATOMICINT64_BIN_OP(op) \
+    inline PyObject * \
+    AtomicInt64_##op(AtomicInt64 *self, PyObject *other) { \
+        PyObject *current = NULL; \
+\
+        if (!PyObject_IsInstance((PyObject *) self, (PyObject *) &AtomicInt64_Type)) { \
+            /* this is a reflected binary operation => atomic int is in the right operand */ \
+            PyObject *tmp = other; \
+            other = (PyObject *) self; \
+            self = (AtomicInt64 *) tmp; \
+        } \
+\
+        current = AtomicInt64_Get_callable(self); \
+\
+        if (current == NULL) \
+            goto fail; \
+\
+        return PyNumber_##op(current, other); \
+        fail: \
+        return NULL; \
+    }
+
 inline PyObject *
 AtomicInt64_Add(AtomicInt64 *self, PyObject *other)
 {
@@ -786,20 +809,7 @@ AtomicInt64_And(AtomicInt64 *self, PyObject *other)
     return NULL;
 }
 
-inline PyObject *
-AtomicInt64_Xor(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Xor(current, other);
-    fail:
-    return NULL;
-}
+ATOMICINT64_BIN_OP(Xor);
 
 inline PyObject *
 AtomicInt64_Or(AtomicInt64 *self, PyObject *other)
