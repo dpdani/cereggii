@@ -587,7 +587,7 @@ AtomicInt64_Hash(AtomicInt64 *self)
         PyObject *current = NULL; \
 \
         if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) { \
-            /* this is a reflected binary operation => atomic int is in the right operand */ \
+            /* this is a reflected binary operation => atomic int is in the second argument */ \
             other = AtomicInt64_Get_callable((AtomicInt64 *) other); \
             current = (PyObject *) self; \
         } \
@@ -615,7 +615,7 @@ AtomicInt64_Power(AtomicInt64 *self, PyObject *other, PyObject *mod)
     PyObject *current = NULL;
 
     if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
-        /* this is a reflected binary operation => atomic int is in the right operand */
+        /* this is a reflected binary operation => atomic int is in the second argument */
         other = AtomicInt64_Get_callable((AtomicInt64 *) other);
         current = (PyObject *) self;
     }
@@ -1088,7 +1088,7 @@ AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
     // bonus: raise the same exception as `int(...) @ other`
 
     if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
-        /* this is a reflected binary operation => atomic int is in the right operand */
+        /* this is a reflected binary operation => atomic int is in the second argument */
         other = (PyObject *) self;
     }
 

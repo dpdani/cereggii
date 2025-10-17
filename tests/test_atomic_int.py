@@ -478,4 +478,5 @@ def test_reflected_bin_ops():
 
 
 def test_issue_76():
+    # see https://github.com/dpdani/cereggii/issues/76
     assert AtomicInt64() + AtomicInt64() == 0
