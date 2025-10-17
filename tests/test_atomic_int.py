@@ -474,3 +474,6 @@ def test_reflected_bin_ops():
     assert 2 - AtomicInt64(1) == 1
     assert 2 / AtomicInt64(1) == 2
     assert 3 ^ AtomicInt64(1) == 2
+
+def test_issue_76():
+    assert AtomicInt64() + AtomicInt64() == 0
