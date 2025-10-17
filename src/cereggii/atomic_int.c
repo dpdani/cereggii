@@ -614,9 +614,16 @@ AtomicInt64_Power(AtomicInt64 *self, PyObject *other, PyObject *mod)
 {
     PyObject *current = NULL;
 
-    current = AtomicInt64_Get_callable(self);
+    if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
+        /* this is a reflected binary operation => atomic int is in the right operand */
+        other = AtomicInt64_Get_callable((AtomicInt64 *) other);
+        current = (PyObject *) self;
+    }
+    else {
+        current = AtomicInt64_Get_callable(self);
+    }
 
-    if (current == NULL)
+    if (current == NULL || other == NULL)
         goto fail;
 
     return PyNumber_Power(current, other, mod);
