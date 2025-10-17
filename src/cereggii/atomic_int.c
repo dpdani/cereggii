@@ -580,89 +580,50 @@ AtomicInt64_Hash(AtomicInt64 *self)
 #endif
 }
 
-inline PyObject *
-AtomicInt64_Add(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
 
-    current = AtomicInt64_Get_callable(self);
+#define ATOMICINT64_BIN_OP(op) \
+    inline PyObject * \
+    AtomicInt64_##op(AtomicInt64 *self, PyObject *other) { \
+        PyObject *current = NULL; \
+\
+        if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) { \
+            /* this is a reflected binary operation => atomic int is in the second argument */ \
+            other = AtomicInt64_Get_callable((AtomicInt64 *) other); \
+            current = (PyObject *) self; \
+        } \
+        else { \
+            current = AtomicInt64_Get_callable(self); \
+        } \
+\
+        if (current == NULL || other == NULL) \
+            goto fail; \
+\
+        return PyNumber_##op(current, other); \
+        fail: \
+        return NULL; \
+    }
 
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Add(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Subtract(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Subtract(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Multiply(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Multiply(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Remainder(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Remainder(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Divmod(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Divmod(current, other);
-    fail:
-    return NULL;
-}
+ATOMICINT64_BIN_OP(Add);
+ATOMICINT64_BIN_OP(Subtract);
+ATOMICINT64_BIN_OP(Multiply);
+ATOMICINT64_BIN_OP(Remainder);
+ATOMICINT64_BIN_OP(Divmod);
 
 inline PyObject *
 AtomicInt64_Power(AtomicInt64 *self, PyObject *other, PyObject *mod)
 {
     PyObject *current = NULL;
 
-    current = AtomicInt64_Get_callable(self);
+    if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
+        /* this is a reflected binary operation => atomic int is in the second argument */
+        other = AtomicInt64_Get_callable((AtomicInt64 *) other);
+        current = (PyObject *) self;
+    }
+    else {
+        current = AtomicInt64_Get_callable(self);
+    }
 
-    if (current == NULL)
+    if (current == NULL || other == NULL)
         goto fail;
 
     return PyNumber_Power(current, other, mod);
@@ -741,80 +702,11 @@ AtomicInt64_Invert(AtomicInt64 *self)
     return NULL;
 }
 
-inline PyObject *
-AtomicInt64_Lshift(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Lshift(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Rshift(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Rshift(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_And(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_And(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Xor(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Xor(current, other);
-    fail:
-    return NULL;
-}
-
-inline PyObject *
-AtomicInt64_Or(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_Or(current, other);
-    fail:
-    return NULL;
-}
+ATOMICINT64_BIN_OP(Lshift);
+ATOMICINT64_BIN_OP(Rshift);
+ATOMICINT64_BIN_OP(And);
+ATOMICINT64_BIN_OP(Xor);
+ATOMICINT64_BIN_OP(Or);
 
 inline PyObject *
 AtomicInt64_Int(AtomicInt64 *self)
@@ -837,35 +729,8 @@ AtomicInt64_Float(AtomicInt64 *self)
     return NULL;
 }
 
-PyObject *
-AtomicInt64_FloorDivide(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_FloorDivide(current, other);
-    fail:
-    return NULL;
-}
-
-PyObject *
-AtomicInt64_TrueDivide(AtomicInt64 *self, PyObject *other)
-{
-    PyObject *current = NULL;
-
-    current = AtomicInt64_Get_callable(self);
-
-    if (current == NULL)
-        goto fail;
-
-    return PyNumber_TrueDivide(current, other);
-    fail:
-    return NULL;
-}
+ATOMICINT64_BIN_OP(FloorDivide);
+ATOMICINT64_BIN_OP(TrueDivide);
 
 PyObject *
 AtomicInt64_Index(AtomicInt64 *self)
@@ -1216,11 +1081,17 @@ AtomicInt64_InplaceTrueDivide(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(
 }
 
 inline PyObject *
-AtomicInt64_MatrixMultiply(AtomicInt64 *Py_UNUSED(self), PyObject *other)
+AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
 {
     // just raise an exception; because it's supposed to be unsupported:
     // see https://peps.python.org/pep-0465/#non-definitions-for-built-in-types
     // bonus: raise the same exception as `int(...) @ other`
+
+    if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
+        /* this is a reflected binary operation => atomic int is in the second argument */
+        other = (PyObject *) self;
+    }
+
     return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
 }
 

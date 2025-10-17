@@ -458,3 +458,25 @@ def test_real():
         AtomicInt64().real  # noqa: B018
     with raises(NotImplementedError):
         AtomicInt64().real.__set__(0)
+
+
+def test_reflected_bin_ops():
+    assert 0 & AtomicInt64(1) == 0
+    assert divmod(3, AtomicInt64(2)) == (1, 1)
+    assert 2 // AtomicInt64(1) == 2
+    assert 2 << AtomicInt64(1) == 4
+    with raises(TypeError):
+        1 @ AtomicInt64(1)
+    assert 3 % AtomicInt64(2) == 1
+    assert 3 * AtomicInt64(2) == 6
+    assert 0 | AtomicInt64(1) == 1
+    assert 2 ** AtomicInt64(2) == 4
+    assert 4 >> AtomicInt64(1) == 2
+    assert 2 - AtomicInt64(1) == 1
+    assert 2 / AtomicInt64(1) == 2
+    assert 3 ^ AtomicInt64(1) == 2
+
+
+def test_issue_76():
+    # see https://github.com/dpdani/cereggii/issues/76
+    assert AtomicInt64() + AtomicInt64() == 0
