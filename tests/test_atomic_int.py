@@ -459,6 +459,7 @@ def test_real():
     with raises(NotImplementedError):
         AtomicInt64().real.__set__(0)
 
+
 def test_reflected_bin_ops():
     assert 0 & AtomicInt64(1) == 0
     assert divmod(3, AtomicInt64(2)) == (1, 1)
@@ -474,6 +475,7 @@ def test_reflected_bin_ops():
     assert 2 - AtomicInt64(1) == 1
     assert 2 / AtomicInt64(1) == 2
     assert 3 ^ AtomicInt64(1) == 2
+
 
 def test_issue_76():
     assert AtomicInt64() + AtomicInt64() == 0
