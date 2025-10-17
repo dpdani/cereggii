@@ -1081,11 +1081,17 @@ AtomicInt64_InplaceTrueDivide(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(
 }
 
 inline PyObject *
-AtomicInt64_MatrixMultiply(AtomicInt64 *Py_UNUSED(self), PyObject *other)
+AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
 {
     // just raise an exception; because it's supposed to be unsupported:
     // see https://peps.python.org/pep-0465/#non-definitions-for-built-in-types
     // bonus: raise the same exception as `int(...) @ other`
+
+    if (PyObject_IsInstance(other, (PyObject *) &AtomicInt64_Type)) {
+        /* this is a reflected binary operation => atomic int is in the right operand */
+        other = (PyObject *) self;
+    }
+
     return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
 }
 
