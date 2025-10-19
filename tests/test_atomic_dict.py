@@ -10,7 +10,7 @@ from collections import Counter
 
 import cereggii
 import pytest
-from cereggii import AtomicDict
+from cereggii import AtomicDict, AtomicInt64
 from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
@@ -31,6 +31,33 @@ def test_init():
 
     with raises(TypeError):
         AtomicDict(None)
+
+
+def test_multiple_inits():
+    d = AtomicDict()
+    with raises(RuntimeError):
+        d.__init__()
+
+
+def test_concurrent_inits():
+    n = 10
+    barrier = threading.Barrier(n)
+    d = AtomicDict.__new__(AtomicDict)
+    exceptions = AtomicInt64(0)
+
+    @TestingThreadSet.repeat(n)
+    def initializers():
+        barrier.wait()
+        try:
+            d.__init__()
+        except RuntimeError:
+            exceptions.increment_and_get()
+        for _ in range(100):
+            d[_] = _
+
+    initializers.start_and_join()
+
+    assert exceptions == n - 1
 
 
 def test_debug():
