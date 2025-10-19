@@ -93,7 +93,8 @@ class ThreadSet:
         def decorator(target: Callable) -> ThreadSet:
             threads = []
             for arg in args:
-                assert isinstance(arg, cls.Args)
+                if not isinstance(arg, cls.Args):
+                    raise TypeError(f"{arg!r} is not an instance of {cls.Args.__qualname__}")
                 threads.append(cls.thread_factory(target=target, args=arg.args, kwargs=arg.kwargs))
             return cls(*threads)
 

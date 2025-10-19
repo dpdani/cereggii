@@ -14,7 +14,7 @@ def test_init():
     assert latch.get() == 5
     latch = CountDownLatch(0)
     assert latch.get() == 0
-    with pytest.raises(AssertionError, match="count must be >= 0"):
+    with pytest.raises(ValueError, match="count must be >= 0"):
         CountDownLatch(-1)
 
 
