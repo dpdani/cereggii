@@ -395,6 +395,7 @@ AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta)
 PyObject *
 AtomicDict_LenBounds(AtomicDict *self)
 {
+    // deprecated in favor of AtomicDict_ApproxLen
     AtomicDict_Meta *meta = NULL;
     AtomicDict_AccessorStorage *storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
@@ -457,82 +458,83 @@ AtomicDict_LenBounds(AtomicDict *self)
     return NULL;
 }
 
+
+static inline int64_t
+sum_of_accessors_len(AtomicDict *self)
+{
+    int64_t len = 0;
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        len += (int64_t) storage->local_len;
+    }
+    return len;
+}
+
 PyObject *
 AtomicDict_ApproxLen(AtomicDict *self)
 {
-    PyObject *bounds = NULL;
-    PyObject *lower = NULL;
-    PyObject *upper = NULL;
-    PyObject *sum = NULL;
-    PyObject *avg = NULL;
+    PyObject *added_since_clean = NULL;
+    PyObject *latest_len = NULL;
+    PyObject *len = NULL;
 
-    bounds = AtomicDict_LenBounds(self);
-    if (bounds == NULL)
+    latest_len = PyLong_FromSsize_t(self->len);
+    if (latest_len == NULL) {
         goto fail;
-
-    lower = PyTuple_GetItem(bounds, 0);
-    upper = PyTuple_GetItem(bounds, 1);
-    if (lower == NULL || upper == NULL)
+    }
+    added_since_clean = PyLong_FromLongLong(sum_of_accessors_len(self));
+    if (added_since_clean == NULL) {
         goto fail;
-
-    sum = PyNumber_Add(lower, upper);
-    if (sum == NULL)
+    }
+    len = PyNumber_Add(latest_len, added_since_clean);
+    if (len == NULL) {
         goto fail;
-
-    avg = PyNumber_FloorDivide(sum, PyLong_FromLong(2));
-    // PyLong_FromLong(2) will not return NULL
-
-    Py_DECREF(bounds);
-    Py_DECREF(lower);
-    Py_DECREF(upper);
-    Py_DECREF(sum);
-    return avg;
+    }
+    Py_DECREF(added_since_clean);
+    Py_DECREF(latest_len);
+    return len;
 
     fail:
-    Py_XDECREF(bounds);
-    Py_XDECREF(lower);
-    Py_XDECREF(upper);
-    Py_XDECREF(sum);
-    Py_XDECREF(avg);
+    Py_XDECREF(added_since_clean);
+    Py_XDECREF(latest_len);
+    Py_XDECREF(len);
     return NULL;
 }
 
 Py_ssize_t
 AtomicDict_Len_impl(AtomicDict *self)
 {
-    PyObject *len = NULL, *local_len = NULL;
-    Py_ssize_t int_len;
+    PyObject *len = NULL;
+    PyObject *added_since_clean = NULL;
+    Py_ssize_t len_ssize_t;
 
     if (!self->len_dirty) {
-        int_len = self->len;
-        return int_len;
+        len_ssize_t = self->len;
+        return len_ssize_t;
     }
-
     len = PyLong_FromSsize_t(self->len);
-    if (len == NULL)
+    if (len == NULL) {
         goto fail;
-
+    }
+    added_since_clean = PyLong_FromLongLong(sum_of_accessors_len(self));
+    if (added_since_clean == NULL) {
+        goto fail;
+    }
+    len = PyNumber_InPlaceAdd(len, added_since_clean);
+    len_ssize_t = PyLong_AsSsize_t(len);
+    if (PyErr_Occurred()) {
+        goto fail;
+    }
+    self->len = len_ssize_t;
+    self->len_dirty = 0;
     for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
-        local_len = PyLong_FromLong(storage->local_len);
-        if (local_len == NULL)
-            goto fail;
-
-        len = PyNumber_InPlaceAdd(len, local_len);
-        Py_DECREF(local_len);
-        local_len = NULL;
         storage->local_len = 0;
     }
-
-    int_len = PyLong_AsSsize_t(len);
-    assert(!PyErr_Occurred());
-
-    self->len = int_len;
-    self->len_dirty = 0;
-
     Py_DECREF(len);
-    return int_len;
+    Py_DECREF(added_since_clean);
+    return len_ssize_t;
+
     fail:
     Py_XDECREF(len);
+    Py_XDECREF(added_since_clean);
     return -1;
 }
 
