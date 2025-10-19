@@ -506,6 +506,13 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         PyErr_Format(PyExc_TypeError, "%R is not iterable.", iterable);
         goto fail;
     }
+    if (iterable == iterator) {
+        // if iterable is already an iterator, then PyObject_GetIter returns
+        // its argument, without creating a new object.
+        // since there are calls to Py_DECREF(iterator) next, we need to ensure
+        // that we don't destroy the iterable, whose reference is borrowed.
+        Py_INCREF(iterable);
+    }
 
     while ((item = PyIter_Next(iterator))) {
         if (!PyTuple_CheckExact(item)) {
@@ -563,11 +570,14 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         Py_CLEAR(tuple_set);
     }
 
-    Py_DECREF(iterator);
     if (PyErr_Occurred())
         goto fail;
 
-    reduce_flush(self, local_buffer, aggregate, specialized, is_specialized);
+    int error = reduce_flush(self, local_buffer, aggregate, specialized, is_specialized);
+    if (error) {
+        goto fail;
+    }
+    Py_DECREF(iterator);
     Py_DECREF(local_buffer);
     return 0;
 

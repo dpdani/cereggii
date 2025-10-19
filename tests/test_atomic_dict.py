@@ -730,6 +730,24 @@ def test_reduce_specialized_count():
     # Counter(cats=4, dogs=8) kwargs syntax not supported
 
 
+def test_reduce_specialized_count_invalid_values():
+    # https://github.com/dpdani/cereggii/issues/71
+    d = AtomicDict({"spam": "not a number"})
+    with raises(TypeError):
+        d.reduce_count(["spam"])
+        # this call tries to execute this equivalent invalid code:
+        #   d["spam"] = "not a number" + 1
+
+
+def test_reduce_specialized_sum_invalid_values():
+    # https://github.com/dpdani/cereggii/issues/71
+    d = AtomicDict()
+    with raises(ValueError):
+        d.reduce_sum([(cereggii.ANY, cereggii.ANY)])
+        # this call tries to execute this equivalent invalid code:
+        #   d[cereggii.ANY] = cereggii.ANY
+
+
 def test_reduce_specialized_count_threads():
     d = AtomicDict()
     iterations = 1_000
