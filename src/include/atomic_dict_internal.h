@@ -261,7 +261,7 @@ void AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
 void AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
                             AtomicDict_SearchResult *result);
 
-int AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash);
+void AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDict_SearchResult *result);
 
 int AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos);
 

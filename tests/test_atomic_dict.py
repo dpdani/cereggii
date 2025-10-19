@@ -798,3 +798,14 @@ def test_get_handle():
     h = d.get_handle()
     assert isinstance(h, cereggii.ThreadHandle)
     assert isinstance(h.get_handle(), cereggii.ThreadHandle)
+
+
+def test_reentrant_delete():
+    d = AtomicDict()
+
+    class Spam:
+        def __del__(self):
+            d["spam"] = 0
+
+    d["spam"] = Spam()
+    del d["spam"]  # must not deadlock
