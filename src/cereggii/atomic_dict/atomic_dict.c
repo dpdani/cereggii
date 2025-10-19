@@ -23,6 +23,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         if (self->metadata == NULL)
             goto fail;
         AtomicRef_init(self->metadata, NULL, NULL);
+        // Py_None is the default value for AtomicRef
 
         self->reservation_buffer_size = 0;
         Py_tss_t *tss_key = NULL;
@@ -50,7 +51,24 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
-    assert(AtomicRef_Get(self->metadata) == Py_None);
+    int reserved = AtomicRef_CompareAndSet(self->metadata, Py_None, Py_True);
+    // if we can succeed in turning None -> True, then this thread reserved
+    // the right to run the init function for this AtomicDict()
+    if (!reserved) {
+        // either another thread concurrently succeeded in making the reservation,
+        // or this AtomicDict was already initialized.
+        PyErr_SetString(PyExc_RuntimeError, "cannot initialize an AtomicDict more than once.");
+        // returning immediately might let the non-reserving __init__() callers
+        // see a half-initialized AtomicDict, so we do a little spin-lock
+        PyObject *current = AtomicRef_Get(self->metadata);
+        while (current == Py_None || current == Py_True) {
+            Py_CLEAR(current);
+            current = AtomicRef_Get(self->metadata);
+        }
+        Py_DECREF(current);
+        return -1;
+    }
+
     int64_t init_dict_size = 0;
     int64_t min_size = 0;
     int64_t buffer_size = 4;
@@ -142,7 +160,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     AtomicDictMeta_ClearIndex(meta);
     if (AtomicDictMeta_InitBlocks(meta) < 0)
         goto fail;
-    AtomicRef_Set(self->metadata, (PyObject *) meta);
 
     AtomicDict_Block *block;
     int64_t i;
@@ -261,6 +278,12 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
             }
         }
+    }
+
+    int success = AtomicRef_CompareAndSet(self->metadata, Py_True, (PyObject *) meta);
+    if (!success) {
+        PyErr_SetString(PyExc_RuntimeError, "error during initialization of AtomicDict.");
+        goto fail;
     }
 
     Py_DECREF(meta); // so that the only meta's refcount depends only on AtomicRef
