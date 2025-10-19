@@ -310,7 +310,9 @@ class AtomicDict[Key, Value]:
         """
         Get a lower and an upper-bound for the number of items stored in this `AtomicDict`.
 
-        Also see [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len].
+        !!! warning "Deprecated"
+            Use [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len]
+            instead.
         """
 
     def approx_len(self) -> int:

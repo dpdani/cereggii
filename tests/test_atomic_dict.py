@@ -486,6 +486,24 @@ def test_len_bounds():
     assert d.approx_len() == 0
 
 
+def test_approx_len_concurrent():
+    d = AtomicDict()
+    final_len = 10000
+    n = 10
+    assert final_len % n == 0
+    barrier = threading.Barrier(n)
+
+    @TestingThreadSet.range(n)
+    def threads(thread_id):
+        barrier.wait()
+        for _ in range(final_len // n):
+            d[_ + (final_len // n) * thread_id] = None
+            assert 0 <= d.approx_len() <= final_len
+
+    threads.start_and_join()
+    assert d.approx_len() == len(d) == final_len
+
+
 def test_fast_iter():
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
 
