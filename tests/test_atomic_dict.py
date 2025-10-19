@@ -503,6 +503,16 @@ def test_approx_len_concurrent():
     threads.start_and_join()
     assert d.approx_len() == len(d) == final_len
 
+def test_issue_75():
+    # https://github.com/dpdani/cereggii/issues/75
+    d = AtomicDict()
+    for _ in range(10000):
+        d[_] = _
+    assert d.approx_len() == 10000
+    for _ in range(100):
+        d[_] = _
+    assert d.approx_len() == 10000
+
 
 def test_fast_iter():
     d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
