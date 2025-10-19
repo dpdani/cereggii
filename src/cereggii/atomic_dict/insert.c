@@ -567,7 +567,10 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
     if (PyErr_Occurred())
         goto fail;
 
-    reduce_flush(self, local_buffer, aggregate, specialized, is_specialized);
+    int error = reduce_flush(self, local_buffer, aggregate, specialized, is_specialized);
+    if (error) {
+        goto fail;
+    }
     Py_DECREF(local_buffer);
     return 0;
 
