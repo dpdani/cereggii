@@ -35,9 +35,11 @@ class CountDownLatch:
             [`wait()`][cereggii.CountDownLatch.wait].
             Must be a non-negative integer.
 
-        :raises AssertionError: If the count is less than 0.
+        :raises ValueError: If the count is less than 0.
         """
-        assert count >= 0, "count must be >= 0"
+        if count < 0:
+            raise ValueError("count must be >= 0")
+
         super().__init__()
         self._count = AtomicInt64(count)
         self._reached_zero = AtomicEvent()
