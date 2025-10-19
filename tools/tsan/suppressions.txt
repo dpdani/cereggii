@@ -11,3 +11,6 @@ race:AtomicDict_NodesMigrationDone
 race:CereggiiAtomic_StoreInt  # AtomicDict_CommonMigrate
 race:AtomicEvent_Set  # AtomicDict_CommonMigrate
 race:AtomicEvent_IsSet  # AtomicDict_CommonMigrate
+race:AtomicDict_GetMeta
+race:AtomicDict_CompareAndSet
+race:AtomicDict_LeaderMigrate
