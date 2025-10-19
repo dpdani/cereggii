@@ -809,3 +809,4 @@ def test_reentrant_delete():
 
     d["spam"] = Spam()
     del d["spam"]  # must not deadlock
+    assert d["spam"] == 0
