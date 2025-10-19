@@ -24,6 +24,8 @@ extern PyTypeObject CereggiiConstant_Type;
 
 PyObject *CereggiiConstant_New(char *name);
 
+int CereggiiConstant_init(CereggiiConstant *self, PyObject *args, PyObject *kwargs);
+
 PyObject *CereggiiConstant_Repr(CereggiiConstant *self);
 
 #endif //CEREGGII_CONSTANTS_H

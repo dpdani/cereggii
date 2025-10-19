@@ -252,6 +252,7 @@ PyTypeObject CereggiiConstant_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
+    .tp_init = (initproc) CereggiiConstant_init,
     .tp_repr = (reprfunc) CereggiiConstant_Repr,
 };
 
