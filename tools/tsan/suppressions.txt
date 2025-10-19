@@ -14,3 +14,4 @@ race:AtomicEvent_IsSet  # AtomicDict_CommonMigrate
 race:AtomicDict_GetMeta
 race:AtomicDict_CompareAndSet
 race:AtomicDict_LeaderMigrate
+race:AtomicInt64_Get

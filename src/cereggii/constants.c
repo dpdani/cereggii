@@ -25,6 +25,13 @@ CereggiiConstant_New(char *name)
     return NULL;
 }
 
+int
+CereggiiConstant_init(CereggiiConstant *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
+{
+    PyErr_SetString(PyExc_RuntimeError, "cannot instantiate cereggii.Constant.");
+    return -1;
+}
+
 PyObject *
 CereggiiConstant_Repr(CereggiiConstant *self)
 {
