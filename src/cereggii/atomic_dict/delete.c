@@ -6,46 +6,37 @@
 #include "atomic_ops.h"
 
 
-int
-AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash)
+void
+AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDict_SearchResult *result)
 {
-    AtomicDict_SearchResult result;
-    AtomicDict_Lookup(meta, key, hash, &result);
+    AtomicDict_Lookup(meta, key, hash, result);
 
-    if (result.error)
-        goto fail;
-
-    if (result.entry_p == NULL)
-        goto not_found;
-
-    while (!CereggiiAtomic_CompareExchangePtr((void **) &result.entry_p->value,
-                                              result.entry.value,
-                                              NULL)) {
-        AtomicDict_ReadEntry(result.entry_p, &result.entry);
-
-        if (result.entry.value == NULL)
-            goto not_found;
+    if (result->error) {
+        return;
     }
 
-    Py_CLEAR(result.entry_p->key);
-    Py_DECREF(result.entry.value);
-    result.entry.value = NULL;
+    if (result->entry_p == NULL) {
+        return;
+    }
+
+    while (!CereggiiAtomic_CompareExchangePtr((void **) &result->entry_p->value,
+                                              result->entry.value,
+                                              NULL)) {
+        AtomicDict_ReadEntry(result->entry_p, &result->entry);
+
+        if (result->entry.value == NULL) {
+            result->found = 0;
+            return;
+        }
+    }
 
     AtomicDict_Node tombstone = {
         .index = 0,
         .tag = TOMBSTONE(meta),
     };
 
-    int ok = AtomicDict_AtomicWriteNodeAt(result.position, &result.node, &tombstone, meta);
+    int ok = AtomicDict_AtomicWriteNodeAt(result->position, &result->node, &tombstone, meta);
     assert(ok);
-
-    return 1;
-
-    not_found:
-    return 0;
-
-    fail:
-    return -1;
 }
 
 int
@@ -76,22 +67,24 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto beginning;
     }
 
-    int deleted = AtomicDict_Delete(meta, key, hash);
-
-    if (deleted > 0) {
-        storage->local_len--;
-        self->len_dirty = 1;
-    }
+    AtomicDict_SearchResult result;
+    AtomicDict_Delete(meta, key, hash, &result);
 
     PyMutex_Unlock(&storage->self_mutex);
 
-    if (deleted < 0)
+    if (result.error) {
         goto fail;
+    }
 
-    if (deleted == 0) {
+    if (!result.found) {
         PyErr_SetObject(PyExc_KeyError, key);
         goto fail;
     }
+
+    storage->local_len--;
+    self->len_dirty = 1;
+    Py_DECREF(result.entry.key);
+    Py_DECREF(result.entry.value);
 
     return 0;
 
