@@ -800,13 +800,20 @@ def test_get_handle():
     assert isinstance(h.get_handle(), cereggii.ThreadHandle)
 
 
-def test_reentrant_delete():
+def test_reentrant():
     d = AtomicDict()
 
     class Spam:
         def __del__(self):
             d["spam"] = 0
 
-    d["spam"] = Spam()
-    del d["spam"]  # must not deadlock
-    assert d["spam"] == 0
+    def delitem():
+        del d["spam"]
+
+    def setitem():
+        d["spam"] = 1
+
+    for method in (delitem, setitem):
+        d["spam"] = Spam()
+        method()  # must not deadlock
+        assert d["spam"] == 0
