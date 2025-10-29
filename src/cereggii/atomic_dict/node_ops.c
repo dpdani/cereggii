@@ -45,6 +45,9 @@ PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
 {
     Py_hash_t hash = PyObject_Hash(ob);
+    if (hash == -1) {
+        return NULL;
+    }
     return PyLong_FromUnsignedLongLong(REHASH(hash));
 }
 

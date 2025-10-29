@@ -817,3 +817,9 @@ def test_reentrant():
         d["spam"] = Spam()
         method()  # must not deadlock
         assert d["spam"] == 0
+
+
+def test_rehash_raises_type_error_for_unhashable_types():
+    # see https://github.com/dpdani/cereggii/issues/89
+    with raises(TypeError):
+        AtomicDict()._rehash(set())
