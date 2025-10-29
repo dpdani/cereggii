@@ -846,6 +846,11 @@ AtomicInt64_InplaceRemainder_internal(AtomicInt64 *self, PyObject *other, int do
     if (!AtomicInt64_ConvertToCLongOrSetException(other, &amount))
         goto fail;
 
+    if (amount == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        return NULL;
+    }
+
     do {
         current = AtomicInt64_Get(self);
         desired = current % amount;

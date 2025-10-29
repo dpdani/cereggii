@@ -340,6 +340,8 @@ def test_iremainder():
     i = AtomicInt64(100)
     i %= 9
     assert i == 1
+    with raises(ZeroDivisionError):
+        i %= 0
 
 
 def test_ipower():
@@ -382,12 +384,17 @@ def test_inplace_floor_divide():
     i = AtomicInt64(500)
     i //= 10
     assert i == 50
+    with raises(ZeroDivisionError):
+        i //= 0
 
 
 def test_inplace_true_divide():
     i = AtomicInt64()
     with raises(NotImplementedError):
         i /= 1
+    with raises(NotImplementedError):
+        # does not raise ZeroDivisionError because the operation is not supported
+        i /= 0
 
 
 def test_floor_divide():
