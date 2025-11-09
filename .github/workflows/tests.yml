@@ -22,7 +22,7 @@ jobs:
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: set up python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
