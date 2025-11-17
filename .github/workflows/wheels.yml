@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v3.3.0
         with:
           output-dir: 'wheelhouse'
         env:
