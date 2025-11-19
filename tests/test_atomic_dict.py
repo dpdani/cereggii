@@ -5,6 +5,7 @@
 import gc
 import itertools
 import random
+import sysconfig
 import threading
 from collections import Counter
 
@@ -548,6 +549,7 @@ def test_fast_iter():
     (partition_1 | partition_2).start_and_join()
 
 
+@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED") == 0, reason="cannot occur in GIL-enabled builds")
 @eventually_raises(ConcurrentUsageDetected, repetitions=200)
 def test_fast_iter_race_with_delete():
     # see https://github.com/dpdani/cereggii/issues/88
