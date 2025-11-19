@@ -6,6 +6,8 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "constants.h"
+#include "_internal_py_core.h"
 
 
 PyObject *
@@ -103,7 +105,9 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
             self->position++;
         }
     }
-    Py_INCREF(entry.key);
-    Py_INCREF(entry.value);
+    if (entry.key == NULL || !_Py_TryIncref(entry.key) || !_Py_TryIncref(entry.value)) {
+        PyErr_SetString(Cereggii_ConcurrentUsageDetected, "please see https://dpdani.github.io/cereggii/api/AtomicDict/#cereggii._cereggii.AtomicDict.fast_iter");
+        return NULL;
+    }
     return Py_BuildValue("(OO)", entry.key, entry.value);
 }

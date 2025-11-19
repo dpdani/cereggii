@@ -243,6 +243,7 @@ PyObject *NOT_FOUND = NULL;
 PyObject *ANY = NULL;
 PyObject *EXPECTATION_FAILED = NULL;
 PyObject *Cereggii_ExpectationFailed = NULL;
+PyObject *Cereggii_ConcurrentUsageDetected = NULL;
 
 PyTypeObject CereggiiConstant_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -393,6 +394,10 @@ PyInit__cereggii(void)
     if (Cereggii_ExpectationFailed == NULL)
         return NULL;
 
+    Cereggii_ConcurrentUsageDetected = PyErr_NewException("cereggii.ConcurrentUsageDetected", NULL, NULL);
+    if (Cereggii_ConcurrentUsageDetected == NULL)
+        return NULL;
+
     NOT_FOUND = CereggiiConstant_New("NOT_FOUND");
     if (NOT_FOUND == NULL)
         return NULL;
@@ -428,6 +433,10 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "ExpectationFailed", Cereggii_ExpectationFailed) < 0)
         goto fail;
     Py_DECREF(Cereggii_ExpectationFailed);
+
+    if (PyModule_AddObjectRef(m, "ConcurrentUsageDetected", Cereggii_ConcurrentUsageDetected) < 0)
+        goto fail;
+    Py_DECREF(Cereggii_ConcurrentUsageDetected);
 
     if (PyModule_AddObjectRef(m, "AtomicDict", (PyObject *) &AtomicDict_Type) < 0)
         goto fail;

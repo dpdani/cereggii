@@ -10,11 +10,11 @@ from collections import Counter
 
 import cereggii
 import pytest
-from cereggii import AtomicDict, AtomicInt64
+from cereggii import AtomicDict, AtomicInt64, ConcurrentUsageDetected, ThreadHandle
 from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
-from .utils import TestingThreadSet
+from .utils import TestingThreadSet, eventually_raises
 
 
 def test_init():
@@ -546,6 +546,51 @@ def test_fast_iter():
         assert n == 4 * 64
 
     (partition_1 | partition_2).start_and_join()
+
+
+@eventually_raises(ConcurrentUsageDetected, repetitions=200)
+def test_fast_iter_race_with_delete():
+    # see https://github.com/dpdani/cereggii/issues/88
+    num_iterating = 6
+    num_deleting = 3
+    num_inserting = 3
+    num_keys = 10000
+
+    d = AtomicDict()
+    barrier = threading.Barrier(num_deleting + num_inserting + num_iterating)
+    stop = threading.Event()
+
+    @TestingThreadSet.repeat(num_iterating)
+    def iterating():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        while not stop.is_set():
+            for _, _ in dh.fast_iter():
+                pass
+
+    @TestingThreadSet.repeat(num_deleting)
+    def deleting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in reversed(range(num_keys)):
+            try:
+                del dh[_]
+            except KeyError:
+                pass
+
+    @TestingThreadSet.repeat(num_inserting)
+    def inserting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in reversed(range(num_keys)):
+            dh[_] = None
+
+    (iterating | deleting | inserting).start()
+    try:
+        (deleting | inserting).join()
+    finally:
+        stop.set()
+        (iterating | deleting | inserting).join()
 
 
 def test_compare_and_set():
