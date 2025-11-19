@@ -15,5 +15,5 @@ race:AtomicDict_GetMeta
 race:AtomicDict_CompareAndSet
 race:AtomicDict_LeaderMigrate
 race:AtomicInt64_Get
-race:AtomicDict_DelItem  # len_dirty
+race:AtomicDict_DelItem
 race:AtomicDict_WriteRawNodeAt
