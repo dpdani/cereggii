@@ -14,6 +14,7 @@ EXPECTATION_FAILED: object
 Used in `AtomicDict` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
+ConcurrentUsageDetected: Exception
 
 class ThreadHandle[T](T):
     """
@@ -399,6 +400,10 @@ class AtomicDict[Key, Value]:
             iteration.
         :param this_partition: This thread's assigned partition.
             Valid values are from 0 to `partitions`-1.
+        :raises ConcurrentUsageDetected: This method is not safe to call when
+            multiple threads are mutating this `AtomicDict()`. When concurrent
+            mutations are detected, this exception is raised. *Note that it's
+            not always possible to detect concurrent usage.*
         """
 
     def batch_getitem(self, batch: dict, chunk_size: int = 128) -> dict:
