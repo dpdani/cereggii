@@ -555,7 +555,6 @@ def test_fast_iter_race_with_delete():
     num_deleting = 3
     num_inserting = 3
     num_keys = 10000
-
     d = AtomicDict()
     barrier = threading.Barrier(num_deleting + num_inserting + num_iterating)
     stop = threading.Event()

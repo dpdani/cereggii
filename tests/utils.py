@@ -42,7 +42,6 @@ class TestingThreadSet(ThreadSet):
     thread_factory = ReraiseThread
 
 
-
 def repeated_test(repetitions: int):
     def wrapper(test_func):
         @functools.wraps(test_func)
@@ -68,7 +67,9 @@ def eventually_raises(expected_exception, repetitions: int):
     return wrapper
 
 
-def find_repetitions_count_helper(should: Literal["fail", "pass"], statistically_significant_rounds=1000, round_timeout=10, max_search_limit=1_000_000):
+def find_repetitions_count_helper(
+    should: Literal["fail", "pass"], statistically_significant_rounds=1000, round_timeout=10, max_search_limit=1_000_000
+):
     # do a binary search to find the smallest repetitions count that makes the
     # test behave consistently, over a statistically significant number of rounds
     if should not in ('pass', 'fail'):
@@ -89,10 +90,7 @@ def find_repetitions_count_helper(should: Literal["fail", "pass"], statistically
                 env[test_repeats_env_key] = str(repetitions)
                 try:
                     result = subprocess.run(
-                        [
-                            sys.executable, "-m", "pytest",
-                            test_module, "-k", test_name, "-q"
-                        ],
+                        [sys.executable, "-m", "pytest", test_module, "-k", test_name, "-q"],
                         env=env,
                         capture_output=True,
                         text=True,
