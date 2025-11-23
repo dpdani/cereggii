@@ -2,6 +2,7 @@ import functools
 import os
 import subprocess
 import sys
+import sysconfig
 from collections.abc import Callable, Iterable, Mapping
 from threading import Thread
 from typing import Any, Literal
@@ -147,3 +148,6 @@ def find_repetitions_count_helper(
         return wrapped
 
     return wrapper
+
+
+skip_if_default_build = lambda reason: pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED") == 1, reason=reason)
