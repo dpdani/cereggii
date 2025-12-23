@@ -364,7 +364,7 @@ static PyModuleDef cereggii_module = {
     .m_size = -1,
 };
 
-__attribute__((unused)) PyMODINIT_FUNC
+CEREGGII_UNUSED PyMODINIT_FUNC
 PyInit__cereggii(void)
 {
     PyObject *m = NULL;

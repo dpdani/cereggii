@@ -57,8 +57,6 @@ int CereggiiAtomic_CompareExchangeInt32(int32_t *obj, int32_t expected, int32_t 
 
 int CereggiiAtomic_CompareExchangeInt64(int64_t *obj, int64_t expected, int64_t desired);
 
-int CereggiiAtomic_CompareExchangeInt128(__int128_t *obj, __int128_t expected, __int128_t desired);
-
 int CereggiiAtomic_CompareExchangeIntPtr(intptr_t *obj, intptr_t expected, intptr_t desired);
 
 int CereggiiAtomic_CompareExchangeUInt(unsigned int *obj, unsigned int expected, unsigned int desired);
@@ -70,8 +68,6 @@ int CereggiiAtomic_CompareExchangeUInt16(uint16_t *obj, uint16_t expected, uint1
 int CereggiiAtomic_CompareExchangeUInt32(uint32_t *obj, uint32_t expected, uint32_t desired);
 
 int CereggiiAtomic_CompareExchangeUInt64(uint64_t *obj, uint64_t expected, uint64_t desired);
-
-int CereggiiAtomic_CompareExchangeUInt128(__uint128_t *obj, __uint128_t expected, __uint128_t desired);
 
 int CereggiiAtomic_CompareExchangeUIntPtr(uintptr_t *obj, uintptr_t expected, uintptr_t desired);
 

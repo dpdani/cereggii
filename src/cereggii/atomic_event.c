@@ -18,8 +18,8 @@ AtomicEvent_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUS
 int
 AtomicEvent_init(AtomicEvent *self, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
-    pthread_mutex_init(&self->mutex, NULL);
-    pthread_cond_init(&self->cond, NULL);
+    mtx_init(&self->mutex, mtx_plain);
+    cnd_init(&self->cond);
     self->state = 0;
 
     return 0;
@@ -28,8 +28,8 @@ AtomicEvent_init(AtomicEvent *self, PyObject *Py_UNUSED(args), PyObject *Py_UNUS
 void
 AtomicEvent_dealloc(AtomicEvent *self)
 {
-    pthread_mutex_destroy(&self->mutex);
-    pthread_cond_destroy(&self->cond);
+    mtx_destroy(&self->mutex);
+    cnd_destroy(&self->cond);
 
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
@@ -37,10 +37,10 @@ AtomicEvent_dealloc(AtomicEvent *self)
 void
 AtomicEvent_Set(AtomicEvent *self)
 {
-    pthread_mutex_lock(&self->mutex);
+    mtx_lock(&self->mutex);
     self->state = 1;
-    pthread_cond_broadcast(&self->cond);
-    pthread_mutex_unlock(&self->mutex);
+    cnd_broadcast(&self->cond);
+    mtx_unlock(&self->mutex);
 }
 
 int
@@ -52,11 +52,11 @@ AtomicEvent_IsSet(AtomicEvent *self)
 static void
 wait_gil_released(AtomicEvent *self)
 {
-    pthread_mutex_lock(&self->mutex);
+    mtx_lock(&self->mutex);
     while (self->state == 0) {
-        pthread_cond_wait(&self->cond, &self->mutex);
+        cnd_wait(&self->cond, &self->mutex);
     }
-    pthread_mutex_unlock(&self->mutex);
+    mtx_unlock(&self->mutex);
 }
 
 void

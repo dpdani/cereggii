@@ -91,7 +91,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     if (min_size_arg != NULL) {
         min_size = PyLong_AsLong(min_size_arg);
-        if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+        if (min_size > (1ULL << ATOMIC_DICT_MAX_LOG_SIZE)) {
             PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
             return -1;
         }

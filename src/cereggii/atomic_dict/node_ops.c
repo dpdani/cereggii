@@ -34,7 +34,7 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 #    error "Unsupported compiler for __aarch64__"
 #  endif // __crc32d
 #else
-#  define CRC32(x, y) __builtin_ia32_crc32di((x), (y))
+#  define CRC32(x, y) cereggii_crc32_u64((x), (y))
 #endif // __aarch64__
 
 #define UPPER_SEED 12923598712359872066ull

@@ -21,4 +21,15 @@
 #  define CEREGGII_UNUSED
 #endif
 
+#if defined(_MSC_VER)
+  #include <immintrin.h>
+  #include <nmmintrin.h>
+  #define cereggii_prefetch(p) _mm_prefetch((const char*)(p), _MM_HINT_T0)
+  #define cereggii_crc32_u64(crc, v) _mm_crc32_u64((crc), (v))
+#else
+  #define cereggii_prefetch(p) __builtin_prefetch(p)
+  #define cereggii_crc32_u64(crc, v) __builtin_ia32_crc32di((crc), (v))
+#endif
+
+
 #endif // CEREGGII_MISC_H

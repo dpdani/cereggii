@@ -249,7 +249,7 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
     return done;
 }
 
-__attribute__((unused)) int
+CEREGGII_UNUSED int
 AtomicDict_IndexNotFound(uint64_t index, AtomicDict_Meta *meta)
 {
     AtomicDict_Node node;
@@ -265,7 +265,7 @@ AtomicDict_IndexNotFound(uint64_t index, AtomicDict_Meta *meta)
     return 1;
 }
 
-__attribute__((unused)) uint64_t
+CEREGGII_UNUSED uint64_t
 AtomicDict_DebugLen(AtomicDict_Meta *meta)
 {
     uint64_t len = 0;
