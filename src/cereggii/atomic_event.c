@@ -5,6 +5,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include "atomic_event.h"
+#include <stdatomic.h>
 
 
 PyObject *
@@ -38,7 +39,7 @@ void
 AtomicEvent_Set(AtomicEvent *self)
 {
     mtx_lock(&self->mutex);
-    self->state = 1;
+    atomic_store_explicit((_Atomic(int) *) &self->state, 1, memory_order_relaxed);
     cnd_broadcast(&self->cond);
     mtx_unlock(&self->mutex);
 }
@@ -46,14 +47,14 @@ AtomicEvent_Set(AtomicEvent *self)
 int
 AtomicEvent_IsSet(AtomicEvent *self)
 {
-    return self->state;
+    return atomic_load_explicit((_Atomic(int) *) &self->state, memory_order_relaxed);
 }
 
 static void
 wait_gil_released(AtomicEvent *self)
 {
     mtx_lock(&self->mutex);
-    while (self->state == 0) {
+    while (atomic_load_explicit((_Atomic(int) *) &self->state, memory_order_relaxed) == 0) {
         cnd_wait(&self->cond, &self->mutex);
     }
     mtx_unlock(&self->mutex);
