@@ -7,9 +7,9 @@
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
-#include "atomic_ops.h"
 #include "constants.h"
 #include "thread_id.h"
+#include <stdatomic.h>
 
 
 int
@@ -54,9 +54,10 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
     assert(to_log_size >= from_log_size - 1);
 
     if (current_meta->migration_leader == 0) {
-        int i_am_leader = CereggiiAtomic_CompareExchangeUIntPtr(
+        uintptr_t expected = 0;
+        int i_am_leader = atomic_compare_exchange_strong_explicit((_Atomic(uintptr_t) *)
             &current_meta->migration_leader,
-            0, _Py_ThreadId());
+            &expected, _Py_ThreadId(), memory_order_acq_rel, memory_order_acquire);
         if (i_am_leader) {
             return AtomicDict_LeaderMigrate(self, current_meta, from_log_size, to_log_size);
         }
@@ -184,7 +185,7 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
         AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
-        CereggiiAtomic_StoreInt(&storage->participant_in_migration, 1);
+        atomic_store_explicit((_Atomic(int) *) &storage->participant_in_migration, 1, memory_order_release);
 
         AtomicDict_MigrateNodes(current_meta, new_meta);
 
@@ -205,8 +206,9 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
     for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
         uint64_t lock = (copy_lock + thread_id) % (new_meta->greatest_allocated_block + 1);
 
-        int locked = CereggiiAtomic_CompareExchangePtr((void **) &new_meta->blocks[lock]->generation,
-                                                       current_meta->generation, NULL);
+        void *expected = current_meta->generation;
+        int locked = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &new_meta->blocks[lock]->generation,
+                    &expected, NULL, memory_order_acq_rel, memory_order_acquire);
         if (!locked)
             continue;
 
@@ -361,16 +363,16 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
 {
     uint64_t current_size = SIZE_OF(current_meta);
 
-    int64_t node_to_migrate = CereggiiAtomic_AddInt64(&current_meta->node_to_migrate,
-                                                      ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE);
+    int64_t node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate,
+                                                      ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
 
     while (node_to_migrate < current_size) {
         AtomicDict_BlockWiseMigrate(current_meta, new_meta, node_to_migrate);
-        node_to_migrate = CereggiiAtomic_AddInt64(&current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE);
+        node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
     }
 
     AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
-    CereggiiAtomic_StoreInt(&storage->participant_in_migration, 2);
+    atomic_store_explicit((_Atomic(int) *) &storage->participant_in_migration, 2, memory_order_release);
 }
 
 int

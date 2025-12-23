@@ -4,7 +4,7 @@
 
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 #include "thread_handle.h"
 
 #include "pyhash.h"
@@ -204,7 +204,7 @@ AtomicInt64_Set(AtomicInt64 *self, int64_t desired)
 {
     int64_t current = self->integer;
 
-    while (!CereggiiAtomic_CompareExchangeInt64(&self->integer, current, desired)) {
+    while (!atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &self->integer, &current, desired, memory_order_acq_rel, memory_order_acquire)) {
         current = self->integer;
     }
 }
@@ -229,7 +229,7 @@ AtomicInt64_Set_callable(AtomicInt64 *self, PyObject *py_integer)
 inline int
 AtomicInt64_CompareAndSet(AtomicInt64 *self, int64_t expected, int64_t desired)
 {
-    return CereggiiAtomic_CompareExchangeInt64(&self->integer, expected, desired);
+    return atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &self->integer, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 }
 
 PyObject *
@@ -260,7 +260,7 @@ AtomicInt64_CompareAndSet_callable(AtomicInt64 *self, PyObject *args, PyObject *
 inline int64_t
 AtomicInt64_GetAndSet(AtomicInt64 *self, int64_t desired)
 {
-    return CereggiiAtomic_ExchangeInt64(&self->integer, desired);
+    return atomic_exchange_explicit((_Atomic(int64_t) *) &self->integer, desired, memory_order_acq_rel);
 }
 
 PyObject *

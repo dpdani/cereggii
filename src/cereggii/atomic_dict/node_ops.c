@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 #include "atomic_dict_internal.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 
 // these functions take a pointer to meta, but to avoid multiple reads
 // you should dereference dk->meta (i.e. make a thread-local copy) and
@@ -95,5 +95,6 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
     AtomicDict_ComputeRawNode(expected, meta);
     AtomicDict_ComputeRawNode(desired, meta);
 
-    return CereggiiAtomic_CompareExchangeUInt64(&meta->index[ix], expected->node, desired->node);
+    uint64_t _expected = expected->node;
+    return atomic_compare_exchange_strong_explicit((_Atomic(uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
 }

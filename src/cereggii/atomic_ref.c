@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "atomic_ref.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 #include "thread_handle.h"
 #include "_internal_py_core.h"
 
@@ -75,13 +75,13 @@ PyObject *
 AtomicRef_Get(AtomicRef *self)
 {
     PyObject *reference;
-    reference = CereggiiAtomic_LoadPtrRelaxed((const void **) &self->reference);
+    reference = atomic_load_explicit((_Atomic(void *) *) &self->reference, memory_order_relaxed);
 
 #ifndef Py_GIL_DISABLED
     Py_INCREF(reference);
 #else
     while (!_Py_TryIncref(reference)) {
-        reference = CereggiiAtomic_LoadPtrRelaxed((const void **) &self->reference);
+        reference = atomic_load_explicit((_Atomic(void *) *) &self->reference, memory_order_relaxed);
     }
 #endif
     return reference;
@@ -96,7 +96,8 @@ AtomicRef_Set(AtomicRef *self, PyObject *desired)
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    while (!CereggiiAtomic_CompareExchangePtr((void **) &self->reference, current_reference, desired)) {
+    PyObject *expected = current_reference;
+    while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &expected, desired, memory_order_acq_rel, memory_order_acquire)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
@@ -113,7 +114,8 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
     assert(desired != NULL);
 
     _Py_SetWeakrefAndIncref(desired);
-    int retval = CereggiiAtomic_CompareExchangePtr((void **) &self->reference, expected, desired);
+    PyObject *_expected = expected;
+    int retval = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &_expected, desired, memory_order_acq_rel, memory_order_acquire);
     if (retval) {
         Py_DECREF(expected);
         return 1;
@@ -148,7 +150,7 @@ AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
     assert(desired != NULL);
 
     _Py_SetWeakrefAndIncref(desired);
-    PyObject *current_reference = CereggiiAtomic_ExchangePtr((void **) &self->reference, desired);
+    PyObject *current_reference = atomic_exchange_explicit((_Atomic(void *) *) &self->reference, desired, memory_order_acq_rel);
     // don't decref current_reference: passing it to python
     return current_reference;
 }

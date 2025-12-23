@@ -7,7 +7,7 @@
 #include "constants.h"
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 #include "pythread.h"
 #include "_internal_py_core.h"
 
@@ -56,7 +56,8 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
                 }
 
                 *current = entry.value;
-                *done = CereggiiAtomic_CompareExchangePtr((void **) &entry_p->value, *current, desired);
+                PyObject *expected = *current;
+                *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 
                 if (!*done) {
                     AtomicDict_ReadEntry(entry_p, &entry);
