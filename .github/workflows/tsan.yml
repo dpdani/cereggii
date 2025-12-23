@@ -12,7 +12,7 @@ jobs:
     container:
       image: ghcr.io/nascheme/cpython-tsan:3.14t
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: install dependencies & cereggii
         env:
           PIP_ROOT_USER_ACTION: ignore

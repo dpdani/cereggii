@@ -17,21 +17,20 @@ jobs:
           - ubuntu-latest
           - ubuntu-24.04-arm
           - windows-latest
-          # macos-13 is an Intel runner, macos-14 is Apple Silicon
-          - macos-13
+          - macos-15-intel  # https://github.com/actions/runner-images/issues/13046
           - macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.3.0
         with:
           output-dir: 'wheelhouse'
         env:
           CIBW_BUILD_VERBOSITY: 1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
@@ -41,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install dev dependencies
         run: pip install build
@@ -49,7 +48,7 @@ jobs:
       - name: Build sdist
         run: python -m build --sdist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: cibw-sdist
           path: dist/*.tar.gz
