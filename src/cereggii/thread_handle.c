@@ -49,13 +49,13 @@ ThreadHandle_dealloc(ThreadHandle *self)
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
-inline Py_hash_t
+Py_hash_t
 ThreadHandle_Hash(ThreadHandle *self)
 {
     return PyObject_Hash(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_RichCompare(ThreadHandle *self, PyObject *other, int op)
 {
     return PyObject_RichCompare(self->obj, other, op);
@@ -63,212 +63,212 @@ ThreadHandle_RichCompare(ThreadHandle *self, PyObject *other, int op)
 
 /// tp_as_number
 
-inline PyObject *
+PyObject *
 ThreadHandle_Add(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Add(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Subtract(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Subtract(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Multiply(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Multiply(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Remainder(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Remainder(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Divmod(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Divmod(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Power(ThreadHandle *self, PyObject *other, PyObject *mod)
 {
     return PyNumber_Power(self->obj, other, mod);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Negative(ThreadHandle *self)
 {
     return PyNumber_Negative(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Positive(ThreadHandle *self)
 {
     return PyNumber_Positive(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Absolute(ThreadHandle *self)
 {
     return PyNumber_Absolute(self->obj);
 }
 
-inline int
+int
 ThreadHandle_Bool(ThreadHandle *self)
 {
     return PyObject_IsTrue(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Invert(ThreadHandle *self)
 {
     return PyNumber_Invert(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Lshift(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Lshift(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Rshift(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Rshift(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_And(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_And(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Xor(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Xor(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Or(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_Or(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Int(ThreadHandle *self)
 {
     return PyNumber_Long(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Float(ThreadHandle *self)
 {
     return PyNumber_Float(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_FloorDivide(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_FloorDivide(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_TrueDivide(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_TrueDivide(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Index(ThreadHandle *self)
 {
     return PyNumber_Index(self->obj);
 }
 
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceAdd(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceAdd(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceSubtract(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceSubtract(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceMultiply(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceMultiply(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceRemainder(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceRemainder(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlacePower(ThreadHandle *self, PyObject *other, PyObject *mod)
 {
     return PyNumber_InPlacePower(self->obj, other, mod);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceLshift(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceLshift(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceRshift(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceRshift(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceAnd(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceAnd(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceXor(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceXor(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceOr(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceOr(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceFloorDivide(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceFloorDivide(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceTrueDivide(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceTrueDivide(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_MatrixMultiply(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_MatrixMultiply(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceMatrixMultiply(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceMatrixMultiply(self->obj, other);
@@ -277,49 +277,49 @@ ThreadHandle_InPlaceMatrixMultiply(ThreadHandle *self, PyObject *other)
 
 /// tp_as_sequence
 
-inline Py_ssize_t
+Py_ssize_t
 ThreadHandle_Length(ThreadHandle *self)
 {
     return PySequence_Length(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Concat(ThreadHandle *self, PyObject *other)
 {
     return PySequence_Concat(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Repeat(ThreadHandle *self, Py_ssize_t count)
 {
     return PySequence_Repeat(self->obj, count);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_GetItem(ThreadHandle *self, Py_ssize_t i)
 {
     return PySequence_GetItem(self->obj, i);
 }
 
-inline int
+int
 ThreadHandle_SetItem(ThreadHandle *self, Py_ssize_t i, PyObject *v)
 {
     return PySequence_SetItem(self->obj, i, v);
 }
 
-inline int
+int
 ThreadHandle_Contains(ThreadHandle *self, PyObject *other)
 {
     return PySequence_Contains(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceConcat(ThreadHandle *self, PyObject *other)
 {
     return PySequence_InPlaceConcat(self->obj, other);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_InPlaceRepeat(ThreadHandle *self, Py_ssize_t count)
 {
     return PySequence_InPlaceRepeat(self->obj, count);
@@ -328,19 +328,19 @@ ThreadHandle_InPlaceRepeat(ThreadHandle *self, Py_ssize_t count)
 
 /// tp_as_mapping
 
-inline Py_ssize_t
+Py_ssize_t
 ThreadHandle_MappingLength(ThreadHandle *self)
 {
     return PyMapping_Length(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_MappingGetItem(ThreadHandle *self, PyObject *other)
 {
     return PyObject_GetItem(self->obj, other);
 }
 
-inline int
+int
 ThreadHandle_MappingSetItem(ThreadHandle *self, PyObject *key, PyObject *v)
 {
     return PyObject_SetItem(self->obj, key, v);
@@ -349,22 +349,22 @@ ThreadHandle_MappingSetItem(ThreadHandle *self, PyObject *key, PyObject *v)
 
 /// tp_as_async
 
-// inline PyObject *
+// PyObject *
 // ThreadHandle_Await(ThreadHandle *self) {
 //     return PyObject_SelfIter(self->obj);
 // }
 //
-// inline PyObject *
+// PyObject *
 // ThreadHandle_GetAIter(ThreadHandle *self) {
 //     return PyObject_GetAIter(self->obj);
 // }
 //
-// inline PyObject *
+// PyObject *
 // ThreadHandle_AsyncNext(ThreadHandle *self) {
 //     return PyObject_(self->obj);
 // }
 //
-// inline PySendResult
+// PySendResult
 // ThreadHandle_AsyncSend(ThreadHandle *self, PyObject *arg, PyObject **result) {
 //     return PyIter_Send(self->obj, arg, result);
 // }
@@ -372,7 +372,7 @@ ThreadHandle_MappingSetItem(ThreadHandle *self, PyObject *key, PyObject *v)
 
 /// misc
 
-inline PyObject *
+PyObject *
 ThreadHandle_Repr(ThreadHandle *self)
 {
 #ifdef Py_GIL_DISABLED
@@ -383,25 +383,25 @@ ThreadHandle_Repr(ThreadHandle *self)
     return PyUnicode_FromFormat("<ThreadHandle(%R) at %p belongs to %p>", self->obj, self, owner);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_Call(ThreadHandle *self, PyObject *args, PyObject *kwargs)
 {
     return PyObject_Call(self->obj, args, kwargs);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_GetIter(ThreadHandle *self)
 {
     return PyObject_GetIter(self->obj);
 }
 
-inline PyObject *
+PyObject *
 ThreadHandle_GetAttr(ThreadHandle *self, PyObject *attr_name)
 {
     return PyObject_GetAttr(self->obj, attr_name);
 }
 
-inline int
+int
 ThreadHandle_SetAttr(ThreadHandle *self, PyObject *attr_name, PyObject *v)
 {
     return PyObject_SetAttr(self->obj, attr_name, v);

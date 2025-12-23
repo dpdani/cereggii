@@ -157,19 +157,19 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     return -1;
 }
 
-inline int64_t
+int64_t
 AtomicDict_BlockOf(uint64_t entry_ix)
 {
     return (int64_t) entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 }
 
-inline uint64_t
+uint64_t
 AtomicDict_PositionInBlockOf(uint64_t entry_ix)
 {
     return entry_ix & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1);
 }
 
-inline AtomicDict_Entry *
+AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
     assert(AtomicDict_BlockOf(ix) <= meta->greatest_allocated_block);
@@ -180,7 +180,7 @@ AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
     );
 }
 
-inline void
+void
 AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
 {
     entry->flags = entry_p->flags;

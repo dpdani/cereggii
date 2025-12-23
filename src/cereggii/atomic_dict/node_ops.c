@@ -11,7 +11,7 @@
 // then pass a reference to the copy to these functions instead.
 
 
-inline void
+void
 AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     assert(node->index < (1 << meta->log_size));
@@ -51,13 +51,13 @@ AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
     return PyLong_FromUnsignedLongLong(REHASH(hash));
 }
 
-inline uint64_t
+uint64_t
 AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
 {
     return REHASH(hash) >> (SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size);
 }
 
-inline void
+void
 AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
                             AtomicDict_Meta *meta)
 {
@@ -66,21 +66,21 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
     node->tag = node_raw & TAG_MASK(meta);
 }
 
-inline void
+void
 AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     const uint64_t raw = meta->index[ix & ((1 << meta->log_size) - 1)];
     AtomicDict_ParseNodeFromRaw(raw, node, meta);
 }
 
-inline void
+void
 AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
     AtomicDict_ComputeRawNode(node, meta);
     AtomicDict_WriteRawNodeAt(ix, node->node, meta);
 }
 
-inline void
+void
 AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
     assert(ix >= 0);
@@ -89,7 +89,7 @@ AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
     meta->index[ix] = raw_node;
 }
 
-inline int
+int
 AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_Node *desired, AtomicDict_Meta *meta)
 {
     AtomicDict_ComputeRawNode(expected, meta);
