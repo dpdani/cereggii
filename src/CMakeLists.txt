@@ -76,7 +76,6 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/node_ops.c"
         "cereggii/atomic_event.c"
         "cereggii/atomic_int.c"
-        "cereggii/atomic_ops.c"
         "cereggii/atomic_ref.c"
         "cereggii/cereggii.c"
         "cereggii/constants.c"
