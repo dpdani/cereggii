@@ -19,6 +19,8 @@ jobs:
           - macos-latest  # todo: remove me
           - macos-15-intel  # todo: remove me
         python-version:
+          - 3.13
+          - 3.13t
           - 3.14
           - 3.14t
 
