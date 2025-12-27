@@ -13,30 +13,13 @@
 int
 AtomicInt64_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, int64_t *integer)
 {
+    assert(integer != NULL);
     if (py_integer == NULL)
         return 0;
 
-    if (!PyLong_Check(py_integer)) {
-        PyErr_SetObject(
-            PyExc_TypeError,
-            PyUnicode_FromFormat("not isinstance(%R, int)", py_integer)
-        );
+    const int error = PyLong_AsInt64(py_integer, integer);
+    if (error)
         return 0;
-    }
-
-    int overflow;
-    *integer = PyLong_AsLongAndOverflow(py_integer, &overflow);
-    if (PyErr_Occurred())
-        return 0;
-
-    if (overflow) {
-        PyErr_SetObject(
-            PyExc_OverflowError,
-            PyUnicode_FromFormat("%R > %ld == (2 ** 63) - 1 or %R < %ld", py_integer, INT64_MAX, py_integer, INT64_MIN)
-        );  // todo: docs link
-        return 0;
-    }
-
     return 1;
 }
 
@@ -196,7 +179,7 @@ AtomicInt64_Get_callable(AtomicInt64 *self)
 {
     int64_t integer = self->integer;
 
-    return PyLong_FromLong(integer);  // NULL on error => return NULL
+    return PyLong_FromInt64(integer);  // NULL on error => return NULL
 }
 
 void
@@ -280,7 +263,7 @@ AtomicInt64_GetAndSet_callable(AtomicInt64 *self, PyObject *args, PyObject *kwar
 
     int64_t previous = AtomicInt64_GetAndSet(self, desired);
 
-    return PyLong_FromLong(previous);  // may fail and return NULL
+    return PyLong_FromInt64(previous);  // may fail and return NULL
 }
 
 int64_t
@@ -323,7 +306,7 @@ AtomicInt64_IncrementAndGet_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -368,7 +351,7 @@ AtomicInt64_GetAndIncrement_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -413,7 +396,7 @@ AtomicInt64_DecrementAndGet_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -458,7 +441,7 @@ AtomicInt64_GetAndDecrement_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -472,7 +455,7 @@ AtomicInt64_GetAndUpdate(AtomicInt64 *self, PyObject *callable, int *error)
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -501,7 +484,7 @@ AtomicInt64_GetAndUpdate_callable(AtomicInt64 *self, PyObject *callable)
     if (error)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -515,7 +498,7 @@ AtomicInt64_UpdateAndGet(AtomicInt64 *self, PyObject *callable, int *error)
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -544,7 +527,7 @@ AtomicInt64_UpdateAndGet_callable(AtomicInt64 *self, PyObject *callable)
     if (error)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -874,11 +857,11 @@ PyObject *
 AtomicInt64_InplacePower_internal(AtomicInt64 *self, PyObject *other, PyObject *mod, int do_refcount)
 {
     int64_t current, desired;
-    PyObject *py_current, *py_desired;
+    PyObject *py_current, *py_desired = NULL;
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -1097,13 +1080,13 @@ AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
         other = (PyObject *) self;
     }
 
-    return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
+    return PyNumber_MatrixMultiply(PyLong_FromInt64(0), other);
 }
 
 PyObject *
 AtomicInt64_InplaceMatrixMultiply(AtomicInt64 *Py_UNUSED(self), PyObject *other)
 {
-    return PyNumber_InPlaceMatrixMultiply(PyLong_FromLong(0), other);
+    return PyNumber_InPlaceMatrixMultiply(PyLong_FromInt64(0), other);
 }
 
 PyObject *

@@ -48,7 +48,7 @@ AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
     if (hash == -1) {
         return NULL;
     }
-    return PyLong_FromUnsignedLongLong(REHASH(hash));
+    return PyLong_FromUInt64(REHASH(hash));
 }
 
 uint64_t
