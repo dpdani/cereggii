@@ -6,7 +6,7 @@
 #define CEREGGII_ATOMIC_EVENT_H
 
 #include <Python.h>
-#include <threads.h>
+#include "internal/c11threads.h"
 #include <stdio.h>
 #include <stdlib.h>
 
