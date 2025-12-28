@@ -15,6 +15,11 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - ubuntu-24.04-arm
+          - windows-latest  # todo: remove me
+          - windows-11-arm
+          - macos-latest  # todo: remove me
+          - macos-15-intel  # todo: remove me
         python-version:
           - 3.13
           - 3.13t
