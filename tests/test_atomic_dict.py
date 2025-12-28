@@ -14,7 +14,7 @@ from cereggii import AtomicDict, AtomicInt64, ConcurrentUsageDetected, ThreadHan
 from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
-from .utils import TestingThreadSet, eventually_raises, skip_if_default_build
+from .utils import TestingThreadSet, eventually_raises, skip_if_gil_enabled_build
 
 
 def test_init():
@@ -548,7 +548,7 @@ def test_fast_iter():
     (partition_1 | partition_2).start_and_join()
 
 
-@skip_if_default_build(reason="cannot occur in GIL-enabled builds")
+@skip_if_gil_enabled_build(reason="cannot occur in GIL-enabled builds")
 @eventually_raises(ConcurrentUsageDetected, repetitions=200)
 def test_fast_iter_race_with_delete():
     # see https://github.com/dpdani/cereggii/issues/88
