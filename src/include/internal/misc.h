@@ -22,19 +22,28 @@
 #endif
 
 #if defined(_MSC_VER)
-  #if defined(_M_IX86) || defined(_M_X64)
-    #include <immintrin.h>
-    #include <nmmintrin.h>
-  #elif defined(_M_ARM64) || defined(_M_ARM64EC)
-    #include <arm_neon.h>
-  #else
-    #error "unsupported platform"
-  #endif
-  #define cereggii_prefetch(p) _mm_prefetch((const char*)(p), _MM_HINT_T0)
-  #define cereggii_crc32_u64(crc, v) _mm_crc32_u64((crc), (v))
+#  include <intrin.h>
+
+#  if defined(_M_IX86) || defined(_M_X64)
+#    include <xmmintrin.h>
+#    define cereggii_prefetch(p) _mm_prefetch((const char*)(p), _MM_HINT_T0)
+#  elif defined(_M_ARM64) || defined(_M_ARM64EC)
+#    define cereggii_prefetch(p) __prefetch((const void*)(p))
+#  else
+#    error "unsupported platform"
+#  endif
+
+#  if defined(_M_IX86) || defined(_M_X64)
+#    define cereggii_crc32_u64(crc, v) _mm_crc32_u64((crc), (v))
+#  elif defined(_M_ARM64) || defined(_M_ARM64EC)
+#    define cereggii_crc32_u64(crc, v) __crc32cd((crc), (v))
+#  else
+#    error "unsupported platform"
+#  endif
+
 #else
-  #define cereggii_prefetch(p) __builtin_prefetch(p)
-  #define cereggii_crc32_u64(crc, v) __builtin_ia32_crc32di((crc), (v))
+#  define cereggii_prefetch(p) __builtin_prefetch(p)
+#  define cereggii_crc32_u64(crc, v) __builtin_ia32_crc32di((crc), (v))
 #endif
 
 
