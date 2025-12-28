@@ -91,7 +91,7 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
 //            && AtomicDict_BlockOf(self->position + ATOMIC_DICT_ENTRIES_IN_BLOCK * 2) <= self->meta->greatest_allocated_block)
 //        {
 //            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_BLOCK * 2; ++i) {
-//                __builtin_prefetch(AtomicDict_GetEntryAt(i, self->meta), 0, 1);
+//                cereggii_prefetch(AtomicDict_GetEntryAt(i, self->meta), 0, 1);
 //                // 0: the prefetch is for a read
 //                // 1: the prefetched address is unlikely to be read again soon
 //            }

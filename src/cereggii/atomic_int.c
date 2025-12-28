@@ -4,43 +4,26 @@
 
 #include "atomic_int.h"
 #include "atomic_int_internal.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 #include "thread_handle.h"
 
-#include "pyhash.h"
+#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
-inline int
+int
 AtomicInt64_ConvertToCLongOrSetException(PyObject *py_integer /* borrowed */, int64_t *integer)
 {
+    assert(integer != NULL);
     if (py_integer == NULL)
         return 0;
 
-    if (!PyLong_Check(py_integer)) {
-        PyErr_SetObject(
-            PyExc_TypeError,
-            PyUnicode_FromFormat("not isinstance(%R, int)", py_integer)
-        );
+    const int error = PyLong_AsInt64(py_integer, integer);
+    if (error)
         return 0;
-    }
-
-    int overflow;
-    *integer = PyLong_AsLongAndOverflow(py_integer, &overflow);
-    if (PyErr_Occurred())
-        return 0;
-
-    if (overflow) {
-        PyErr_SetObject(
-            PyExc_OverflowError,
-            PyUnicode_FromFormat("%R > %ld == (2 ** 63) - 1 or %R < %ld", py_integer, INT64_MAX, py_integer, INT64_MIN)
-        );  // todo: docs link
-        return 0;
-    }
-
     return 1;
 }
 
-inline int
+int
 AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
 {
 #if defined(__GNUC__) || defined(__clang__)
@@ -66,7 +49,7 @@ AtomicInt64_AddOrSetOverflow(int64_t current, int64_t to_add, int64_t *result)
     return overflowed;
 }
 
-inline int
+int
 AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
 {
 #if defined(__GNUC__) || defined(__clang__)
@@ -92,7 +75,7 @@ AtomicInt64_SubOrSetOverflow(int64_t current, int64_t to_sub, int64_t *result)
     return overflowed;
 }
 
-inline int
+int
 AtomicInt64_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
 {
 #if defined(__GNUC__) || defined(__clang__)
@@ -128,7 +111,7 @@ AtomicInt64_MulOrSetOverflow(int64_t current, int64_t to_mul, int64_t *result)
     return overflowed;
 }
 
-inline int
+int
 AtomicInt64_DivOrSetException(int64_t current, int64_t to_div, int64_t *result)
 {
     int overflowed = 0;
@@ -185,7 +168,7 @@ AtomicInt64_dealloc(AtomicInt64 *self)
 }
 
 
-inline int64_t
+int64_t
 AtomicInt64_Get(AtomicInt64 *self)
 {
     return self->integer;
@@ -196,7 +179,7 @@ AtomicInt64_Get_callable(AtomicInt64 *self)
 {
     int64_t integer = self->integer;
 
-    return PyLong_FromLong(integer);  // NULL on error => return NULL
+    return PyLong_FromInt64(integer);  // NULL on error => return NULL
 }
 
 void
@@ -204,7 +187,7 @@ AtomicInt64_Set(AtomicInt64 *self, int64_t desired)
 {
     int64_t current = self->integer;
 
-    while (!CereggiiAtomic_CompareExchangeInt64(&self->integer, current, desired)) {
+    while (!atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &self->integer, &current, desired, memory_order_acq_rel, memory_order_acquire)) {
         current = self->integer;
     }
 }
@@ -226,10 +209,10 @@ AtomicInt64_Set_callable(AtomicInt64 *self, PyObject *py_integer)
     return NULL;
 }
 
-inline int
+int
 AtomicInt64_CompareAndSet(AtomicInt64 *self, int64_t expected, int64_t desired)
 {
-    return CereggiiAtomic_CompareExchangeInt64(&self->integer, expected, desired);
+    return atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &self->integer, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 }
 
 PyObject *
@@ -257,10 +240,10 @@ AtomicInt64_CompareAndSet_callable(AtomicInt64 *self, PyObject *args, PyObject *
     }
 }
 
-inline int64_t
+int64_t
 AtomicInt64_GetAndSet(AtomicInt64 *self, int64_t desired)
 {
-    return CereggiiAtomic_ExchangeInt64(&self->integer, desired);
+    return atomic_exchange_explicit((_Atomic(int64_t) *) &self->integer, desired, memory_order_acq_rel);
 }
 
 PyObject *
@@ -280,7 +263,7 @@ AtomicInt64_GetAndSet_callable(AtomicInt64 *self, PyObject *args, PyObject *kwar
 
     int64_t previous = AtomicInt64_GetAndSet(self, desired);
 
-    return PyLong_FromLong(previous);  // may fail and return NULL
+    return PyLong_FromInt64(previous);  // may fail and return NULL
 }
 
 int64_t
@@ -323,7 +306,7 @@ AtomicInt64_IncrementAndGet_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -368,7 +351,7 @@ AtomicInt64_GetAndIncrement_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -413,7 +396,7 @@ AtomicInt64_DecrementAndGet_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -458,7 +441,7 @@ AtomicInt64_GetAndDecrement_callable(AtomicInt64 *self, PyObject *args)
     if (overflow)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -472,7 +455,7 @@ AtomicInt64_GetAndUpdate(AtomicInt64 *self, PyObject *callable, int *error)
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -501,7 +484,7 @@ AtomicInt64_GetAndUpdate_callable(AtomicInt64 *self, PyObject *callable)
     if (error)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -515,7 +498,7 @@ AtomicInt64_UpdateAndGet(AtomicInt64 *self, PyObject *callable, int *error)
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -544,7 +527,7 @@ AtomicInt64_UpdateAndGet_callable(AtomicInt64 *self, PyObject *callable)
     if (error)
         goto fail;
 
-    return PyLong_FromLong(desired);
+    return PyLong_FromInt64(desired);
     fail:
     return NULL;
 }
@@ -573,16 +556,12 @@ AtomicInt64_GetHandle(AtomicInt64 *self)
 Py_hash_t
 AtomicInt64_Hash(AtomicInt64 *self)
 {
-#if PY_VERSION_HEX >= 0x03140000
     return Py_HashPointer(self);
-#else
-    return _Py_HashPointer(self);
-#endif
 }
 
 
 #define ATOMICINT64_BIN_OP(op) \
-    inline PyObject * \
+    PyObject * \
     AtomicInt64_##op(AtomicInt64 *self, PyObject *other) { \
         PyObject *current = NULL; \
 \
@@ -609,7 +588,7 @@ ATOMICINT64_BIN_OP(Multiply);
 ATOMICINT64_BIN_OP(Remainder);
 ATOMICINT64_BIN_OP(Divmod);
 
-inline PyObject *
+PyObject *
 AtomicInt64_Power(AtomicInt64 *self, PyObject *other, PyObject *mod)
 {
     PyObject *current = NULL;
@@ -631,7 +610,7 @@ AtomicInt64_Power(AtomicInt64 *self, PyObject *other, PyObject *mod)
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Negative(AtomicInt64 *self)
 {
     PyObject *current = NULL;
@@ -646,7 +625,7 @@ AtomicInt64_Negative(AtomicInt64 *self)
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Positive(AtomicInt64 *self)
 {
     PyObject *current = NULL;
@@ -661,7 +640,7 @@ AtomicInt64_Positive(AtomicInt64 *self)
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Absolute(AtomicInt64 *self)
 {
     PyObject *current = NULL;
@@ -676,7 +655,7 @@ AtomicInt64_Absolute(AtomicInt64 *self)
     return NULL;
 }
 
-inline int
+int
 AtomicInt64_Bool(AtomicInt64 *self)
 {
     int64_t current = AtomicInt64_Get(self);
@@ -687,7 +666,7 @@ AtomicInt64_Bool(AtomicInt64 *self)
         return 0;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Invert(AtomicInt64 *self)
 {
     PyObject *current = NULL;
@@ -708,13 +687,13 @@ ATOMICINT64_BIN_OP(And);
 ATOMICINT64_BIN_OP(Xor);
 ATOMICINT64_BIN_OP(Or);
 
-inline PyObject *
+PyObject *
 AtomicInt64_Int(AtomicInt64 *self)
 {
     return AtomicInt64_Get_callable(self);
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Float(AtomicInt64 *self)
 {
     PyObject *current = NULL;
@@ -772,7 +751,7 @@ AtomicInt64_InplaceAdd_internal(AtomicInt64 *self, PyObject *other, int do_refco
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceAdd(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceAdd_internal(self, other, 1);
@@ -802,7 +781,7 @@ AtomicInt64_InplaceSubtract_internal(AtomicInt64 *self, PyObject *other, int do_
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceSubtract(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceSubtract_internal(self, other, 1);
@@ -832,7 +811,7 @@ AtomicInt64_InplaceMultiply_internal(AtomicInt64 *self, PyObject *other, int do_
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceMultiply(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceMultiply_internal(self, other, 1);
@@ -864,7 +843,7 @@ AtomicInt64_InplaceRemainder_internal(AtomicInt64 *self, PyObject *other, int do
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceRemainder(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceRemainder_internal(self, other, 1);
@@ -874,11 +853,11 @@ PyObject *
 AtomicInt64_InplacePower_internal(AtomicInt64 *self, PyObject *other, PyObject *mod, int do_refcount)
 {
     int64_t current, desired;
-    PyObject *py_current, *py_desired;
+    PyObject *py_current, *py_desired = NULL;
 
     do {
         current = AtomicInt64_Get(self);
-        py_current = PyLong_FromLong(current);
+        py_current = PyLong_FromInt64(current);
 
         if (py_current == NULL)
             goto fail;
@@ -904,7 +883,7 @@ AtomicInt64_InplacePower_internal(AtomicInt64 *self, PyObject *other, PyObject *
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplacePower(AtomicInt64 *self, PyObject *other, PyObject *mod)
 {
     return AtomicInt64_InplacePower_internal(self, other, mod, 1);
@@ -931,7 +910,7 @@ AtomicInt64_InplaceLshift_internal(AtomicInt64 *self, PyObject *other, int do_re
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceLshift(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceLshift_internal(self, other, 1);
@@ -958,7 +937,7 @@ AtomicInt64_InplaceRshift_internal(AtomicInt64 *self, PyObject *other, int do_re
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceRshift(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceRshift_internal(self, other, 1);
@@ -985,7 +964,7 @@ AtomicInt64_InplaceAnd_internal(AtomicInt64 *self, PyObject *other, int do_refco
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceAnd(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceAnd_internal(self, other, 1);
@@ -1012,7 +991,7 @@ AtomicInt64_InplaceXor_internal(AtomicInt64 *self, PyObject *other, int do_refco
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceXor(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceXor_internal(self, other, 1);
@@ -1039,7 +1018,7 @@ AtomicInt64_InplaceOr_internal(AtomicInt64 *self, PyObject *other, int do_refcou
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceOr(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceOr_internal(self, other, 1);
@@ -1069,13 +1048,13 @@ AtomicInt64_InplaceFloorDivide_internal(AtomicInt64 *self, PyObject *other, int 
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceFloorDivide(AtomicInt64 *self, PyObject *other)
 {
     return AtomicInt64_InplaceFloorDivide_internal(self, other, 1);
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceTrueDivide(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(other))
 {
     PyErr_SetString(
@@ -1085,7 +1064,7 @@ AtomicInt64_InplaceTrueDivide(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
 {
     // just raise an exception; because it's supposed to be unsupported:
@@ -1097,16 +1076,16 @@ AtomicInt64_MatrixMultiply(AtomicInt64 *self, PyObject *other)
         other = (PyObject *) self;
     }
 
-    return PyNumber_MatrixMultiply(PyLong_FromLong(0), other);
+    return PyNumber_MatrixMultiply(PyLong_FromInt64(0), other);
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_InplaceMatrixMultiply(AtomicInt64 *Py_UNUSED(self), PyObject *other)
 {
-    return PyNumber_InPlaceMatrixMultiply(PyLong_FromLong(0), other);
+    return PyNumber_InPlaceMatrixMultiply(PyLong_FromInt64(0), other);
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_RichCompare(AtomicInt64 *self, PyObject *other, int op)
 {
     PyObject *current = NULL;
@@ -1122,7 +1101,7 @@ AtomicInt64_RichCompare(AtomicInt64 *self, PyObject *other, int op)
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_AsIntegerRatio(AtomicInt64 *Py_UNUSED(self))
 {
     PyErr_SetString(
@@ -1132,7 +1111,7 @@ AtomicInt64_AsIntegerRatio(AtomicInt64 *Py_UNUSED(self))
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_BitLength(AtomicInt64 *Py_UNUSED(self))
 {
     PyErr_SetString(
@@ -1142,7 +1121,7 @@ AtomicInt64_BitLength(AtomicInt64 *Py_UNUSED(self))
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Conjugate(AtomicInt64 *Py_UNUSED(self))
 {
     PyErr_SetString(
@@ -1152,7 +1131,7 @@ AtomicInt64_Conjugate(AtomicInt64 *Py_UNUSED(self))
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_FromBytes(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
     PyErr_SetString(
@@ -1162,7 +1141,7 @@ AtomicInt64_FromBytes(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(args), P
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_ToBytes(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
     PyErr_SetString(
@@ -1172,7 +1151,7 @@ AtomicInt64_ToBytes(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyO
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Denominator_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1182,7 +1161,7 @@ AtomicInt64_Denominator_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closur
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Denominator_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1192,7 +1171,7 @@ AtomicInt64_Denominator_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(va
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Numerator_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1202,7 +1181,7 @@ AtomicInt64_Numerator_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure)
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Numerator_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1212,7 +1191,7 @@ AtomicInt64_Numerator_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(valu
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Imag_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1222,7 +1201,7 @@ AtomicInt64_Imag_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Imag_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1232,7 +1211,7 @@ AtomicInt64_Imag_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(value), v
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Real_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
 {
     PyErr_SetString(
@@ -1242,7 +1221,7 @@ AtomicInt64_Real_Get(AtomicInt64 *Py_UNUSED(self), void *Py_UNUSED(closure))
     return NULL;
 }
 
-inline PyObject *
+PyObject *
 AtomicInt64_Real_Set(AtomicInt64 *Py_UNUSED(self), PyObject *Py_UNUSED(value), void *Py_UNUSED(closure))
 {
     PyErr_SetString(

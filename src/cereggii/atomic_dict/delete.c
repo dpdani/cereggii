@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "atomic_dict_internal.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 
 
 void
@@ -19,9 +19,10 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
         return;
     }
 
-    while (!CereggiiAtomic_CompareExchangePtr((void **) &result->entry_p->value,
-                                              result->entry.value,
-                                              NULL)) {
+    while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &result->entry_p->value,
+                                              &result->entry.value,
+                                              NULL, memory_order_acq_rel,
+                                                   memory_order_acquire)) {
         AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
         if (result->entry.value == NULL) {

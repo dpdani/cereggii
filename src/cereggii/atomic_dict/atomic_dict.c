@@ -10,6 +10,7 @@
 #include "pythread.h"
 #include "thread_handle.h"
 #include "_internal_py_core.h"
+#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 PyObject *
@@ -90,14 +91,19 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     if (min_size_arg != NULL) {
-        min_size = PyLong_AsLong(min_size_arg);
-        if (min_size > (1UL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+        int error = PyLong_AsInt64(min_size_arg, &min_size);
+        if (error)
+            return -1;
+        if (min_size > (1ULL << ATOMIC_DICT_MAX_LOG_SIZE)) {
             PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
             return -1;
         }
     }
     if (buffer_size_arg != NULL) {
-        buffer_size = PyLong_AsLong(buffer_size_arg);
+        int error = PyLong_AsInt64(buffer_size_arg, &buffer_size);
+        if (error)
+            return -1;
+
         if (buffer_size != 1 && buffer_size != 2 && buffer_size != 4 &&
             buffer_size != 8 && buffer_size != 16 && buffer_size != 32 &&
             buffer_size != 64) {
@@ -480,7 +486,7 @@ AtomicDict_ApproxLen(AtomicDict *self)
     if (latest_len == NULL) {
         goto fail;
     }
-    added_since_clean = PyLong_FromLongLong(sum_of_accessors_len(self));
+    added_since_clean = PyLong_FromInt64(sum_of_accessors_len(self));
     if (added_since_clean == NULL) {
         goto fail;
     }
@@ -514,7 +520,7 @@ AtomicDict_Len_impl(AtomicDict *self)
     if (len == NULL) {
         goto fail;
     }
-    added_since_clean = PyLong_FromLongLong(sum_of_accessors_len(self));
+    added_since_clean = PyLong_FromInt64(sum_of_accessors_len(self));
     if (added_since_clean == NULL) {
         goto fail;
     }
@@ -564,10 +570,10 @@ AtomicDict_Debug(AtomicDict *self)
     metadata = Py_BuildValue("{sOsOsOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
-                             "inserting_block\0", Py_BuildValue("l", meta->inserting_block),
-                             "greatest_allocated_block\0", Py_BuildValue("l", meta->greatest_allocated_block),
-                             "greatest_deleted_block\0", Py_BuildValue("l", meta->greatest_deleted_block),
-                             "greatest_refilled_block\0", Py_BuildValue("l", meta->greatest_refilled_block));
+                             "inserting_block\0", Py_BuildValue("L", meta->inserting_block),
+                             "greatest_allocated_block\0", Py_BuildValue("L", meta->greatest_allocated_block),
+                             "greatest_deleted_block\0", Py_BuildValue("L", meta->greatest_deleted_block),
+                             "greatest_refilled_block\0", Py_BuildValue("L", meta->greatest_refilled_block));
     if (metadata == NULL)
         goto fail;
 
@@ -578,7 +584,7 @@ AtomicDict_Debug(AtomicDict *self)
     AtomicDict_Node node;
     for (uint64_t i = 0; i < SIZE_OF(meta); i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
-        PyObject *n = Py_BuildValue("k", node.node);
+        PyObject *n = Py_BuildValue("K", node.node);
         if (n == NULL)
             goto fail;
         PyList_Append(index_nodes, n);
@@ -607,7 +613,7 @@ AtomicDict_Debug(AtomicDict *self)
                     value = PyExc_KeyError;
                 }
                 uint64_t entry_ix = (i << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + j;
-                entry_tuple = Py_BuildValue("(kBlOO)",
+                entry_tuple = Py_BuildValue("(KBnOO)",
                                             entry_ix,
                                             block->entries[j].entry.flags,
                                             block->entries[j].entry.hash,

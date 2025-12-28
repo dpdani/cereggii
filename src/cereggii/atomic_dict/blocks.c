@@ -6,7 +6,7 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
-#include "atomic_ops.h"
+#include <stdatomic.h>
 
 
 AtomicDict_Block *
@@ -89,7 +89,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                 ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK]
                 .entry);
             if (entry_loc->entry->flags == 0) {
-                if (CereggiiAtomic_CompareExchangeUInt8(&entry_loc->entry->flags, 0, ENTRY_FLAGS_RESERVED)) {
+                uint8_t expected = 0;
+                if (atomic_compare_exchange_strong_explicit((_Atomic(uint8_t) *) &entry_loc->entry->flags, &expected, ENTRY_FLAGS_RESERVED, memory_order_acq_rel, memory_order_acquire)) {
                     entry_loc->location =
                         (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
@@ -106,7 +107,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         int64_t greatest_allocated_block = meta->greatest_allocated_block;
         if (greatest_allocated_block > inserting_block) {
-            CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block, inserting_block, inserting_block + 1);
+            int64_t expected = inserting_block;
+            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block, &expected, inserting_block + 1, memory_order_acq_rel, memory_order_acquire);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
         if (greatest_allocated_block + 1 >= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
@@ -121,16 +123,19 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         block->entries[0].entry.flags = ENTRY_FLAGS_RESERVED;
 
-        if (CereggiiAtomic_CompareExchangePtr((void **) &meta->blocks[greatest_allocated_block + 1], NULL, block)) {
+        void *expected = NULL;
+        if (atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 1], &expected, block, memory_order_acq_rel, memory_order_acquire)) {
             if (greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-                CereggiiAtomic_StorePtr((void **) &meta->blocks[greatest_allocated_block + 2], NULL);
+                atomic_store_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 2], NULL, memory_order_release);
             }
-            CereggiiAtomic_CompareExchangeInt64(&meta->greatest_allocated_block,
-                                                greatest_allocated_block,
-                                                greatest_allocated_block + 1);
-            CereggiiAtomic_CompareExchangeInt64(&meta->inserting_block,
-                                                greatest_allocated_block,
-                                                greatest_allocated_block + 1);
+            int64_t expected2 = greatest_allocated_block;
+            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_block,
+                                                    &expected2,
+                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
+            expected2 = greatest_allocated_block;
+            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block,
+                                                    &expected2,
+                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
             entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
             assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
@@ -152,19 +157,19 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     return -1;
 }
 
-inline int64_t
+int64_t
 AtomicDict_BlockOf(uint64_t entry_ix)
 {
     return (int64_t) entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 }
 
-inline uint64_t
+uint64_t
 AtomicDict_PositionInBlockOf(uint64_t entry_ix)
 {
     return entry_ix & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1);
 }
 
-inline AtomicDict_Entry *
+AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
     assert(AtomicDict_BlockOf(ix) <= meta->greatest_allocated_block);
@@ -175,7 +180,7 @@ AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
     );
 }
 
-inline void
+void
 AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
 {
     entry->flags = entry_p->flags;
