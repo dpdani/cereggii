@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "atomic_dict_internal.h"
 #include <stdatomic.h>
+#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 // these functions take a pointer to meta, but to avoid multiple reads
 // you should dereference dk->meta (i.e. make a thread-local copy) and
