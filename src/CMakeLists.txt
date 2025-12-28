@@ -12,8 +12,9 @@ if (CMAKE_SIZE_OF_VOID_P EQUAL 4)
     message(FATAL_ERROR "32-bit platforms are unsupported")
 endif ()
 
-#add_compile_options("-Werror=implicit-function-declaration")
-#add_compile_options("-Werror=undefined-inline")
+if (NOT MSVC)
+    add_compile_options("-Werror=implicit-function-declaration")
+endif ()
 
 if (DEFINED ENV{CEREGGII_TSAN})
     add_compile_options("-fsanitize=thread")
