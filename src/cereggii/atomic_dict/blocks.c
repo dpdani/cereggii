@@ -130,12 +130,12 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             }
             int64_t expected2 = greatest_allocated_block;
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_block,
-                                                &expected2,
-                                                greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
+                                                    &expected2,
+                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
             expected2 = greatest_allocated_block;
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block,
-                                                &expected2,
-                                                greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
+                                                    &expected2,
+                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
             entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
             assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
