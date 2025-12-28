@@ -60,6 +60,11 @@ endif ()
 configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
+if (WIN32)
+    # don't know why, but removing this line causes an access violation exception on windows+freethreading
+    # https://github.com/dpdani/cereggii/actions/runs/20556789700/job/59042260881?pr=104#step:9:11
+    execute_process(COMMAND python -c "import sysconfig; from pathlib import Path; print(Path(sysconfig.get_config_var('LIBDIR'))/Path(sysconfig.get_config_var('LIBRARY')).with_suffix('.lib'), end='')" OUTPUT_VARIABLE Python3_LIBRARY)
+endif ()
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
 
 include_directories("include/")
