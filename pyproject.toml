@@ -84,7 +84,6 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-before-all = "cat /proc/cpuinfo || (sysctl -a)"
 enable = [
   "cpython-freethreading",
 ]
