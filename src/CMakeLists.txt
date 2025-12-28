@@ -93,6 +93,14 @@ install(TARGETS _cereggii
         COMPONENT python_modules
         DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME})
 
+if (MSVC)
+    install(FILES $<TARGET_PDB_FILE:_cereggii>
+            EXCLUDE_FROM_ALL
+            COMPONENT python_modules
+            DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME}
+            OPTIONAL)
+endif()
+
 # Install stubs to get autocomplete and type hints
 install(FILES cereggii/_cereggii.pyi
         EXCLUDE_FROM_ALL
