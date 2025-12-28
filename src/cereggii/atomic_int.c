@@ -7,7 +7,7 @@
 #include <stdatomic.h>
 #include "thread_handle.h"
 
-#include "pyhash.h"
+#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 int
@@ -556,11 +556,7 @@ AtomicInt64_GetHandle(AtomicInt64 *self)
 Py_hash_t
 AtomicInt64_Hash(AtomicInt64 *self)
 {
-#if PY_VERSION_HEX >= 0x03140000
     return Py_HashPointer(self);
-#else
-    return _Py_HashPointer(self);
-#endif
 }
 
 
