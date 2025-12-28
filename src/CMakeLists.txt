@@ -22,7 +22,7 @@ if (DEFINED ENV{CEREGGII_TSAN})
     add_compile_options("-fno-omit-frame-pointer")
 endif ()
 
-if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
+if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(arm|ARM|aarch64)")
     set(IS_ARM TRUE)
     message(STATUS "Detected ARM architecture")
 else()
