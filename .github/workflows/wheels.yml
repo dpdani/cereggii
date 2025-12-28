@@ -16,7 +16,8 @@ jobs:
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-#          - windows-latest # need to fix atomics first
+          - windows-latest
+          - windows-11-arm
           - macos-15-intel  # https://github.com/actions/runner-images/issues/13046
           - macos-latest
 

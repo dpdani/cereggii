@@ -59,14 +59,14 @@ AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
     return storage;
 }
 
-inline void
+void
 AtomicDict_FreeAccessorStorage(AtomicDict_AccessorStorage *self)
 {
     Py_CLEAR(self->meta);
     PyMem_RawFree(self);
 }
 
-inline void
+void
 AtomicDict_FreeAccessorStorageList(AtomicDict_AccessorStorage *head)
 {
     if (head == NULL)
@@ -84,7 +84,7 @@ AtomicDict_FreeAccessorStorageList(AtomicDict_AccessorStorage *head)
     AtomicDict_FreeAccessorStorage(prev);
 }
 
-inline AtomicDict_Meta *
+AtomicDict_Meta *
 AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage)
 {
     if (self->metadata->reference == (PyObject *) storage->meta)

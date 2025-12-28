@@ -238,7 +238,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         hashes[(chunk_end - 1) % chunk_size] = hash;
         keys[(chunk_end - 1) % chunk_size] = key;
 
-        __builtin_prefetch(&meta->index[AtomicDict_Distance0Of(hash, meta)]);
+        cereggii_prefetch(&meta->index[AtomicDict_Distance0Of(hash, meta)]);
 
         if (chunk_end % chunk_size == 0)
             break;
@@ -260,7 +260,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
             continue;
 
         if (node.tag == (hash & TAG_MASK(meta))) {
-            __builtin_prefetch(AtomicDict_GetEntryAt(node.index, meta));
+            cereggii_prefetch(AtomicDict_GetEntryAt(node.index, meta));
         }
     }
 

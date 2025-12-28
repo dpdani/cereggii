@@ -6,15 +6,15 @@
 #define CEREGGII_ATOMIC_EVENT_H
 
 #include <Python.h>
-#include <pthread.h>
+#include "internal/c11threads.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 typedef struct AtomicEvent {
     PyObject_HEAD
 
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    mtx_t mutex;
+    cnd_t cond;
     int state;
 } AtomicEvent;
 
