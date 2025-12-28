@@ -22,7 +22,13 @@
 #endif
 
 #if defined(_MSC_VER)
-  #include <immintrin.h>
+  #if defined(_M_IX86) || defined(_M_X64)
+    #include <immintrin.h>
+  #elif defined(_M_ARM64) || defined(_M_ARM64EC)
+    #include <arm_neon.h>
+  #else
+    #error "unsupported platform"
+  #endif
   #include <nmmintrin.h>
   #define cereggii_prefetch(p) _mm_prefetch((const char*)(p), _MM_HINT_T0)
   #define cereggii_crc32_u64(crc, v) _mm_crc32_u64((crc), (v))
