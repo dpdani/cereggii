@@ -150,6 +150,5 @@ def find_repetitions_count_helper(
     return wrapper
 
 
-skip_if_gil_enabled_build = lambda reason: pytest.mark.skipif(
-    sysconfig.get_config_var("Py_GIL_DISABLED") != 1, reason=reason
-)
+def skip_if_gil_enabled_build(reason):
+    return pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED") != 1, reason=reason)
