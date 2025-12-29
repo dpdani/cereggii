@@ -112,7 +112,7 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
         Py_DECREF(entry.key);
         goto concurrent_usage_detected;
     }
-    return Py_BuildValue("(OO)", entry.key, entry.value);
+    return Py_BuildValue("(NN)", entry.key, entry.value);
     concurrent_usage_detected:
     PyErr_SetString(Cereggii_ConcurrentUsageDetected, "please see https://dpdani.github.io/cereggii/api/AtomicDict/#cereggii._cereggii.AtomicDict.fast_iter");
     return NULL;
