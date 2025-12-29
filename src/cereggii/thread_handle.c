@@ -304,6 +304,9 @@ ThreadHandle_GetItem(ThreadHandle *self, Py_ssize_t i)
 int
 ThreadHandle_SetItem(ThreadHandle *self, Py_ssize_t i, PyObject *v)
 {
+    if (v == NULL) {
+        return PySequence_DelItem(self->obj, i);
+    }
     return PySequence_SetItem(self->obj, i, v);
 }
 
@@ -343,6 +346,9 @@ ThreadHandle_MappingGetItem(ThreadHandle *self, PyObject *other)
 int
 ThreadHandle_MappingSetItem(ThreadHandle *self, PyObject *key, PyObject *v)
 {
+    if (v == NULL) {
+        return PyObject_DelItem(self->obj, key);
+    }
     return PyObject_SetItem(self->obj, key, v);
 }
 

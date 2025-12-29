@@ -11,6 +11,7 @@ extern PyObject *NOT_FOUND;
 extern PyObject *ANY;
 extern PyObject *EXPECTATION_FAILED;
 extern PyObject *Cereggii_ExpectationFailed;
+extern PyObject *Cereggii_ConcurrentUsageDetected;
 
 
 typedef struct CereggiiConstant {

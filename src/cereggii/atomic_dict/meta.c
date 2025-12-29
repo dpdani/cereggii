@@ -56,7 +56,9 @@ AtomicDictMeta_New(uint8_t log_size)
     PyObject_GC_Track(meta);
     return meta;
     fail:
-    PyMem_RawFree(generation);
+    if (generation != NULL) {
+        PyMem_RawFree(generation);
+    }
     Py_XDECREF(meta);
     if (index != NULL) {
         PyMem_RawFree(index);
@@ -178,6 +180,11 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 int
 AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 {
+    Py_VISIT(self->new_gen_metadata);
+    Py_VISIT(self->new_metadata_ready);
+    Py_VISIT(self->node_migration_done);
+    Py_VISIT(self->migration_done);
+
     if (self->blocks == NULL)
         return 0;
 
