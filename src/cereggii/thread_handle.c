@@ -63,40 +63,49 @@ ThreadHandle_RichCompare(ThreadHandle *self, PyObject *other, int op)
 
 /// tp_as_number
 
-PyObject *
-ThreadHandle_Add(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Add(self->obj, other);
-}
+#define THREADHANDLE_BIN_OP(op) \
+    PyObject * \
+    ThreadHandle_##op(ThreadHandle *self, PyObject *other) { \
+        PyObject *obj = NULL; \
+        if (PyObject_IsInstance(other, (PyObject *) &ThreadHandle_Type)) { \
+            /* this is a reflected binary operation => ThreadHandle is in the second argument */ \
+            other = ((ThreadHandle *) other)->obj; \
+            obj = (PyObject *) self; \
+        } \
+        else { \
+            obj = self->obj; \
+        } \
+\
+        return PyNumber_##op(obj, other); \
+    }
 
-PyObject *
-ThreadHandle_Subtract(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Subtract(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Multiply(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Multiply(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Remainder(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Remainder(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Divmod(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Divmod(self->obj, other);
-}
+THREADHANDLE_BIN_OP(MatrixMultiply);
+THREADHANDLE_BIN_OP(Add);
+THREADHANDLE_BIN_OP(Subtract);
+THREADHANDLE_BIN_OP(Multiply);
+THREADHANDLE_BIN_OP(Remainder);
+THREADHANDLE_BIN_OP(Divmod);
+THREADHANDLE_BIN_OP(Lshift);
+THREADHANDLE_BIN_OP(Rshift);
+THREADHANDLE_BIN_OP(And);
+THREADHANDLE_BIN_OP(Xor);
+THREADHANDLE_BIN_OP(Or);
+THREADHANDLE_BIN_OP(FloorDivide);
+THREADHANDLE_BIN_OP(TrueDivide);
 
 PyObject *
 ThreadHandle_Power(ThreadHandle *self, PyObject *other, PyObject *mod)
 {
-    return PyNumber_Power(self->obj, other, mod);
+    PyObject *obj = NULL;
+    if (PyObject_IsInstance(other, (PyObject *) &ThreadHandle_Type)) {
+        /* this is a reflected binary operation => ThreadHandle is in the second argument */
+        other = ((ThreadHandle *) other)->obj;
+        obj = (PyObject *) self;
+    }
+    else {
+        obj = self->obj;
+    }
+    return PyNumber_Power(obj, other, mod);
 }
 
 PyObject *
@@ -130,36 +139,6 @@ ThreadHandle_Invert(ThreadHandle *self)
 }
 
 PyObject *
-ThreadHandle_Lshift(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Lshift(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Rshift(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Rshift(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_And(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_And(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Xor(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Xor(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_Or(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_Or(self->obj, other);
-}
-
-PyObject *
 ThreadHandle_Int(ThreadHandle *self)
 {
     return PyNumber_Long(self->obj);
@@ -169,18 +148,6 @@ PyObject *
 ThreadHandle_Float(ThreadHandle *self)
 {
     return PyNumber_Float(self->obj);
-}
-
-PyObject *
-ThreadHandle_FloorDivide(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_FloorDivide(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_TrueDivide(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_TrueDivide(self->obj, other);
 }
 
 PyObject *
@@ -260,12 +227,6 @@ PyObject *
 ThreadHandle_InPlaceTrueDivide(ThreadHandle *self, PyObject *other)
 {
     return PyNumber_InPlaceTrueDivide(self->obj, other);
-}
-
-PyObject *
-ThreadHandle_MatrixMultiply(ThreadHandle *self, PyObject *other)
-{
-    return PyNumber_MatrixMultiply(self->obj, other);
 }
 
 PyObject *
