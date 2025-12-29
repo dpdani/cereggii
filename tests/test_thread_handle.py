@@ -17,7 +17,6 @@ def test_init():
         ThreadHandle(o)
 
 
-
 def test_reflected_bin_ops():
     assert 0 & ThreadHandle(1) == 0
     assert divmod(3, ThreadHandle(2)) == (1, 1)
