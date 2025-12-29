@@ -46,6 +46,7 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
     return storage;
     fail:
     assert(storage != NULL);
+    Py_XDECREF(storage->meta);
     PyMem_RawFree(storage);
     return NULL;
 }
