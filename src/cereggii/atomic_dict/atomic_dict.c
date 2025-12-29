@@ -336,6 +336,7 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
+    PyObject_ClearWeakRefs((PyObject *) self);
     AtomicDict_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
