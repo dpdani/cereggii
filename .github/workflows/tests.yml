@@ -20,6 +20,7 @@ jobs:
           - 3.14t
         build-type:
           - Debug
+          - RelWithDebInfo
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }} / ${{ matrix.build-type }}
 
