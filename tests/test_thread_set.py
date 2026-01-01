@@ -1,5 +1,7 @@
 import threading
 
+import pytest
+
 from cereggii import ThreadSet
 
 
@@ -16,6 +18,34 @@ def test_basics():
     ts.start_and_join()
     for t in threads:
         assert "stopped" in repr(t)
+
+
+def test_init():
+    ts = ThreadSet()
+    assert len(ts) == 0
+    ts.start_and_join()
+    ts = ThreadSet(dummy_thread)
+    assert len(ts) == 1
+    ts.start_and_join()
+    ts = ThreadSet(lambda: dummy_thread())
+    assert len(ts) == 1
+    ts.start_and_join()
+    ts = ThreadSet(dummy_thread, dummy_thread)
+    assert len(ts) == 2
+    ts.start_and_join()
+    ts = ThreadSet(lambda: dummy_thread() for _ in range(3))
+    assert len(ts) == 3
+    ts.start_and_join()
+
+
+def test_raises():
+    @ThreadSet.repeat(3)
+    def thread():
+        assert False
+
+    thread.start()
+    with pytest.RaisesGroup(AssertionError, AssertionError, AssertionError):
+        thread.join()
 
 
 def test_union():
