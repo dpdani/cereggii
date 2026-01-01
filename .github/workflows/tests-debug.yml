@@ -39,4 +39,4 @@ jobs:
           uv run pip install ".[dev]" -C "override=cmake.build_type=Debug"
       - name: test with pytest
         run: |
-          uv run pytest
+          for _ in {1..200}; do uv run pytest || break; done
