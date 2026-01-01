@@ -21,6 +21,9 @@ jobs:
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
+    env:
+      UV_NO_SYNC: 1
+
     steps:
       - uses: actions/checkout@v6
       - name: Install uv and set the Python version
@@ -28,13 +31,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python --version --version && which python
+      - run: uv venv
       - run: uv pip install pip
       - name: install dependencies & cereggii
-        env:
-          UV_NO_SYNC: 1
         run: |
-          pip -V
-          pip install ".[dev]" -C "override=cmake.build_type=Debug"
+          uv run pip -V
+          uv run pip install ".[dev]" -C "override=cmake.build_type=Debug"
       - name: test with pytest
         run: |
-          pytest
+          uv run pytest
