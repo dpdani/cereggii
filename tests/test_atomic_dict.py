@@ -8,13 +8,13 @@ import random
 import threading
 from collections import Counter
 
-import cereggii
 import pytest
-from cereggii import AtomicDict, AtomicInt64, ConcurrentUsageDetected, ThreadHandle
 from pytest import raises
 
+import cereggii
+from cereggii import AtomicDict, AtomicInt64, ConcurrentUsageDetected, ThreadHandle, ThreadSet
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
-from .utils import TestingThreadSet, eventually_raises, skip_if_gil_enabled_build
+from .utils import eventually_raises_group_of, skip_if_gil_enabled_build
 
 
 def test_init():
@@ -45,8 +45,7 @@ def test_concurrent_inits():
     d = AtomicDict.__new__(AtomicDict)
     exceptions = AtomicInt64(0)
 
-    @TestingThreadSet.repeat(n)
-    def initializers():
+    def initializer():
         barrier.wait()
         try:
             d.__init__()
@@ -55,6 +54,7 @@ def test_concurrent_inits():
         for _ in range(100):
             d[_] = _
 
+    initializers = ThreadSet(initializer for _ in range(n))
     initializers.start_and_join()
 
     assert exceptions == n - 1
@@ -185,19 +185,17 @@ def test_dealloc():
 def test_concurrent_insert():
     d = AtomicDict(min_size=64 * 2)
 
-    @TestingThreadSet.repeat(1)
     def thread_1():
         d[0] = 1
         d[1] = 1
         d[2] = 1
 
-    @TestingThreadSet.repeat(1)
     def thread_2():
         d[3] = 2
         d[4] = 2
         d[2] = 2
 
-    (thread_1 | thread_2).start_and_join()
+    ThreadSet(thread_1, thread_2).start_and_join()
 
     assert d[0] == 1
     assert d[1] == 1
@@ -321,7 +319,6 @@ def test_delete_concurrent():
     key_error_1 = False
     key_error_2 = False
 
-    @TestingThreadSet.repeat(1)
     def thread_1():
         del d["spam"]
         try:
@@ -330,7 +327,6 @@ def test_delete_concurrent():
             nonlocal key_error_1
             key_error_1 = True
 
-    @TestingThreadSet.repeat(1)
     def thread_2():
         del d["atomic"]
         try:
@@ -339,7 +335,7 @@ def test_delete_concurrent():
             nonlocal key_error_2
             key_error_2 = True
 
-    (thread_1 | thread_2).start_and_join()
+    ThreadSet(thread_1, thread_2).start_and_join()
 
     with raises(KeyError):
         d["spam"]
@@ -495,13 +491,13 @@ def test_approx_len_concurrent():
     assert final_len % n == 0
     barrier = threading.Barrier(n)
 
-    @TestingThreadSet.range(n)
-    def threads(thread_id):
+    def thread(thread_id):
         barrier.wait()
         for _ in range(final_len // n):
             d[_ + (final_len // n) * thread_id] = None
             assert 0 <= d.approx_len() <= final_len
 
+    threads = ThreadSet((lambda i=i: thread(i)) for i in range(n))
     threads.start_and_join()
     assert d.approx_len() == len(d) == final_len
 
@@ -531,7 +527,7 @@ def test_fast_iter():
         for _ in range(p * 128, p * 128 + 64):
             d[_ + 64] = 2
 
-    @TestingThreadSet.repeat(1)
+    @ThreadSet.repeat(1)
     def partition_1():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=0):
@@ -539,7 +535,7 @@ def test_fast_iter():
             n += 1
         assert n == 4 * 64 - 1
 
-    @TestingThreadSet.repeat(1)
+    @ThreadSet.repeat(1)
     def partition_2():
         n = 0
         for _, v in d.fast_iter(partitions=2, this_partition=1):
@@ -551,7 +547,7 @@ def test_fast_iter():
 
 
 @skip_if_gil_enabled_build(reason="cannot occur in GIL-enabled builds")
-@eventually_raises(ConcurrentUsageDetected, repetitions=200)
+@eventually_raises_group_of(ConcurrentUsageDetected, repetitions=200)
 def test_fast_iter_race_with_delete():
     # see https://github.com/dpdani/cereggii/issues/88
     num_iterating = 6
@@ -562,7 +558,7 @@ def test_fast_iter_race_with_delete():
     barrier = threading.Barrier(num_deleting + num_inserting + num_iterating)
     stop = threading.Event()
 
-    @TestingThreadSet.repeat(num_iterating)
+    @ThreadSet.repeat(num_iterating)
     def iterating():
         dh = ThreadHandle(d)
         barrier.wait()
@@ -570,7 +566,7 @@ def test_fast_iter_race_with_delete():
             for _, _ in dh.fast_iter():
                 pass
 
-    @TestingThreadSet.repeat(num_deleting)
+    @ThreadSet.repeat(num_deleting)
     def deleting():
         dh = ThreadHandle(d)
         barrier.wait()
@@ -580,7 +576,7 @@ def test_fast_iter_race_with_delete():
             except KeyError:
                 pass
 
-    @TestingThreadSet.repeat(num_inserting)
+    @ThreadSet.repeat(num_inserting)
     def inserting():
         dh = ThreadHandle(d)
         barrier.wait()
@@ -678,7 +674,7 @@ def test_reduce_specialized_sum():
     n = 4
     b = threading.Barrier(n)
 
-    @TestingThreadSet.repeat(n)
+    @ThreadSet.repeat(n)
     def threads():
         b.wait()
         data = ("spam", 1)
@@ -694,7 +690,7 @@ def test_reduce_specialized_and():
     n = 4
     b = threading.Barrier(n)
 
-    @TestingThreadSet.repeat(n)
+    @ThreadSet.repeat(n)
     def threads():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
@@ -717,7 +713,7 @@ def test_reduce_specialized_or():
     n = 4
     b = threading.Barrier(n)
 
-    @TestingThreadSet.repeat(n)
+    @ThreadSet.repeat(n)
     def threads():
         b.wait()
         truthy = [True, "spam", 1, [[]], (42,), {0}]
@@ -740,7 +736,7 @@ def test_reduce_specialized_max():
     n = 10
     b = threading.Barrier(n)
 
-    @TestingThreadSet.range(n)
+    @ThreadSet.range(n)
     def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
@@ -756,7 +752,7 @@ def test_reduce_specialized_min():
     n = 10
     b = threading.Barrier(n)
 
-    @TestingThreadSet.range(n)
+    @ThreadSet.range(n)
     def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
@@ -772,7 +768,7 @@ def test_reduce_specialized_list():
     n = 10
     b = threading.Barrier(n)
 
-    @TestingThreadSet.range(n)
+    @ThreadSet.range(n)
     def threads(i):
         b.wait()
         data = [("spam", _ * i) for _ in range(iterations)]
@@ -830,7 +826,7 @@ def test_reduce_specialized_count_threads():
     n = 10
     b = threading.Barrier(n)
 
-    @TestingThreadSet.repeat(n)
+    @ThreadSet.repeat(n)
     def threads():
         b.wait()
         data = ["spam" for _ in range(iterations)]

@@ -2,9 +2,8 @@ import threading
 import time
 
 import pytest
-from cereggii import CountDownLatch
 
-from .utils import TestingThreadSet
+from cereggii import CountDownLatch, ThreadSet
 
 
 def test_init():
@@ -65,7 +64,7 @@ def test_wait_blocks_until_count_reaches_zero():
     wait_completed = threading.Event()
     barrier = threading.Barrier(2)
 
-    @TestingThreadSet.repeat(1)
+    @ThreadSet.repeat(1)
     def waiter():
         barrier.wait()
         latch.wait()
@@ -89,7 +88,7 @@ def test_multiple_threads_waiting():
     completed_waiters = []
     barrier = threading.Barrier(num_waiters + 1)
 
-    @TestingThreadSet.range(num_waiters)
+    @ThreadSet.range(num_waiters)
     def waiters(waiter_id):
         barrier.wait()
         latch.wait()
@@ -113,7 +112,7 @@ def test_multiple_decrements_by_different_threads():
     latch = CountDownLatch(initial_count)
     barrier = threading.Barrier(initial_count)
 
-    @TestingThreadSet.repeat(initial_count)
+    @ThreadSet.repeat(initial_count)
     def decrementers():
         barrier.wait()
         latch.decrement()
@@ -147,13 +146,13 @@ def test_concurrent_decrement_and_wait():
     barrier = threading.Barrier(num_waiters + num_decrementers)
     log = []
 
-    @TestingThreadSet.range(num_waiters)
+    @ThreadSet.range(num_waiters)
     def waiters(waiter_id):
         barrier.wait()
         latch.wait()
         log.append(f"waiter_{waiter_id}_completed")
 
-    @TestingThreadSet.range(num_decrementers)
+    @ThreadSet.range(num_decrementers)
     def decrementers(decrementer_id):
         barrier.wait()
         result = latch.decrement_and_get()
@@ -176,13 +175,13 @@ def test_many_operations():
     log = []
     barrier = threading.Barrier(num_waiters + num_decrementers)
 
-    @TestingThreadSet.range(num_waiters)
+    @ThreadSet.range(num_waiters)
     def waiters(waiter_id):
         barrier.wait()
         latch.wait()
         log.append(f"wait_{waiter_id}")
 
-    @TestingThreadSet.range(num_decrementers)
+    @ThreadSet.range(num_decrementers)
     def decrementers(decrementer_id):
         barrier.wait()
         for i in range(decrements_per_thread):

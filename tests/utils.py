@@ -65,6 +65,33 @@ def eventually_raises(expected_exception, repetitions: int):
 
         return wrapped
 
+
+def eventually_raises_group(expected_exception, *other_exceptions, repetitions: int):
+    def wrapper(test_func):
+        @functools.wraps(test_func)
+        def wrapped():
+            with pytest.RaisesGroup(expected_exception, *other_exceptions):
+                for _ in range(repetitions):
+                    test_func()
+
+        return wrapped
+
+    return wrapper
+
+
+def eventually_raises_group_of(expected_exception, repetitions: int):
+    def wrapper(test_func):
+        @functools.wraps(test_func)
+        def wrapped():
+            with pytest.raises(ExceptionGroup) as exc_info:
+                for _ in range(repetitions):
+                    test_func()
+
+            for exc in exc_info.value.exceptions:
+                assert isinstance(exc, expected_exception)
+
+        return wrapped
+
     return wrapper
 
 
