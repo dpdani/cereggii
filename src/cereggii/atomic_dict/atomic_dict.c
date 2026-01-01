@@ -52,7 +52,6 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
 int
 AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 {
-    assert(0);
     int reserved = AtomicRef_CompareAndSet(self->metadata, Py_None, Py_True);
     // if we can succeed in turning None -> True, then this thread reserved
     // the right to run the init function for this AtomicDict()
