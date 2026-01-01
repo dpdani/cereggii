@@ -1,0 +1,40 @@
+name: tests (debug)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    timeout-minutes: 10
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        python-version:
+          - 3.14d
+          - 3.14td
+
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python --version --version && which python
+      - run: uv pip install pip
+      - name: install dependencies & cereggii
+        env:
+          UV_NO_SYNC: 1
+        run: |
+          pip -V
+          pip install ".[dev]" -C "override=cmake.build_type=Debug"
+      - name: test with pytest
+        run: |
+          pytest
