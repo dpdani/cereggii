@@ -59,6 +59,7 @@ def test_rwl_writer_blocks_readers():
     (writer_thread | reader_thread).start_and_join()
     assert reader_entered.is_set()
 
+
 def test_rwl_readers_block_writer():
     lock = ReadersWriterLock()
     barrier = threading.Barrier(2)
@@ -81,6 +82,7 @@ def test_rwl_readers_block_writer():
     (reader_thread | writer_thread).start_and_join()
     assert writer_entered.is_set()
 
+
 def test_rwl_reentrancy():
     lock = ReadersWriterLock()
     with lock.reader():
@@ -90,6 +92,7 @@ def test_rwl_reentrancy():
     with lock.writer():
         with lock.writer():
             pass
+
 
 def test_rwl_manual_acquire_release():
     lock = ReadersWriterLock()
@@ -101,6 +104,7 @@ def test_rwl_manual_acquire_release():
     w.acquire()
     w.release()
 
+
 def test_rwl_concurrent_readers_and_writers():
     lock = ReadersWriterLock()
     num_readers = 10
@@ -108,7 +112,7 @@ def test_rwl_concurrent_readers_and_writers():
     loops = 100
     counter = 0
     barrier = threading.Barrier(num_readers + num_writers)
-    
+
     @TestingThreadSet.repeat(num_readers)
     def readers():
         barrier.wait()
