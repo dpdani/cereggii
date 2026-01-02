@@ -14,6 +14,7 @@ nav:
       - 'api/AtomicRef.md'
       - 'api/ThreadHandle.md'
       - 'api/ThreadSet.md'
+      - 'api/locks.md'
 #  - 'C-API Reference':
 #      - 'c-api/AtomicDict.md'
 #      - 'c-api/AtomicInt64.md'
@@ -114,11 +115,31 @@ plugins:
       handlers:
         python:
           paths: [ ./src ]
+          inventories:
+            - https://docs.python.org/3/objects.inv
           load_external_modules: true
           options:
             show_source: false
             docstring_style: sphinx
             show_if_no_docstring: true
+            # Tables are generally too large, lists will fix this.
+            docstring_section_style: list
+            signature_crossrefs: true
+            unwrap_annotated: true
+            summary: true
+            heading_level: 2
+            parameter_headings: true
+            type_parameter_headings: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            line_length: 88
+            merge_init_into_class: true
+            separate_signature: true
+            show_signature_annotations: true
+            show_signature_type_parameters: true
+            show_bases: true
 
 extra_javascript:
   - js/mathjax.js
@@ -128,3 +149,4 @@ watch:
   - ./src/cereggii/_cereggii.pyi
   - ./src/cereggii/count_down_latch.py
   - ./src/cereggii/thread_set.py
+  - ./src/cereggii/locks.py
