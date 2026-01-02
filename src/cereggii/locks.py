@@ -8,7 +8,7 @@ from threading import Condition, RLock
 
 class ReadersWriterLock:
     class ReaderLock:
-        def __init__(self, rw_lock: ReadersWriterLock):
+        def __init__(self, rw_lock: 'ReadersWriterLock'):
             self._rw_lock = rw_lock
 
         def acquire(self):
@@ -32,7 +32,7 @@ class ReadersWriterLock:
             self.release()
 
     class WriterLock:
-        def __init__(self, rw_lock: ReadersWriterLock):
+        def __init__(self, rw_lock: 'ReadersWriterLock'):
             self._rw_lock = rw_lock
 
         def acquire(self):
