@@ -6,7 +6,9 @@ copyright: |
   &copy; 2023- Daniele Parmeggiani
 
 nav:
-  - 'index.md'
+  - Home:
+    - 'index.md'
+    - 'compatibility.md'
   - 'API Reference':
       - 'api/AtomicDict.md'
       - 'api/AtomicInt64.md'
