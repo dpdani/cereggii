@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import threading
 from threading import Condition, RLock
 
 
@@ -19,6 +20,7 @@ class ReadersWriterLock:
         def release(self):
             with self._rw_lock._lock:
                 self._rw_lock._readers -= 1
+                assert self._rw_lock._readers >= 0
                 if self._rw_lock._readers == 0:
                     self._rw_lock._condition.notify_all()
 
@@ -34,15 +36,27 @@ class ReadersWriterLock:
             self._rw_lock = rw_lock
 
         def acquire(self):
+            me = threading.get_ident()
             with self._rw_lock._lock:
+                if self._rw_lock._writer == me:
+                    # reentrant acquisition
+                    self._rw_lock._writer_acquisitions += 1
+                    return
                 while self._rw_lock._readers > 0 or self._rw_lock._writer:
                     self._rw_lock._condition.wait()
-                self._rw_lock._writer = True
+                assert self._rw_lock._writer == 0
+                assert self._rw_lock._writer_acquisitions == 0
+                self._rw_lock._writer = me
+                self._rw_lock._writer_acquisitions = 1
 
         def release(self):
             with self._rw_lock._lock:
-                self._rw_lock._writer = False
-                self._rw_lock._condition.notify_all()
+                assert self._rw_lock._writer == threading.get_ident()
+                self._rw_lock._writer_acquisitions -= 1
+                assert self._rw_lock._writer_acquisitions >= 0
+                if self._rw_lock._writer_acquisitions == 0:
+                    self._rw_lock._writer = 0
+                    self._rw_lock._condition.notify_all()
 
         def __enter__(self):
             self.acquire()
@@ -53,7 +67,8 @@ class ReadersWriterLock:
 
     def __init__(self):
         self._readers = 0
-        self._writer = False
+        self._writer = 0
+        self._writer_acquisitions = 0
         self._lock = RLock()
         self._condition = Condition(self._lock)
 
