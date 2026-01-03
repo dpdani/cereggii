@@ -14,7 +14,7 @@ from cereggii import AtomicDict, AtomicInt64, ConcurrentUsageDetected, ThreadHan
 from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
-from .utils import TestingThreadSet, eventually_raises, skip_if_gil_enabled_build
+from .utils import TestingThreadSet, eventually_raises, skip_if_gil_enabled_build, gc_collect_until_stable
 
 
 def test_init():
@@ -68,13 +68,9 @@ def test_debug():
     assert "index" in dbg
     assert "blocks" in dbg
     del dbg
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
+    gc_collect_until_stable()
     d._debug()
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
+    gc_collect_until_stable()
 
 
 def test_log_size_bumped():
@@ -177,9 +173,7 @@ def test_full_dict():
 def test_dealloc():
     d = AtomicDict({"spam": 42})
     del d
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
+    gc_collect_until_stable()
 
 
 def test_concurrent_insert():
@@ -870,3 +864,12 @@ def test_rehash_raises_type_error_for_unhashable_types():
     # see https://github.com/dpdani/cereggii/issues/89
     with raises(TypeError):
         AtomicDict()._rehash(set())
+
+
+def test_new_raises_runtime_error_when_out_of_tss_keys():
+    with raises(RuntimeError):
+        d = None
+        for _ in range(10_000):
+            d = AtomicDict({0: d})
+
+    gc_collect_until_stable()
