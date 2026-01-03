@@ -20,6 +20,15 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
     self = PyObject_GC_New(AtomicDict, type);
     if (self != NULL) {
         self->metadata = NULL;
+        self->min_log_size = 0;
+        self->reservation_buffer_size = 0;
+        self->sync_op = (PyMutex) {0};
+        self->len = 0;
+        self->len_dirty = 0;
+        self->accessor_key = NULL;
+        self->accessors_lock = (PyMutex) {0};
+        self->accessors = NULL;
+
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
         if (self->metadata == NULL)
             goto fail;
@@ -31,21 +40,21 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         tss_key = PyThread_tss_alloc();
         if (tss_key == NULL)
             goto fail;
-        if (PyThread_tss_create(tss_key))
+        if (PyThread_tss_create(tss_key)) {
+            PyThread_tss_free(tss_key);
+            PyErr_SetString(PyExc_RuntimeError, "could not create TSS key");
             goto fail;
+        }
         assert(PyThread_tss_is_created(tss_key) != 0);
         self->accessor_key = tss_key;
-
-        self->accessors = NULL;
-        self->accessors_lock = (PyMutex) {0};
 
         PyObject_GC_Track(self);
     }
     return (PyObject *) self;
 
     fail:
-    Py_XDECREF(self->metadata);
-    Py_XDECREF(self);
+    // the VM will call AtomicDict_clear later, only need to decref self here
+    Py_DECREF(self);
     return NULL;
 }
 

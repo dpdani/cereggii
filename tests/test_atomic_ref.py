@@ -1,12 +1,11 @@
 # SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
 #
 # SPDX-License-Identifier: Apache-2.0
-import gc
 
 import cereggii
 from cereggii import AtomicRef
 
-from .utils import TestingThreadSet
+from .utils import TestingThreadSet, gc_collect_until_stable
 
 
 def test_init():
@@ -105,9 +104,7 @@ def test_dealloc():
     r = AtomicRef(obj)
     assert r.get() is obj
     del r
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
+    gc_collect_until_stable()
     assert id(obj) == id_obj
 
 

@@ -2,14 +2,13 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import gc
 from fractions import Fraction
 
 import cereggii
 from cereggii import AtomicInt64
 from pytest import raises
 
-from .utils import TestingThreadSet
+from .utils import TestingThreadSet, gc_collect_until_stable
 
 
 def test_init():
@@ -148,9 +147,7 @@ def test_get_handle():
 
 def test_dealloc():
     AtomicInt64()
-    previous = None
-    while (this := gc.collect()) != previous:
-        previous = this
+    gc_collect_until_stable()
 
 
 def test_hash():

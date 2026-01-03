@@ -1,4 +1,5 @@
 import functools
+import gc
 import os
 import subprocess
 import sys
@@ -152,3 +153,9 @@ def find_repetitions_count_helper(
 
 def skip_if_gil_enabled_build(reason):
     return pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED") != 1, reason=reason)
+
+
+def gc_collect_until_stable():
+    previous = None
+    while (this := gc.collect()) != previous:
+        previous = this
