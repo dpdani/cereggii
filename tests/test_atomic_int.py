@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import gc
 from fractions import Fraction
 
 import cereggii
