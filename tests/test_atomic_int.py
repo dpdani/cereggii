@@ -5,11 +5,10 @@
 import gc
 from fractions import Fraction
 
-import cereggii
-from cereggii import AtomicInt64
 from pytest import raises
 
-from .utils import TestingThreadSet
+import cereggii
+from cereggii import AtomicInt64, ThreadSet
 
 
 def test_init():
@@ -39,7 +38,7 @@ def test_cas():
     result_0 = Result()
     result_1 = Result()
 
-    @TestingThreadSet.target
+    @ThreadSet.target
     def thread(result, updated):
         result.result = r.compare_and_set(0, updated)
 
@@ -47,7 +46,7 @@ def test_cas():
     id_0 = id(obj_0)
     obj_1 = 400
     id_1 = id(obj_1)
-    TestingThreadSet(
+    ThreadSet(
         thread(result_0, obj_0),
         thread(result_1, obj_1),
     ).start_and_join()
@@ -61,7 +60,7 @@ def test_swap():
     result_0 = Result()
     result_1 = Result()
 
-    @TestingThreadSet.target
+    @ThreadSet.target
     def thread(result, updated):
         result.result = i.get_and_set(updated)
 
@@ -69,7 +68,7 @@ def test_swap():
     id_0 = id(obj_0)
     obj_1 = 600
     id_1 = id(obj_1)
-    TestingThreadSet(
+    ThreadSet(
         thread(result_0, obj_0),
         thread(result_1, obj_1),
     ).start_and_join()

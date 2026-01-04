@@ -1,7 +1,51 @@
+import functools
 import itertools
+import warnings
 from collections.abc import Callable, Iterable
 from threading import Thread
-from typing import overload
+from typing import Any, overload
+from types import GeneratorType
+
+from . import AtomicRef
+
+
+type ZeroArgumentCallable = Callable[[], Any]
+
+
+class PedanticThread(Thread):
+    def __init__(self, target, *args, **kwargs):
+        @functools.wraps(target)
+        def _capture_exception(*args_, **kwargs_):
+            try:
+                return target(*args_, **kwargs_)
+            except Exception as e:
+                self._exception.set(e)
+
+        super().__init__(target=_capture_exception, *args, **kwargs)
+        self._exception = AtomicRef(None)
+        self._called_start = False
+        self._called_join = False
+
+    def start(self):
+        self._called_start = True
+        super().start()
+
+    def join(self, timeout = None):
+        self._called_join = True
+        super().join(timeout)
+        if e := self._exception.get():
+            raise e
+
+    def __del__(self):
+        if not self._called_start:
+            warnings.warn("Deleting a thread that was created but not started. "
+                          "Did you forget to call start()? "
+                          f"{self!r}")
+            return
+        if not self._called_join:
+            warnings.warn("Deleting a thread that was started but not joined. "
+                          "Did you forget to call join()? "
+                          f"{self!r}")
 
 
 class ThreadSet:
@@ -12,9 +56,9 @@ class ThreadSet:
     documentation for general information on Python threads.
     """
 
-    thread_factory = Thread
+    thread_factory = PedanticThread
 
-    def __init__(self, *threads: Thread):
+    def __init__(self, *threads: Thread | ZeroArgumentCallable | Iterable[Thread | ZeroArgumentCallable]):
         """
         You can initialize a `ThreadSet` with any threads you already defined:
 
@@ -69,7 +113,24 @@ class ThreadSet:
         threads.start_and_join()
         ```
         """
-        self._threads: set[Thread] = set(threads)
+        assert type(threads) is tuple
+        _threads = set()
+        if len(threads) == 1:
+            try:
+                iter(threads[0])
+            except TypeError:
+                pass
+            else:
+                threads = threads[0]
+        for thread in threads:
+            if isinstance(thread, Thread):
+                _threads.add(thread)
+            elif callable(thread):
+                _threads.add(self.thread_factory(target=thread))
+            else:
+                self._threads = set()
+                raise TypeError(f"cannot create ThreadSet from {thread!r}, part of {threads!r}") from None
+        self._threads = _threads
 
     class Args:
         """A class to hold function arguments to feed to threads."""
@@ -175,8 +236,14 @@ class ThreadSet:
 
         :param timeout: The timeout for each individual join to complete.
         """
+        exceptions = []
         for t in self._threads:
-            t.join(timeout)
+            try:
+                t.join(timeout)
+            except Exception as e:
+                exceptions.append(e)
+        if exceptions:
+            raise ExceptionGroup("Exceptions occurred when joining threads", exceptions)
 
     def start_and_join(self, join_timeout: float | None = None):
         """Start the threads in this `ThreadSet`, then join them."""
@@ -251,5 +318,5 @@ class ThreadSet:
         threads = str(self._threads)
         max_threads_len = 80
         if len(threads) > max_threads_len:
-            threads = f"{threads[:max_threads_len]}... {len(self)} threads"
+            threads = f"{threads[:max_threads_len]}...}} {len(self)} threads"
         return f"<{self.__class__.__qualname__}({threads})>"

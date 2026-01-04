@@ -2,11 +2,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 import gc
+import threading
 
 import cereggii
-from cereggii import AtomicRef
-
-from .utils import TestingThreadSet
+from cereggii import AtomicRef, ThreadSet
 
 
 def test_init():
@@ -31,6 +30,21 @@ def test_set():
     assert r.get() is obj
     assert id(obj) == id_obj
 
+def test_set_concurrent():
+    r = AtomicRef()
+    n = 10
+    iters = 1000
+    barrier = threading.Barrier(n)
+
+    @ThreadSet.range(n)
+    def threads(thread_id):
+        barrier.wait()
+        for _ in range(iters):
+            r.set(thread_id)
+
+    threads.start_and_join()
+    assert 0 <= r.get() <= n - 1
+
 
 class Result:
     def __init__(self):
@@ -42,7 +56,7 @@ def test_cas():
     result_0 = Result()
     result_1 = Result()
 
-    @TestingThreadSet.target
+    @ThreadSet.target
     def thread(result, ref):
         result.result = r.compare_and_set(None, ref)
 
@@ -50,7 +64,7 @@ def test_cas():
     id_0 = id(obj_0)
     obj_1 = object()
     id_1 = id(obj_1)
-    TestingThreadSet(
+    ThreadSet(
         thread(result_0, obj_0),
         thread(result_1, obj_1),
     ).start_and_join()
@@ -62,7 +76,7 @@ def test_cas():
 def test_counter():
     r = AtomicRef(0)
 
-    @TestingThreadSet.repeat(2)
+    @ThreadSet.repeat(2)
     def threads():
         for _ in range(1_000):
             expected = r.get()
@@ -79,7 +93,7 @@ def test_swap():
     result_0 = Result()
     result_1 = Result()
 
-    @TestingThreadSet.target
+    @ThreadSet.target
     def thread(result, ref):
         result.result = r.get_and_set(ref)
 
@@ -87,7 +101,7 @@ def test_swap():
     id_0 = id(obj_0)
     obj_1 = object()
     id_1 = id(obj_1)
-    TestingThreadSet(
+    ThreadSet(
         thread(result_0, obj_0),
         thread(result_1, obj_1),
     ).start_and_join()
