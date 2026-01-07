@@ -101,6 +101,13 @@ if (MSVC)
             COMPONENT python_modules
             DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME}
             OPTIONAL)
+
+    install(FILES $<TARGET_FILE_DIR:_cereggii>/_cereggii.lib
+            $<TARGET_FILE_DIR:_cereggii>/_cereggii.exp
+            EXCLUDE_FROM_ALL
+            COMPONENT python_modules
+            DESTINATION ${PY_BUILD_CMAKE_MODULE_NAME}
+            OPTIONAL)
 endif()
 
 # Install stubs to get autocomplete and type hints
