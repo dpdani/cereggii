@@ -66,7 +66,7 @@ AtomicRef_clear(AtomicRef *self)
 void AtomicRef_dealloc(AtomicRef *self)
 {
     PyObject_GC_UnTrack(self);
-    Py_CLEAR(self->reference);
+    AtomicRef_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
