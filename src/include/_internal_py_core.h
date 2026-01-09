@@ -2,6 +2,7 @@
 #define CEREGGII_PY_CORE_H
 
 #include "Python.h"
+#include "internal/misc.h"
 
 #ifdef Py_GIL_DISABLED
 
@@ -207,6 +208,7 @@ _Py_SetWeakrefAndIncref(PyObject *obj)
     _PyObject_SetMaybeWeakref(obj);
     const int ok = _Py_TryIncRefShared(obj);
     assert(ok);
+    cereggii_unused_in_release_build(ok);
 #else
     Py_INCREF(obj);
 #endif // Py_GIL_DISABLED

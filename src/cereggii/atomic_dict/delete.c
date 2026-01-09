@@ -38,6 +38,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
 
     int ok = AtomicDict_AtomicWriteNodeAt(result->position, &result->node, &tombstone, meta);
     assert(ok);
+    cereggii_unused_in_release_build(ok);
 }
 
 int

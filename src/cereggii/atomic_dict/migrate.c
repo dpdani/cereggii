@@ -137,6 +137,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
     assert(set);
+    cereggii_unused_in_release_build(set);
 
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
@@ -233,6 +234,7 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
             assert(!must_grow);
             assert(result != NULL);
             assert(result == NOT_FOUND);
+            cereggii_unused_in_release_build(result);
         }
 
         mark_as_done:

@@ -21,6 +21,8 @@
 #  define CEREGGII_UNUSED
 #endif
 
+#define cereggii_unused_in_release_build(x) do { (void)(x); } while (0)
+
 #if defined(_MSC_VER)
 #  include <intrin.h>
 
