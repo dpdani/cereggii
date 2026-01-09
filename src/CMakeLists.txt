@@ -14,10 +14,10 @@ endif ()
 
 if (MSVC)
     add_compile_options(/Wall /WX)
-    add_compile_options(C4820)  # padding added after data member
-    add_compile_options(C4324)  # structure was padded due to alignment specifier
-    add_compile_options(C4191)  # eq. to cast-function-type
-    add_compile_options(C4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
+    add_compile_options(/wd4820)  # padding added after data member
+    add_compile_options(/wd4324)  # structure was padded due to alignment specifier
+    add_compile_options(/wd4191)  # eq. to cast-function-type
+    add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
     add_compile_options(-Wno-cast-function-type)  # this raises a large amount of false positives
