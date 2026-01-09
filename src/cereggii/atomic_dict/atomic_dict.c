@@ -103,7 +103,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         int error = PyLong_AsInt64(min_size_arg, &min_size);
         if (error)
             return -1;
-        if (min_size > (1ULL << ATOMIC_DICT_MAX_LOG_SIZE)) {
+        if (min_size > (1LL << ATOMIC_DICT_MAX_LOG_SIZE)) {
             PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
             return -1;
         }
@@ -248,14 +248,15 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
             // handle possibly misaligned reservations on last block
             // => put them into this thread's reservation buffer
-            if (AtomicDict_BlockOf(self->len + 1) <= meta->greatest_allocated_block) {
+            assert(meta->greatest_allocated_block >= 0);
+            if (AtomicDict_BlockOf(self->len + 1) <= (uint64_t) meta->greatest_allocated_block) {
                 entry_loc.entry = AtomicDict_GetEntryAt(self->len + 1, meta);
                 entry_loc.location = self->len + 1;
 
                 uint8_t n =
                     self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
                 assert(n <= ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                while (AtomicDict_BlockOf(self->len + n) > meta->greatest_allocated_block) {
+                while (AtomicDict_BlockOf(self->len + n) > (uint64_t) meta->greatest_allocated_block) {
                     n--;
 
                     if (n == 0)
@@ -609,7 +610,7 @@ AtomicDict_Debug(AtomicDict *self)
     entries = NULL;
     entry_tuple = NULL;
     block_info = NULL;
-    for (uint64_t i = 0; i <= meta->greatest_allocated_block; i++) {
+    for (int64_t i = 0; i <= meta->greatest_allocated_block; i++) {
         block = meta->blocks[i];
         entries = Py_BuildValue("[]");
         if (entries == NULL)

@@ -9,7 +9,7 @@
 
 
 PyObject *
-AtomicEvent_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
+AtomicEvent_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicEvent *self = NULL;
     self = PyObject_New(AtomicEvent, &AtomicEvent_Type);

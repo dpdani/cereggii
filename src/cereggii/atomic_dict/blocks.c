@@ -94,7 +94,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                     entry_loc->location =
                         (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                    assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
+                    assert(meta->greatest_allocated_block >= 0);
+                    assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) meta->greatest_allocated_block);
                     AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
@@ -111,10 +112,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block, &expected, inserting_block + 1, memory_order_acq_rel, memory_order_acquire);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        if (greatest_allocated_block + 1 >= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+        if ((uint64_t) greatest_allocated_block + 1 >= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             return 0; // must grow
         }
-        assert(greatest_allocated_block + 1 <= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+        assert((uint64_t) greatest_allocated_block + 1 <= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
 
         AtomicDict_Block *block = NULL;
         block = AtomicDictBlock_New(meta);
@@ -125,7 +126,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         void *expected = NULL;
         if (atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 1], &expected, block, memory_order_acq_rel, memory_order_acquire)) {
-            if (greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+            if ((uint64_t) greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
                 atomic_store_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 2], NULL, memory_order_release);
             }
             int64_t expected2 = greatest_allocated_block;
@@ -138,7 +139,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                                                     greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
             entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
-            assert(AtomicDict_BlockOf(entry_loc->location) <= meta->greatest_allocated_block);
+            assert(meta->greatest_allocated_block >= 0);
+            assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) meta->greatest_allocated_block);
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
@@ -157,10 +159,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     return -1;
 }
 
-int64_t
+uint64_t
 AtomicDict_BlockOf(uint64_t entry_ix)
 {
-    return (int64_t) entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+    return entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
 }
 
 uint64_t
@@ -172,7 +174,8 @@ AtomicDict_PositionInBlockOf(uint64_t entry_ix)
 AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
-    assert(AtomicDict_BlockOf(ix) <= meta->greatest_allocated_block);
+    assert(meta->greatest_allocated_block >= 0);
+    assert(AtomicDict_BlockOf(ix) <= (uint64_t) meta->greatest_allocated_block);
     return &(
         meta->blocks[AtomicDict_BlockOf(ix)]
             ->entries[AtomicDict_PositionInBlockOf(ix)]

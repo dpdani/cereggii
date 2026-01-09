@@ -39,7 +39,7 @@ static PyMethodDef AtomicInt64_methods[] = {
     {"from_bytes",        (PyCFunction) AtomicInt64_FromBytes,                METH_VARARGS | METH_KEYWORDS |
                                                                             METH_CLASS,                   NULL},
     {"to_bytes",          (PyCFunction) AtomicInt64_ToBytes,                  METH_NOARGS,  NULL},
-    {NULL}
+    {NULL, NULL, 0, NULL}
 };
 
 static PyGetSetDef AtomicInt64_properties[] = {
@@ -47,7 +47,7 @@ static PyGetSetDef AtomicInt64_properties[] = {
     {"numerator",   (getter) AtomicInt64_Numerator_Get,   (setter) AtomicInt64_Numerator_Set,   NULL, NULL},
     {"imag",        (getter) AtomicInt64_Imag_Get,        (setter) AtomicInt64_Imag_Set,        NULL, NULL},
     {"real",        (getter) AtomicInt64_Real_Get,        (setter) AtomicInt64_Real_Set,        NULL, NULL},
-    {NULL},
+    {NULL, NULL, NULL, NULL, NULL}
 };
 
 static PyNumberMethods AtomicInt64_as_number = {
@@ -117,7 +117,7 @@ static PyMethodDef AtomicRef_methods[] = {
     {"get_and_set",       (PyCFunction) AtomicRef_GetAndSet,              METH_O,      NULL},
     {"get_handle",        (PyCFunction) AtomicRef_GetHandle,              METH_NOARGS, NULL},
     {"__class_getitem__", (PyCFunction) _generic_class_getitem,           METH_O | METH_CLASS, NULL},
-    {NULL}
+    {NULL, NULL, 0, NULL}
 };
 
 PyTypeObject AtomicRef_Type = {
@@ -155,7 +155,7 @@ static PyMethodDef AtomicDict_methods[] = {
     {"reduce_count",      (PyCFunction) AtomicDict_ReduceCount_callable,    METH_VARARGS | METH_KEYWORDS, NULL},
     {"get_handle",        (PyCFunction) AtomicDict_GetHandle,               METH_NOARGS, NULL},
     {"__class_getitem__", (PyCFunction) _generic_class_getitem,             METH_O | METH_CLASS, NULL},
-    {NULL}
+    {NULL, NULL, 0, NULL}
 };
 
 static PyMappingMethods AtomicDict_mapping_methods = {
@@ -221,7 +221,7 @@ static PyMethodDef AtomicEvent_methods[] = {
     {"wait",   (PyCFunction) AtomicEvent_Wait_callable,  METH_NOARGS, NULL},
     {"set",    (PyCFunction) AtomicEvent_Set_callable,   METH_NOARGS, NULL},
     {"is_set", (PyCFunction) AtomicEvent_IsSet_callable, METH_NOARGS, NULL},
-    {NULL}
+    {NULL, NULL, 0, NULL}
 };
 
 PyTypeObject AtomicEvent_Type = {
@@ -326,7 +326,7 @@ static PyMappingMethods ThreadHandle_as_mapping = {
 
 static PyMethodDef ThreadHandle_methods[] = {
     {"__class_getitem__", (PyCFunction) _generic_class_getitem, METH_O | METH_CLASS, NULL},
-    {NULL}
+    {NULL, NULL, 0, NULL}
 };
 
 PyTypeObject ThreadHandle_Type = {

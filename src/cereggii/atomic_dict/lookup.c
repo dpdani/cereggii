@@ -85,8 +85,6 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
         if (result->node.node == 0) {
             goto not_found;
         }
-
-        check_entry:
         if (result->node.index == entry_ix) {
             goto found;
         }

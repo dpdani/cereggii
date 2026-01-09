@@ -79,19 +79,19 @@ ThreadHandle_RichCompare(ThreadHandle *self, PyObject *other, int op)
         return PyNumber_##op(obj, other); \
     }
 
-THREADHANDLE_BIN_OP(MatrixMultiply);
-THREADHANDLE_BIN_OP(Add);
-THREADHANDLE_BIN_OP(Subtract);
-THREADHANDLE_BIN_OP(Multiply);
-THREADHANDLE_BIN_OP(Remainder);
-THREADHANDLE_BIN_OP(Divmod);
-THREADHANDLE_BIN_OP(Lshift);
-THREADHANDLE_BIN_OP(Rshift);
-THREADHANDLE_BIN_OP(And);
-THREADHANDLE_BIN_OP(Xor);
-THREADHANDLE_BIN_OP(Or);
-THREADHANDLE_BIN_OP(FloorDivide);
-THREADHANDLE_BIN_OP(TrueDivide);
+THREADHANDLE_BIN_OP(MatrixMultiply)
+THREADHANDLE_BIN_OP(Add)
+THREADHANDLE_BIN_OP(Subtract)
+THREADHANDLE_BIN_OP(Multiply)
+THREADHANDLE_BIN_OP(Remainder)
+THREADHANDLE_BIN_OP(Divmod)
+THREADHANDLE_BIN_OP(Lshift)
+THREADHANDLE_BIN_OP(Rshift)
+THREADHANDLE_BIN_OP(And)
+THREADHANDLE_BIN_OP(Xor)
+THREADHANDLE_BIN_OP(Or)
+THREADHANDLE_BIN_OP(FloorDivide)
+THREADHANDLE_BIN_OP(TrueDivide)
 
 PyObject *
 ThreadHandle_Power(ThreadHandle *self, PyObject *other, PyObject *mod)

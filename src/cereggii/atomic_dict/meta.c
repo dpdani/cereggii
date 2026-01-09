@@ -188,7 +188,7 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
     if (self->blocks == NULL)
         return 0;
 
-    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+    for (int64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
         Py_VISIT(self->blocks[block_i]);
     }
     return 0;
@@ -197,7 +197,7 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 int
 AtomicDictMeta_clear(AtomicDict_Meta *self)
 {
-    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+    for (int64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
         Py_CLEAR(self->blocks[block_i]);
     }
 

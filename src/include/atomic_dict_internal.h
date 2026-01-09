@@ -108,7 +108,7 @@ struct AtomicDict_Meta {
     AtomicEvent *migration_done;
 };
 
-#define SIZE_OF(meta) (1ull << (meta)->log_size)
+#define SIZE_OF(meta) (1ll << (meta)->log_size)
 
 int AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg);
 
@@ -130,7 +130,7 @@ void AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, A
 
 AtomicDict_Block *AtomicDictBlock_New(AtomicDict_Meta *meta);
 
-int64_t AtomicDict_BlockOf(uint64_t entry_ix);
+uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
 
 uint64_t AtomicDict_PositionInBlockOf(uint64_t entry_ix);
 

@@ -56,7 +56,7 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
                 }
 
                 *current = entry.value;
-                PyObject *expected = *current;
+                void *expected = *current;
                 *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &expected, desired, memory_order_acq_rel, memory_order_acquire);
 
                 if (!*done) {
@@ -908,7 +908,7 @@ AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwarg
 }
 
 static inline PyObject *
-reduce_count_zip_iter_with_ones(AtomicDict *self, PyObject *iterable)
+reduce_count_zip_iter_with_ones(AtomicDict *Py_UNUSED(self), PyObject *iterable)
 {
     // we want to return `zip(iterable, itertools.repeat(1))`
     PyObject *iterator = NULL;

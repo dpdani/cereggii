@@ -77,8 +77,13 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
         .value = NULL,
     };
 
+    if (self->meta->greatest_allocated_block < 0) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+    }
+
     while (entry.value == NULL) {
-        if (AtomicDict_BlockOf(self->position) > self->meta->greatest_allocated_block) {
+        if (AtomicDict_BlockOf(self->position) > (uint64_t) self->meta->greatest_allocated_block) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }

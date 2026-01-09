@@ -110,7 +110,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         AtomicDictMeta_ShrinkBlocks(self, current_meta, new_meta);
     }
 
-    for (uint64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
+    for (int64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
         Py_INCREF(new_meta->blocks[block_i]);
     }
 
@@ -212,7 +212,7 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
         if (!locked)
             continue;
 
-        if (new_meta->greatest_refilled_block < lock && lock <= new_meta->greatest_deleted_block)
+        if ((uint64_t) new_meta->greatest_refilled_block < lock && lock <= (uint64_t) new_meta->greatest_deleted_block)
             goto mark_as_done;
 
         AtomicDict_EntryLoc entry_loc;
@@ -366,7 +366,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     int64_t node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate,
                                                       ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
 
-    while (node_to_migrate < current_size) {
+    while ((uint64_t) node_to_migrate < current_size) {
         AtomicDict_BlockWiseMigrate(current_meta, new_meta, node_to_migrate);
         node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
     }
