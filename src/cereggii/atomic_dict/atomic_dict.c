@@ -131,7 +131,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         min_size = ATOMIC_DICT_ENTRIES_IN_BLOCK;
     }
 
-    self->reservation_buffer_size = buffer_size;
+    assert(buffer_size >= 0 && buffer_size <= 64);
+    self->reservation_buffer_size = (uint8_t) buffer_size;
 
     uint8_t log_size = 0, init_dict_log_size = 0;
     uint64_t min_size_tmp = (uint64_t) min_size;
@@ -139,7 +140,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     while (min_size_tmp >>= 1) {
         log_size++;
     }
-    if (min_size > 1 << log_size) {
+    if (min_size > 1ll << log_size) {
         log_size++;
     }
     // 64 = 0b1000000
@@ -454,10 +455,10 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     Py_ssize_t threads_count = 0;
     int64_t lower = 0;
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    for (AtomicDict_AccessorStorage *st = self->accessors; st != NULL; st = st->next_accessor) {
         threads_count++;
 
-        AtomicDict_ReservationBuffer *rb = &storage->reservation_buffer;
+        AtomicDict_ReservationBuffer *rb = &st->reservation_buffer;
         if (rb == NULL)
             goto fail;
 

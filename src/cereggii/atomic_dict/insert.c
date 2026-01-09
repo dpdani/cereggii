@@ -56,8 +56,8 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
                 }
 
                 *current = entry.value;
-                void *expected = *current;
-                *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &expected, desired, memory_order_acq_rel, memory_order_acquire);
+                void *exp = *current;
+                *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &exp, desired, memory_order_acq_rel, memory_order_acquire);
 
                 if (!*done) {
                     AtomicDict_ReadEntry(entry_p, &entry);
@@ -149,7 +149,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
         distance++;
 
-        if (distance >= (1u << meta->log_size)) {
+        if (distance >= (1ull << meta->log_size)) {
             // traversed the entire dictionary without finding an empty slot
             *must_grow = 1;
             goto fail;

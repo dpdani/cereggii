@@ -20,7 +20,7 @@ AtomicDictMeta_New(uint8_t log_size)
     if (generation == NULL)
         goto fail;
 
-    index = PyMem_RawMalloc(sizeof(uint64_t) * (1 << log_size));
+    index = PyMem_RawMalloc(sizeof(uint64_t) * (1ull << log_size));
     if (index == NULL)
         goto fail;
 
