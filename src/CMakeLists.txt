@@ -16,6 +16,7 @@ if (MSVC)
     add_compile_options(/Wall /WX)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options(-Wno-cast-function-type)  # this raises a large amount of false positives
 endif()
 
 if (DEFINED ENV{CEREGGII_TSAN})

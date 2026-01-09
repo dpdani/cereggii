@@ -370,7 +370,7 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
     };
     const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
 
-    for (uint64_t distance = 0; distance < SIZE_OF(meta); distance++) {
+    for (uint64_t distance = 0; distance < (uint64_t) SIZE_OF(meta); distance++) {
         AtomicDict_ReadNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
 
         if (temp.node == 0) {
@@ -593,7 +593,7 @@ AtomicDict_Debug(AtomicDict *self)
         goto fail;
 
     AtomicDict_Node node;
-    for (uint64_t i = 0; i < SIZE_OF(meta); i++) {
+    for (uint64_t i = 0; i < (uint64_t) SIZE_OF(meta); i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
         PyObject *n = Py_BuildValue("K", node.node);
         if (n == NULL)

@@ -256,7 +256,7 @@ AtomicDict_IndexNotFound(uint64_t index, AtomicDict_Meta *meta)
 {
     AtomicDict_Node node;
 
-    for (uint64_t i = 0; i < SIZE_OF(meta); ++i) {
+    for (int64_t i = 0; i < SIZE_OF(meta); ++i) {
         AtomicDict_ReadNodeAt(i, &node, meta);
 
         if (node.index == index) {
@@ -273,7 +273,7 @@ AtomicDict_DebugLen(AtomicDict_Meta *meta)
     uint64_t len = 0;
     AtomicDict_Node node;
 
-    for (uint64_t i = 0; i < SIZE_OF(meta); ++i) {
+    for (int64_t i = 0; i < SIZE_OF(meta); ++i) {
         AtomicDict_ReadNodeAt(i, &node, meta);
 
         if (node.node != 0 && node.node != TOMBSTONE(meta))
@@ -292,7 +292,7 @@ AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta)
     node->tag = hash;
     uint64_t position;
 
-    for (uint64_t distance = 0; distance < SIZE_OF(new_meta); distance++) {
+    for (int64_t distance = 0; distance < SIZE_OF(new_meta); distance++) {
         position = (d0 + distance) & (SIZE_OF(new_meta) - 1);
 
         if (new_meta->index[position] == 0) {

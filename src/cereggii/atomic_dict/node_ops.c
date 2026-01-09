@@ -15,7 +15,7 @@
 void
 AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
-    assert(node->index < (1 << meta->log_size));
+    assert(node->index < (1u << meta->log_size));
     node->node =
         (node->index << (NODE_SIZE - meta->log_size))
         | (node->tag & TAG_MASK(meta));
@@ -84,8 +84,7 @@ AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta
 void
 AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
-    assert(ix >= 0);
-    assert(ix < (1 << meta->log_size));
+    assert(ix < (1u << meta->log_size));
 
     meta->index[ix] = raw_node;
 }

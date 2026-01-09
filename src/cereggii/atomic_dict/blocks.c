@@ -112,10 +112,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block, &expected, inserting_block + 1, memory_order_acq_rel, memory_order_acquire);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
-        if ((uint64_t) greatest_allocated_block + 1 >= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+        if ((uint64_t) greatest_allocated_block + 1u >= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             return 0; // must grow
         }
-        assert((uint64_t) greatest_allocated_block + 1 <= SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+        assert((uint64_t) greatest_allocated_block + 1u <= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
 
         AtomicDict_Block *block = NULL;
         block = AtomicDictBlock_New(meta);
@@ -126,7 +126,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         void *expected = NULL;
         if (atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 1], &expected, block, memory_order_acq_rel, memory_order_acquire)) {
-            if ((uint64_t) greatest_allocated_block + 2 < SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
+            if ((uint64_t) greatest_allocated_block + 2u < (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
                 atomic_store_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 2], NULL, memory_order_release);
             }
             int64_t expected2 = greatest_allocated_block;
@@ -152,7 +152,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     done:
     assert(entry_loc->entry != NULL);
     assert(entry_loc->entry->key == NULL);
-    assert(entry_loc->location < SIZE_OF(meta));
+    assert(entry_loc->location < (uint64_t) SIZE_OF(meta));
     return 1;
     fail:
     entry_loc->entry = NULL;

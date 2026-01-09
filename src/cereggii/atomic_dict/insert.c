@@ -149,7 +149,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
         distance++;
 
-        if (distance >= (1 << meta->log_size)) {
+        if (distance >= (1u << meta->log_size)) {
             // traversed the entire dictionary without finding an empty slot
             *must_grow = 1;
             goto fail;

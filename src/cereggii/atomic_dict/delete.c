@@ -20,7 +20,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
     }
 
     while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &result->entry_p->value,
-                                              (void *) &result->entry.value,
+                                              (void **) &result->entry.value,
                                               NULL, memory_order_acq_rel,
                                                    memory_order_acquire)) {
         AtomicDict_ReadEntry(result->entry_p, &result->entry);
@@ -83,7 +83,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     }
 
     storage->local_len--;
-    self->len_dirty = 1;
+    atomic_store_explicit((_Atomic (uint8_t) *) &self->len_dirty, 1, memory_order_relaxed);
     Py_DECREF(result.entry.key);
     Py_DECREF(result.entry.value);
 
