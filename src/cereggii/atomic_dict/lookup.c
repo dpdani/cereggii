@@ -79,7 +79,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
     uint64_t distance = 0;
 
-    for (; distance < (1u << meta->log_size); distance++) {
+    for (; distance < 1ull << meta->log_size; distance++) {
         AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
         if (result->node.node == 0) {

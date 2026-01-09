@@ -161,7 +161,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     while (init_dict_size_tmp >>= 1) {
         init_dict_log_size++;
     }
-    if (init_dict_size > 1 << init_dict_log_size) {
+    if (init_dict_size > 1ll << init_dict_log_size) {
         init_dict_log_size++;
     }
     if (init_dict_log_size > log_size) {
