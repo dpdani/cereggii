@@ -96,7 +96,7 @@ AtomicRef_Set(AtomicRef *self, PyObject *desired)
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    PyObject *expected = current_reference;
+    void *expected = current_reference;
     while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &expected, desired, memory_order_acq_rel, memory_order_acquire)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
@@ -114,7 +114,7 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
     assert(desired != NULL);
 
     _Py_SetWeakrefAndIncref(desired);
-    PyObject *_expected = expected;
+    void *_expected = expected;
     int retval = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &_expected, desired, memory_order_acq_rel, memory_order_acquire);
     if (retval) {
         Py_DECREF(expected);
