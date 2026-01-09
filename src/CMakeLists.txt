@@ -18,6 +18,7 @@ if (MSVC)
     add_compile_options(/wd4324)  # structure was padded due to alignment specifier
     add_compile_options(/wd4191)  # eq. to cast-function-type
     add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
+    add_compile_options(/wd5045)  # Compiler will insert Spectre mitigation for memory load
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
     add_compile_options(-Wno-cast-function-type)  # this raises a large amount of false positives
