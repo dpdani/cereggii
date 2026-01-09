@@ -319,7 +319,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     }
     assert(end_of_block > i);
 
-    AtomicDict_Node node;
+    AtomicDict_Node node = {0};
 
     // find first empty slot
     while (i < end_of_block) {
