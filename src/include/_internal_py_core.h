@@ -175,7 +175,7 @@ _PyObject_SetMaybeWeakref(PyObject *op)
 #else
 
 static inline void
-_PyObject_SetMaybeWeakref(PyObject *op) {}
+_PyObject_SetMaybeWeakref(PyObject *Py_UNUSED(op)) {}
 
 
 #endif
