@@ -22,25 +22,9 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 }
 
 
-#ifdef __aarch64__
-#  if !defined(__ARM_FEATURE_CRC32)
-#    error "CRC32 hardware support not available"
-#  endif
-#  if defined(__GNUC__)
-#    include <arm_acle.h>
-#    define CRC32(x, y) __crc32d((x), (y))
-#  elif defined(__clang__)
-#    define CRC32(x, y) __builtin_arm_crc32d((x), (y))
-#  else
-#    error "Unsupported compiler for __aarch64__"
-#  endif // __crc32d
-#else
-#  define CRC32(x, y) cereggii_crc32_u64((x), (y))
-#endif // __aarch64__
-
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
-#define REHASH(x) (uint64_t) ((uint64_t) CRC32((uint64_t)(x), LOWER_SEED) | (((uint64_t) CRC32((uint64_t)(x), UPPER_SEED)) << 32ull))
+#define REHASH(x) (uint64_t) ((uint64_t) cereggii_crc32_u64((uint64_t)(x), LOWER_SEED) | (((uint64_t) cereggii_crc32_u64((uint64_t)(x), UPPER_SEED)) << 32ull))
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
