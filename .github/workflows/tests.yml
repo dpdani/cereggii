@@ -27,6 +27,11 @@ jobs:
         build-type:
           - Debug
           - RelWithDebInfo
+        exclude:
+          - os: windows-latest
+            build-type: Debug
+          - os: windows-11-arm
+            build-type: Debug
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }} / ${{ matrix.build-type }}
 
