@@ -38,7 +38,7 @@
 #  if defined(_M_IX86) || defined(_M_X64)
 #    define cereggii_crc32_u64(crc, v) _mm_crc32_u64((crc), (v))
 #  elif defined(_M_ARM64) || defined(_M_ARM64EC)
-#    define cereggii_crc32_u64(crc, v) __crc32cd((crc), (v))
+#    define cereggii_crc32_u64(crc, v) __crc32cd((uint32_t)(crc), (v))
 #  else
 #    error "unsupported platform"
 #  endif
