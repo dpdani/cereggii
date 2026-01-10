@@ -40,7 +40,7 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
-#define REHASH(x) (uint64_t) (CRC32((x), LOWER_SEED) | (((uint64_t) CRC32((x), UPPER_SEED)) << 32ull))
+#define REHASH(x) (CRC32((uint64_t)(x), LOWER_SEED) | ((CRC32((uint64_t)(x), UPPER_SEED)) << 32ull))
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
