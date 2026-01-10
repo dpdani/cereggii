@@ -43,10 +43,27 @@
 #    error "unsupported platform"
 #  endif
 
-#else
+#else // _MSC_VER
+
 #  define cereggii_prefetch(p) __builtin_prefetch(p)
-#  define cereggii_crc32_u64(crc, v) __builtin_ia32_crc32di((crc), (v))
-#endif
+
+#  ifdef __aarch64__
+#    if !defined(__ARM_FEATURE_CRC32)
+#      error "CRC32 hardware support not available"
+#    endif
+#    if defined(__GNUC__)
+#      include <arm_acle.h>
+#      define cereggii_crc32_u64(crc, v) __crc32d((crc), (v))
+#    elif defined(__clang__)
+#      define cereggii_crc32_u64(crc, v) __builtin_arm_crc32d((crc), (v))
+#    else
+#      error "Unsupported compiler for __aarch64__"
+#    endif // __crc32d
+#  else // __aarch64__
+#    define cereggii_crc32_u64(crc, v) __builtin_ia32_crc32di((crc), (v))
+#  endif // __aarch64__
+
+#endif // _MSC_VER
 
 
 #endif // CEREGGII_MISC_H
