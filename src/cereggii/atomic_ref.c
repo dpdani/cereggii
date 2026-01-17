@@ -17,7 +17,7 @@ AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject
     if (self == NULL)
         return NULL;
 
-    self->reference = Py_None;
+    atomic_store_explicit(&self->reference, Py_None, memory_order_release);
 
     PyObject_GC_Track(self);
 
@@ -39,7 +39,7 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
     if (initial_value != NULL) {
         _Py_SetWeakrefAndIncref(initial_value);
         // decref'ed in destructor
-        self->reference = initial_value;
+        atomic_store_explicit(&self->reference, initial_value, memory_order_release);
     }
     return 0;
 
@@ -59,7 +59,6 @@ int
 AtomicRef_clear(AtomicRef *self)
 {
     Py_CLEAR(self->reference);
-
     return 0;
 }
 
@@ -75,13 +74,13 @@ PyObject *
 AtomicRef_Get(AtomicRef *self)
 {
     PyObject *reference;
-    reference = atomic_load_explicit((_Atomic(void *) *) &self->reference, memory_order_relaxed);
+    reference = atomic_load_explicit(&self->reference, memory_order_acquire);
 
 #ifndef Py_GIL_DISABLED
     Py_INCREF(reference);
 #else
     while (!_Py_TryIncref(reference)) {
-        reference = atomic_load_explicit((_Atomic(void *) *) &self->reference, memory_order_relaxed);
+        reference = atomic_load_explicit(&self->reference, memory_order_acquire);
     }
 #endif
     return reference;
@@ -96,8 +95,8 @@ AtomicRef_Set(AtomicRef *self, PyObject *desired)
 
     PyObject *current_reference;
     current_reference = AtomicRef_Get(self);
-    void *expected = current_reference;
-    while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &expected, desired, memory_order_acq_rel, memory_order_acquire)) {
+    PyObject *expected = current_reference;
+    while (!atomic_compare_exchange_strong_explicit(&self->reference, &expected, desired, memory_order_acq_rel, memory_order_acquire)) {
         Py_DECREF(current_reference);
         current_reference = AtomicRef_Get(self);
     }
@@ -114,8 +113,8 @@ AtomicRef_CompareAndSet(AtomicRef *self, PyObject *expected, PyObject *desired)
     assert(desired != NULL);
 
     _Py_SetWeakrefAndIncref(desired);
-    void *_expected = expected;
-    int retval = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &self->reference, &_expected, desired, memory_order_acq_rel, memory_order_acquire);
+    PyObject *_expected = expected;
+    int retval = atomic_compare_exchange_strong_explicit(&self->reference, &_expected, desired, memory_order_acq_rel, memory_order_acquire);
     if (retval) {
         Py_DECREF(expected);
         return 1;
@@ -150,7 +149,7 @@ AtomicRef_GetAndSet(AtomicRef *self, PyObject *desired)
     assert(desired != NULL);
 
     _Py_SetWeakrefAndIncref(desired);
-    PyObject *current_reference = atomic_exchange_explicit((_Atomic(void *) *) &self->reference, desired, memory_order_acq_rel);
+    PyObject *current_reference = atomic_exchange_explicit(&self->reference, desired, memory_order_acq_rel);
     // don't decref current_reference: passing it to python
     return current_reference;
 }
@@ -159,18 +158,21 @@ PyObject *
 AtomicRef_GetHandle(AtomicRef *self)
 {
     ThreadHandle *handle = NULL;
+    PyObject *args = NULL;
 
-    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
-
-    if (handle == NULL)
+    handle = (ThreadHandle *) ThreadHandle_new(&ThreadHandle_Type, NULL, NULL);
+    if (handle == NULL) {
+        PyErr_NoMemory();
         goto fail;
+    }
 
-    PyObject *args = Py_BuildValue("(O)", self);
+    args = Py_BuildValue("(O)", self);
     if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
-
+    Py_DECREF(args);
     return (PyObject *) handle;
 
     fail:
+    Py_XDECREF(args);
     return NULL;
 }

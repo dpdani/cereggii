@@ -149,6 +149,8 @@ void AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
 
 uint64_t AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta);
 
+uint64_t AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta);
+
 void AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
 void AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
@@ -201,6 +203,10 @@ void AtomicDict_BeginSynchronousOperation(AtomicDict *self);
 
 void AtomicDict_EndSynchronousOperation(AtomicDict *self);
 
+int64_t atomic_dict_approx_len(AtomicDict *self);
+
+void atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, int32_t inc);
+
 
 /// migrations
 int AtomicDict_Grow(AtomicDict *self);
@@ -218,7 +224,7 @@ void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
 
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta);
+void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, uint64_t trailing_cluster_end);
 
 void AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 

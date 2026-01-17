@@ -53,10 +53,16 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
     node->tag = node_raw & TAG_MASK(meta);
 }
 
+uint64_t
+AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
+{
+    return atomic_load_explicit((_Atomic (uint64_t) *) &meta->index[ix & ((1 << meta->log_size) - 1)], memory_order_acquire);
+}
+
 void
 AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
-    const uint64_t raw = meta->index[ix & ((1 << meta->log_size) - 1)];
+    const uint64_t raw = AtomicDict_ReadRawNodeAt(ix, meta);
     AtomicDict_ParseNodeFromRaw(raw, node, meta);
 }
 
@@ -72,7 +78,7 @@ AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
     assert(ix < (1ull << meta->log_size));
 
-    meta->index[ix] = raw_node;
+    atomic_store_explicit((_Atomic (uint64_t) *) &meta->index[ix], raw_node, memory_order_release);
 }
 
 int
@@ -82,5 +88,5 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
     AtomicDict_ComputeRawNode(desired, meta);
 
     uint64_t _expected = expected->node;
-    return atomic_compare_exchange_strong_explicit((_Atomic(uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
+    return atomic_compare_exchange_strong_explicit((_Atomic (uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
 }

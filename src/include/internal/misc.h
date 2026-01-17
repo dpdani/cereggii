@@ -65,5 +65,42 @@
 
 #endif // _MSC_VER
 
+#if defined(__SANITIZE_THREAD__)
+#  define CEREGGII_THREAD_SANITIZER 1
+#endif
+#if !defined(CEREGGII_THREAD_SANITIZER) && defined(__clang__)
+# if __has_feature(thread_sanitizer)
+#    define CEREGGII_THREAD_SANITIZER 1
+#  endif
+#endif
+#if defined(CEREGGII_THREAD_SANITIZER)
+
+/* Dynamic annotations API (supported by TSan runtime). */
+#ifdef __cplusplus
+extern "C" {
+#endif
+    void AnnotateIgnoreReadsBegin(const char *file, int line);
+    void AnnotateIgnoreReadsEnd(const char *file, int line);
+    void AnnotateIgnoreWritesBegin(const char *file, int line);
+    void AnnotateIgnoreWritesEnd(const char *file, int line);
+#ifdef __cplusplus
+}
+#endif
+
+#define cereggii_tsan_ignore_reads_begin()   AnnotateIgnoreReadsBegin(__FILE__, __LINE__)
+#define cereggii_tsan_ignore_reads_end()     AnnotateIgnoreReadsEnd(__FILE__, __LINE__)
+#define cereggii_tsan_ignore_writes_begin()  AnnotateIgnoreWritesBegin(__FILE__, __LINE__)
+#define cereggii_tsan_ignore_writes_end()    AnnotateIgnoreWritesEnd(__FILE__, __LINE__)
+
+#else
+
+#define cereggii_tsan_ignore_reads_begin()   ((void)0)
+#define cereggii_tsan_ignore_reads_end()     ((void)0)
+#define cereggii_tsan_ignore_writes_begin()  ((void)0)
+#define cereggii_tsan_ignore_writes_end()    ((void)0)
+
+#endif
+
+
 
 #endif // CEREGGII_MISC_H

@@ -4,9 +4,33 @@
 
 #include "thread_handle.h"
 
+
+PyObject *
+ThreadHandle_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
+{
+    ThreadHandle *self = (ThreadHandle *) type->tp_alloc(type, 0);
+    if (self == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    self->obj = Py_None;
+    Py_INCREF(Py_None);
+
+    return (PyObject *) self;
+}
+
 int
 ThreadHandle_init(ThreadHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs))
 {
+#ifdef Py_GIL_DISABLED
+    uintptr_t owner = self->ob_base.ob_tid;
+    if (_Py_ThreadId() != owner) {
+        PyErr_SetString(PyExc_RuntimeError, "cannot instantiate ThreadHandle from a different thread.");
+        return -1;
+    }
+#endif
+
     PyObject *obj = NULL;
 
     if (!PyArg_ParseTuple(args, "O", &obj))
@@ -15,11 +39,10 @@ ThreadHandle_init(ThreadHandle *self, PyObject *args, PyObject *Py_UNUSED(kwargs
     if (PyObject_IsInstance(obj, (PyObject *) &ThreadHandle_Type)) {
         obj = ((ThreadHandle *) obj)->obj;
     }
+    assert(self->obj == Py_None);
+    Py_CLEAR(self->obj);
     Py_INCREF(obj);
     self->obj = obj;
-
-    if (!PyObject_GC_IsTracked((PyObject *) self))
-        PyObject_GC_Track(self);
 
     return 0;
 

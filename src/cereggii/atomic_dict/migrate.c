@@ -36,7 +36,7 @@ AtomicDict_Grow(AtomicDict *self)
 int
 AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex, AtomicDict_AccessorStorage *accessors)
 {
-    if (current_meta->migration_leader == 0) {
+    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->migration_leader, memory_order_acquire) == 0) {
         return 0;
     }
 
@@ -53,7 +53,7 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
     assert(to_log_size <= from_log_size + 1);
     assert(to_log_size >= from_log_size - 1);
 
-    if (current_meta->migration_leader == 0) {
+    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->migration_leader, memory_order_acquire) == 0) {
         uintptr_t expected = 0;
         int i_am_leader = atomic_compare_exchange_strong_explicit((_Atomic(uintptr_t) *)
             &current_meta->migration_leader,
@@ -115,7 +115,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
 
     if (from_log_size < to_log_size) {
-        current_meta->accessor_key = self->accessor_key;
+        atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
 
         for (int64_t block = 0; block <= new_meta->greatest_allocated_block; ++block) {
             new_meta->blocks[block]->generation = new_meta->generation;
@@ -128,7 +128,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     // 👀
     Py_INCREF(new_meta);
-    current_meta->new_gen_metadata = new_meta;
+    atomic_store_explicit((_Atomic (AtomicDict_Meta *) *) &current_meta->new_gen_metadata, new_meta, memory_order_release);
     AtomicEvent_Set(current_meta->new_metadata_ready);
 
     // birds flying
@@ -142,7 +142,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
-            accessor->participant_in_migration = 0;
+            atomic_store_explicit((_Atomic(int) *) &accessor->participant_in_migration, 0, memory_order_release);
         }
     }
 
@@ -173,7 +173,7 @@ void
 AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, AtomicDict_AccessorStorage *accessors)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
-    AtomicDict_Meta *new_meta = current_meta->new_gen_metadata;
+    AtomicDict_Meta *new_meta = atomic_load_explicit((_Atomic (AtomicDict_Meta *) *) &current_meta->new_gen_metadata, memory_order_acquire);
 
     AtomicDict_CommonMigrate(current_meta, new_meta, accessors);
 
@@ -185,7 +185,7 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
 {
     if (!AtomicEvent_IsSet(current_meta->node_migration_done)) {
         // assert(self->accessors_lock is held by leader);
-        AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
+        AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(atomic_load_explicit((_Atomic(Py_tss_t *) *) &current_meta->accessor_key, memory_order_acquire));
         atomic_store_explicit((_Atomic(int) *) &storage->participant_in_migration, 1, memory_order_release);
 
         AtomicDict_MigrateNodes(current_meta, new_meta);
@@ -286,9 +286,8 @@ AtomicDict_DebugLen(AtomicDict_Meta *meta)
 }
 
 inline void
-AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta)
+AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, const uint64_t trailing_cluster_end)
 {
-    // assert(AtomicDict_IndexNotFound(node->index, new_meta));
     Py_hash_t hash = AtomicDict_GetEntryAt(node->index, new_meta)->hash;
     uint64_t d0 = AtomicDict_Distance0Of(hash, new_meta);
     node->tag = hash;
@@ -297,10 +296,23 @@ AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta)
     for (int64_t distance = 0; distance < SIZE_OF(new_meta); distance++) {
         position = (d0 + distance) & (SIZE_OF(new_meta) - 1);
 
-        if (new_meta->index[position] == 0) {
+        if (AtomicDict_ReadRawNodeAt(position, new_meta) == 0) {
+            if (trailing_cluster_end) {
+                assert(position < (trailing_cluster_end + 1) * 2);
+            }
             AtomicDict_WriteNodeAt(position, node, new_meta);
             break;
         }
+    }
+}
+
+void
+initialize_in_new_meta(AtomicDict_Meta *new_meta, const uint64_t start, const uint64_t end)
+{
+    // initialize slots in range [start, end)
+    for (uint64_t j = 2 * start; j < 2 * (end + 1); ++j) {
+        // atomic_store_explicit((_Atomic (uint64_t) *) &new_meta->index[j], 0ull, memory_order_release);
+        AtomicDict_WriteRawNodeAt(j & (SIZE_OF(new_meta) - 1), 0, new_meta);
     }
 }
 
@@ -323,7 +335,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
 
     // find first empty slot
     while (i < end_of_block) {
-        if (current_meta->index[i] == 0)
+        if (AtomicDict_ReadRawNodeAt(i, current_meta) == 0)
             break;
 
         i++;
@@ -332,10 +344,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     if (i >= end_of_block)
         return;
 
-    // initialize slots in range [i, end_of_block]
-    memset(&new_meta->index[i * 2], 0, (end_of_block - i) * 2 * sizeof(uint64_t));
-
-    uint64_t new_size_mask = SIZE_OF(new_meta) - 1;
+    initialize_in_new_meta(new_meta, i, end_of_block);
 
     for (; i < end_of_block; i++) {
         AtomicDict_ReadNodeAt(i, &node, current_meta);
@@ -343,20 +352,32 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
         if (node.node == 0 || node.node == TOMBSTONE(new_meta))
             continue;
 
-        AtomicDict_MigrateNode(&node, new_meta);
+        AtomicDict_MigrateNode(&node, new_meta, 0);
     }
 
-    assert(i == end_of_block);
+    assert(i == end_of_block); // that is, start of next block
 
-    while (node.node != 0 || i == end_of_block) {
-        memset(&new_meta->index[(i * 2) & new_size_mask], 0, ((i + 1) * 2 - i * 2) * sizeof(uint64_t));
+    uint64_t trailing_cluster_size = 0;
+    for (uint64_t j = i & (current_size - 1); j < current_size; j++) {
+        AtomicDict_ReadNodeAt(j, &node, current_meta);
+        if (node.node == 0) {
+            break;
+        }
+        trailing_cluster_size++;
+    }
+    if (trailing_cluster_size > 0) {
+        uint64_t trailing_cluster_end = i + trailing_cluster_size;
+        initialize_in_new_meta(new_meta, i, trailing_cluster_end);
         AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
 
-        if (node.node != 0 && node.node != TOMBSTONE(current_meta)) {
-            AtomicDict_MigrateNode(&node, new_meta);
+        while (node.node != 0) {
+            AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
+            if (node.node != 0 && node.node != TOMBSTONE(current_meta)) {
+                assert(i <= (1ull << ATOMIC_DICT_MAX_LOG_SIZE));
+                AtomicDict_MigrateNode(&node, new_meta, trailing_cluster_end);
+            }
+            i++;
         }
-
-        i++;
     }
 }
 
@@ -373,7 +394,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
         node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
     }
 
-    AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(current_meta->accessor_key);
+    AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(atomic_load_explicit((_Atomic(Py_tss_t *) *) &current_meta->accessor_key, memory_order_acquire));
     atomic_store_explicit((_Atomic(int) *) &storage->participant_in_migration, 2, memory_order_release);
 }
 
@@ -382,8 +403,8 @@ AtomicDict_NodesMigrationDone(AtomicDict_AccessorStorage *accessors)
 {
     int done = 1;
 
-    for (AtomicDict_AccessorStorage *storage = accessors; storage != NULL; storage = storage->next_accessor) {
-        if (storage->participant_in_migration == 1) {
+    for (AtomicDict_AccessorStorage *storage = accessors; storage != NULL; storage = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &storage->next_accessor, memory_order_acquire)) {
+        if (atomic_load_explicit((_Atomic (int) *) &storage->participant_in_migration, memory_order_acquire) == 1) {
             done = 0;
             break;
         }

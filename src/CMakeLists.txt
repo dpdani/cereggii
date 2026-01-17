@@ -25,9 +25,20 @@ else()
     add_compile_options(-Wno-cast-function-type)  # this raises a large amount of false positives
 endif()
 
+message(STATUS "CEREGGII_TSAN=$ENV{CEREGGII_TSAN}")
+
 if (DEFINED ENV{CEREGGII_TSAN})
     add_compile_options("-fsanitize=thread")
     add_link_options("-fsanitize=thread")
+    add_compile_options("-g")
+    add_compile_options("-fno-omit-frame-pointer")
+endif ()
+
+message(STATUS "CEREGGII_ASAN=$ENV{CEREGGII_ASAN}")
+
+if (DEFINED ENV{CEREGGII_ASAN})
+    add_compile_options("-fsanitize=address,undefined")
+    add_link_options("-fsanitize=address")
     add_compile_options("-g")
     add_compile_options("-fno-omit-frame-pointer")
 endif ()
@@ -97,6 +108,13 @@ Python3_add_library(_cereggii MODULE
         "cereggii/constants.c"
         "cereggii/thread_handle.c"
 )
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(_cereggii
+            PRIVATE
+            $<$<CONFIG:Debug>:DEBUG>
+    )
+endif ()
 
 # Install the module
 install(TARGETS _cereggii

@@ -159,7 +159,7 @@ def test_full_dict():
     d = AtomicDict(min_size=64)
     for k in range(62):
         d[k] = None
-    assert len(d._debug()["index"]) == 64
+    assert len(d._debug()["index"]) == 128
 
     d = AtomicDict({k: None for k in range((1 << 10) - 1)})
     assert len(d._debug()["index"]) == 1 << 11

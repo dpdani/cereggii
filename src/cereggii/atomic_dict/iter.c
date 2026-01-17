@@ -4,6 +4,8 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include <stdatomic.h>
+
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 #include "constants.h"
@@ -77,13 +79,15 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
         .value = NULL,
     };
 
-    if (self->meta->greatest_allocated_block < 0) {
+    AtomicDict_Meta *meta = self->meta;
+    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+    if (gab < 0) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
 
     while (entry.value == NULL) {
-        if (AtomicDict_BlockOf(self->position) > (uint64_t) self->meta->greatest_allocated_block) {
+        if (AtomicDict_BlockOf(self->position) > (uint64_t) gab) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }

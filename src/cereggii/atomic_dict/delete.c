@@ -83,8 +83,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto fail;
     }
 
-    storage->local_len--;
-    atomic_store_explicit((_Atomic (uint8_t) *) &self->len_dirty, 1, memory_order_relaxed);
+    atomic_dict_accessor_len_inc(self, storage, -1);
     Py_DECREF(result.entry.key);
     Py_DECREF(result.entry.value);
 

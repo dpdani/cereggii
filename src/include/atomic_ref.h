@@ -13,7 +13,7 @@
 typedef struct atomic_ref {
     PyObject_HEAD
 
-    PyObject *reference;
+    _Atomic(PyObject *) reference;
 } AtomicRef;
 
 PyObject *AtomicRef_Get(AtomicRef *self);

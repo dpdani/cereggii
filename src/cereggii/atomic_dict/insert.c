@@ -264,33 +264,33 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto beginning;
         }
 
-        entry_loc.entry->key = key;
-        entry_loc.entry->hash = hash;
-        entry_loc.entry->value = desired;
+        atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->key, key, memory_order_release);
+        atomic_store_explicit((_Atomic(Py_hash_t) *) &entry_loc.entry->hash, hash, memory_order_release);
+        atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->value, desired, memory_order_release);
     }
 
     int must_grow;
     PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
     if (result != NOT_FOUND && entry_loc.location != 0) {
-        entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
-        entry_loc.entry->key = 0;
-        entry_loc.entry->value = 0;
-        entry_loc.entry->hash = 0;
+        // keep entry_loc.entry->flags reserved, or set to 0
+        uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
+        atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, 0, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, 0, memory_order_release);
+        atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
         AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
     }
 
     if (result == NOT_FOUND && entry_loc.location != 0) {
-        storage->local_len++; // TODO: overflow
-        self->len_dirty = 1;
+        atomic_dict_accessor_len_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
-                     ATOMIC_DICT_ENTRIES_IN_BLOCK >= SIZE_OF(meta) * 2 / 3) {
+    if (must_grow || atomic_dict_approx_len(self) >= SIZE_OF(meta) * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)

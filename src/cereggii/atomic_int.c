@@ -149,8 +149,10 @@ AtomicInt64_init(AtomicInt64 *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     if (py_integer != NULL) {
-        if (!AtomicInt64_ConvertToCLongOrSetException(py_integer, &self->integer))
+        int64_t integer = self->integer;
+        if (!AtomicInt64_ConvertToCLongOrSetException(py_integer, &integer))
             goto fail;
+        self->integer = integer;
     } else {
         self->integer = 0;
     }
@@ -537,19 +539,22 @@ PyObject *
 AtomicInt64_GetHandle(AtomicInt64 *self)
 {
     ThreadHandle *handle = NULL;
+    PyObject *args = NULL;
 
-    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
-
-    if (handle == NULL)
+    handle = (ThreadHandle *) ThreadHandle_new(&ThreadHandle_Type, NULL, NULL);
+    if (handle == NULL) {
+        PyErr_NoMemory();
         goto fail;
+    }
 
-    PyObject *args = Py_BuildValue("(O)", self);
+    args = Py_BuildValue("(O)", self);
     if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
-
+    Py_DECREF(args);
     return (PyObject *) handle;
 
     fail:
+    Py_XDECREF(args);
     return NULL;
 }
 

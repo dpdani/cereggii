@@ -5,6 +5,9 @@
 #define PY_SSIZE_T_CLEAN
 
 #include "atomic_dict.h"
+
+#include <stdatomic.h>
+
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
@@ -481,10 +484,17 @@ static inline int64_t
 sum_of_accessors_len(AtomicDict *self)
 {
     int64_t len = 0;
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
-        len += (int64_t) storage->local_len;
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &storage->next_accessor, memory_order_acquire)) {
+        len += (int64_t) atomic_load_explicit((_Atomic (int32_t) *) &storage->local_len, memory_order_acquire);
     }
     return len;
+}
+
+int64_t
+atomic_dict_approx_len(AtomicDict *self)
+{
+    int64_t len = self->len;
+    return len + sum_of_accessors_len(self);
 }
 
 PyObject *
@@ -675,18 +685,20 @@ PyObject *
 AtomicDict_GetHandle(AtomicDict *self)
 {
     ThreadHandle *handle = NULL;
+    PyObject *args = NULL;
 
-    handle = PyObject_GC_New(ThreadHandle, &ThreadHandle_Type);
-
+    handle = (ThreadHandle *) ThreadHandle_new(&ThreadHandle_Type, NULL, NULL);
     if (handle == NULL)
         goto fail;
 
-    PyObject *args = Py_BuildValue("(O)", self);
+    args = Py_BuildValue("(O)", self);
     if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
+    Py_DECREF(args);
 
     return (PyObject *) handle;
 
     fail:
+    Py_XDECREF(args);
     return NULL;
 }

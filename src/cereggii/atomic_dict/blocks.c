@@ -19,7 +19,9 @@ AtomicDictBlock_New(AtomicDict_Meta *meta)
         return NULL;
 
     new->generation = meta->generation;
+    cereggii_tsan_ignore_writes_begin();
     memset(new->entries, 0, sizeof(AtomicDict_PaddedEntry) * ATOMIC_DICT_ENTRIES_IN_BLOCK);
+    cereggii_tsan_ignore_writes_end();
 
     PyObject_GC_Track(new);
 
@@ -46,17 +48,15 @@ AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg)
 int
 AtomicDictBlock_clear(AtomicDict_Block *self)
 {
-    AtomicDict_Entry entry;
+    AtomicDict_Entry *entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-        entry = self->entries[i].entry;
+        entry = &self->entries[i].entry;
 
-        if (entry.value == NULL)
+        if (entry->value == NULL)
             continue;
 
-        self->entries[i].entry.key = NULL;
-        Py_XDECREF(entry.key);
-        self->entries[i].entry.value = NULL;
-        Py_XDECREF(entry.value);
+        Py_CLEAR(entry->key);
+        Py_CLEAR(entry->value);
     }
 
     return 0;
@@ -82,20 +82,22 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
         int64_t inserting_block;
 
         reserve_in_inserting_block:
-        inserting_block = meta->inserting_block;
+        inserting_block = atomic_load_explicit((_Atomic (int64_t) *) &meta->inserting_block, memory_order_acquire);
         for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_BLOCK; offset += self->reservation_buffer_size) {
-            entry_loc->entry = &(meta
-                ->blocks[inserting_block]
+            AtomicDict_Block *block = atomic_load_explicit((_Atomic (AtomicDict_Block *) *) &meta->blocks[inserting_block], memory_order_acquire);
+            entry_loc->entry = &(block
                 ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK]
                 .entry);
-            if (entry_loc->entry->flags == 0) {
+            if (atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc->entry->flags, memory_order_acquire) == 0) {
                 uint8_t expected = 0;
                 if (atomic_compare_exchange_strong_explicit((_Atomic(uint8_t) *) &entry_loc->entry->flags, &expected, ENTRY_FLAGS_RESERVED, memory_order_acq_rel, memory_order_acquire)) {
                     entry_loc->location =
                         (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                    assert(meta->greatest_allocated_block >= 0);
-                    assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) meta->greatest_allocated_block);
+                    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+                    assert(gab >= 0);
+                    assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) gab);
+                    cereggii_unused_in_release_build(gab);
                     AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
@@ -103,15 +105,16 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
             }
         }
 
-        if (meta->inserting_block != inserting_block)
+        if (atomic_load_explicit((_Atomic (int64_t) *) &meta->inserting_block, memory_order_acquire) != inserting_block)
             goto reserve_in_inserting_block;
 
-        int64_t greatest_allocated_block = meta->greatest_allocated_block;
+        int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
         if (greatest_allocated_block > inserting_block) {
             int64_t expected = inserting_block;
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block, &expected, inserting_block + 1, memory_order_acq_rel, memory_order_acquire);
             goto reserve_in_inserting_block; // even if the above CAS fails
         }
+        assert(greatest_allocated_block >= 0);
         if ((uint64_t) greatest_allocated_block + 1u >= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
             return 0; // must grow
         }
@@ -139,8 +142,10 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                                                     greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
             entry_loc->entry = &(block->entries[0].entry);
             entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
-            assert(meta->greatest_allocated_block >= 0);
-            assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) meta->greatest_allocated_block);
+            int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+            assert(gab >= 0);
+            assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) gab);
+            cereggii_unused_in_release_build(gab);
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
@@ -174,10 +179,14 @@ AtomicDict_PositionInBlockOf(uint64_t entry_ix)
 AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
-    assert(meta->greatest_allocated_block >= 0);
-    assert(AtomicDict_BlockOf(ix) <= (uint64_t) meta->greatest_allocated_block);
+    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+    assert(gab >= 0);
+    assert(AtomicDict_BlockOf(ix) <= (uint64_t) gab);
+    cereggii_unused_in_release_build(gab);
+    AtomicDict_Block *block = atomic_load_explicit((_Atomic (AtomicDict_Block *) *) &meta->blocks[AtomicDict_BlockOf(ix)], memory_order_acquire);
+    assert(block != NULL);
     return &(
-        meta->blocks[AtomicDict_BlockOf(ix)]
+        block
             ->entries[AtomicDict_PositionInBlockOf(ix)]
             .entry
     );
@@ -186,15 +195,14 @@ AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 void
 AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
 {
-    entry->flags = entry_p->flags;
-    entry->value = entry_p->value;
+    entry->flags = atomic_load_explicit((_Atomic(uint8_t) *) &entry_p->flags, memory_order_acquire);
+    entry->value = atomic_load_explicit((_Atomic(PyObject *) *) &entry_p->value, memory_order_acquire);
     if (entry->value == NULL) {
         entry->key = NULL;
         entry->value = NULL;
         entry->hash = -1;
         return;
     }
-    entry->key = entry_p->key;
-    entry->value = entry_p->value;
-    entry->hash = entry_p->hash;
+    entry->key = atomic_load_explicit((_Atomic(PyObject *) *) &entry_p->key, memory_order_acquire);
+    entry->hash = atomic_load_explicit((_Atomic(Py_hash_t) *) &entry_p->hash, memory_order_acquire);
 }
