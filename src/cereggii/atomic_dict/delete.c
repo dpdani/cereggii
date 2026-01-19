@@ -19,10 +19,11 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
         return;
     }
 
-    while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &result->entry_p->value,
-                                              (void **) &result->entry.value,
-                                              NULL, memory_order_acq_rel,
-                                                   memory_order_acquire)) {
+    while (!atomic_compare_exchange_strong_explicit(
+        (_Atomic(PyObject *) *) &result->entry_p->value,
+        &result->entry.value, NULL,
+        memory_order_acq_rel, memory_order_acquire
+    )) {
         AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
         if (result->entry.value == NULL) {
@@ -85,6 +86,9 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
 
     atomic_dict_accessor_len_inc(self, storage, -1);
     Py_DECREF(result.entry.key);
+    // todo: is decrefing the key safe?
+    //   - in maybe-weakref state: +1
+    //   - concurrent PyObject_RichCompareBool: -1
     Py_DECREF(result.entry.value);
 
     return 0;

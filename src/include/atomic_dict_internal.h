@@ -159,6 +159,8 @@ void AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *
 
 int AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_Node *desired, AtomicDict_Meta *meta);
 
+void AtomicDict_PrintNodeAt(uint64_t ix, AtomicDict_Meta *meta);
+
 
 /// reservation buffer (see ./reservation_buffer.c)
 #define RESERVATION_BUFFER_SIZE 64

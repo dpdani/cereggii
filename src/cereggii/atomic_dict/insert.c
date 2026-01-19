@@ -6,9 +6,7 @@
 
 #include "constants.h"
 #include "atomic_dict_internal.h"
-#include "atomic_ref.h"
 #include <stdatomic.h>
-#include "pythread.h"
 #include "_internal_py_core.h"
 
 
@@ -22,59 +20,53 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
     entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
     AtomicDict_ReadEntry(entry_p, &entry);
 
-    if (hash != entry.hash)
+    if (entry.value == NULL || hash != entry.hash)
         return 0;
 
-    int eq = 0;
     if (entry.key != key) {
-        eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
+        const int eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
 
         if (eq < 0)  // exception raised during compare
             goto fail;
+
+        if (!eq)
+            return 0;
     }
 
-    if (entry.key == key || eq) {
-        if (expected == NOT_FOUND) {
-            if (entry.value != NULL) {
-                *done = 1;
-                *expectation = 0;
-                return 1;
-            }
-            // expected == NOT_FOUND && value == NULL:
-            //   it means there's another thread T concurrently
-            //   deleting this key.
-            //   T's linearization point (setting value = NULL) has
-            //   already been reached, thus we can proceed visiting
-            //   the probe.
-        } else {
-            // expected != NOT_FOUND
-            do {
-                if (entry.value != expected && expected != ANY) {
-                    *done = 1;
-                    *expectation = 0;
-                    return 1;
-                }
+    // key found
 
-                *current = entry.value;
-                void *exp = *current;
-                *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &exp, desired, memory_order_acq_rel, memory_order_acquire);
+    if (expected == NOT_FOUND) {
+        assert(entry.value != NULL);
+        *done = 1;
+        *expectation = 0;
+        return 1;
+    }
 
-                if (!*done) {
-                    AtomicDict_ReadEntry(entry_p, &entry);
-
-                    if (*current == NULL)
-                        return 0;
-                }
-            } while (!*done);
-
-            if (!*done) {
-                *current = NULL;
-                return 0;
-            }
-
+    // expected != NOT_FOUND
+    do {
+        if (entry.value != expected && expected != ANY) {
+            *done = 1;
+            *expectation = 0;
             return 1;
         }
-    }
+
+        if (entry.value == NULL) {
+            *current = NULL;
+            return 0;
+        }
+
+        *current = entry.value;
+        void *exp = *current;
+        assert(exp != NULL);
+        *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &exp, desired,
+                                                        memory_order_acq_rel, memory_order_acquire);
+
+        if (!*done) {
+            AtomicDict_ReadEntry(entry_p, &entry);
+        }
+    } while (!*done);
+
+    return 1;
 
     return 0;
     fail:
@@ -264,6 +256,9 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto beginning;
         }
 
+        assert(key != NULL);
+        assert(hash != -1);
+        assert(desired != NULL);
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->key, key, memory_order_release);
         atomic_store_explicit((_Atomic(Py_hash_t) *) &entry_loc.entry->hash, hash, memory_order_release);
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->value, desired, memory_order_release);
@@ -276,8 +271,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         // keep entry_loc.entry->flags reserved, or set to 0
         uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
         atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
-        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, 0, memory_order_release);
-        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, 0, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
         AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
     }

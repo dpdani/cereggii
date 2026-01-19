@@ -90,3 +90,16 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
     uint64_t _expected = expected->node;
     return atomic_compare_exchange_strong_explicit((_Atomic (uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
 }
+
+
+void
+AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
+{
+    AtomicDict_Node node;
+    AtomicDict_ReadNodeAt(ix, &node, meta);
+    if (node.tag == TOMBSTONE(meta)) {
+        printf("<node at %lu: %lu (tombstone) seen by thread=%lu>\n", ix, node.node, _Py_ThreadId());
+        return;
+    }
+    printf("<node at %lu: %lu (index=%lu, tag=%lu) seen by thread=%lu>\n", ix, node.node, node.index, node.tag, _Py_ThreadId());
+}

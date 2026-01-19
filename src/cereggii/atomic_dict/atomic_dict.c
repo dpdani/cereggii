@@ -231,6 +231,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             _Py_SetWeakrefAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
             entry->hash = hash;
+            assert(key != NULL);
             entry->key = key;
             entry->value = value;
             int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len);
@@ -331,16 +332,18 @@ AtomicDict_clear(AtomicDict *self)
 {
     Py_CLEAR(self->metadata);
     if (self->accessors != NULL) {
-        AtomicDict_FreeAccessorStorageList(self->accessors);
+        AtomicDict_AccessorStorage *storage = self->accessors;
         self->accessors = NULL;
+        AtomicDict_FreeAccessorStorageList(storage);
     }
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
 
     if (self->accessor_key != NULL) {
-        PyThread_tss_delete(self->accessor_key);
-        PyThread_tss_free(self->accessor_key);
+        Py_tss_t *key = self->accessor_key;
         self->accessor_key = NULL;
+        PyThread_tss_delete(key);
+        PyThread_tss_free(key);
     }
 
     return 0;

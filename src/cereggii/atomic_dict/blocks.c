@@ -55,6 +55,7 @@ AtomicDictBlock_clear(AtomicDict_Block *self)
         if (entry->value == NULL)
             continue;
 
+        assert(entry->key != NULL);
         Py_CLEAR(entry->key);
         Py_CLEAR(entry->value);
     }
@@ -157,6 +158,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     done:
     assert(entry_loc->entry != NULL);
     assert(entry_loc->entry->key == NULL);
+    assert(entry_loc->entry->value == NULL);
+    assert(entry_loc->entry->hash == 0);
     assert(entry_loc->location < (uint64_t) SIZE_OF(meta));
     return 1;
     fail:
