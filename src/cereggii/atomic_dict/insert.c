@@ -67,8 +67,6 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
     } while (!*done);
 
     return 1;
-
-    return 0;
     fail:
     return -1;
 }
