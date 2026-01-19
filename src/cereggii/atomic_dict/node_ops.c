@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include "atomic_dict_internal.h"
+#include <thread_id.h>
 #include <stdatomic.h>
 #include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
