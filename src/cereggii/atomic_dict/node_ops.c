@@ -98,8 +98,8 @@ AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
     AtomicDict_Node node;
     AtomicDict_ReadNodeAt(ix, &node, meta);
     if (node.tag == TOMBSTONE(meta)) {
-        printf("<node at %lu: %lu (tombstone) seen by thread=%lu>\n", ix, node.node, _Py_ThreadId());
+        printf("<node at %" PRIu64 ": %" PRIu64 " (tombstone) seen by thread=%" PRIuPTR ">\n", ix, node.node, _Py_ThreadId());
         return;
     }
-    printf("<node at %lu: %lu (index=%lu, tag=%lu) seen by thread=%lu>\n", ix, node.node, node.index, node.tag, _Py_ThreadId());
+    printf("<node at %" PRIu64 ": %" PRIu64 " (index=%" PRIu64 ", tag=%" PRIu64 ") seen by thread=%" PRIuPTR ">\n", ix, node.node, node.index, node.tag, _Py_ThreadId());
 }
