@@ -32,6 +32,8 @@ jobs:
             build-type: Debug
           - os: windows-11-arm
             build-type: Debug
+          - os: windows-11-arm
+            python-version: 3.14t
 
     name: ${{ matrix.os }} / ${{ matrix.python-version }} / ${{ matrix.build-type }}
 
