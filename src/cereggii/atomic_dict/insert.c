@@ -265,7 +265,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     int must_grow;
     PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
-    if (result != NOT_FOUND && entry_loc.location != 0) {
+    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
         // keep entry_loc.entry->flags reserved, or set to 0
         uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
         atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
@@ -273,9 +273,10 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
         AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
+        Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
-    if (result == NOT_FOUND && entry_loc.location != 0) {
+    if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
         atomic_dict_accessor_len_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
