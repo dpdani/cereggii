@@ -58,10 +58,11 @@ ThreadHandle_traverse(ThreadHandle *self, visitproc visit, void *arg)
     return 0;
 }
 
-void
+int
 ThreadHandle_clear(ThreadHandle *self)
 {
     Py_CLEAR(self->obj);
+    return 0;
 }
 
 void

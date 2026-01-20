@@ -23,7 +23,7 @@ int ThreadHandle_init(ThreadHandle *self, PyObject *args, PyObject *kwargs);
 
 int ThreadHandle_traverse(ThreadHandle *self, visitproc visit, void *arg);
 
-void ThreadHandle_clear(ThreadHandle *self);
+int ThreadHandle_clear(ThreadHandle *self);
 
 void ThreadHandle_dealloc(ThreadHandle *self);
 
