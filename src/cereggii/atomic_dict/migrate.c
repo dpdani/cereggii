@@ -311,7 +311,6 @@ initialize_in_new_meta(AtomicDict_Meta *new_meta, const uint64_t start, const ui
 {
     // initialize slots in range [start, end)
     for (uint64_t j = 2 * start; j < 2 * (end + 1); ++j) {
-        // atomic_store_explicit((_Atomic (uint64_t) *) &new_meta->index[j], 0ull, memory_order_release);
         AtomicDict_WriteRawNodeAt(j & (SIZE_OF(new_meta) - 1), 0, new_meta);
     }
 }
