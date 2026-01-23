@@ -73,6 +73,18 @@ AtomicDictBlock_dealloc(AtomicDict_Block *self)
 
 
 int
+atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta)
+{
+    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+    assert(gab >= 0);
+    assert(AtomicDict_BlockOf(entry_ix) <= (uint64_t) gab);
+    cereggii_unused_in_release_build(entry_ix);
+    cereggii_unused_in_release_build(gab);
+    return 1;
+}
+
+
+int
 AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
                          AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
 {
@@ -95,10 +107,7 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
                     entry_loc->location =
                         (inserting_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_BLOCK);
-                    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
-                    assert(gab >= 0);
-                    assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) gab);
-                    cereggii_unused_in_release_build(gab);
+                    assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
                     AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
                     AtomicDict_ReservationBufferPop(rb, entry_loc);
                     goto done;
@@ -128,25 +137,24 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
 
         block->entries[0].entry.flags = ENTRY_FLAGS_RESERVED;
 
-        void *expected = NULL;
-        if (atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 1], &expected, block, memory_order_acq_rel, memory_order_acquire)) {
+        AtomicDict_Block *expected = NULL;
+        int64_t new_block = greatest_allocated_block + 1;
+        if (atomic_compare_exchange_strong_explicit((_Atomic(AtomicDict_Block *) *) &meta->blocks[new_block], &expected, block, memory_order_acq_rel, memory_order_acquire)) {
             if ((uint64_t) greatest_allocated_block + 2u < (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) {
-                atomic_store_explicit((_Atomic(void *) *) &meta->blocks[greatest_allocated_block + 2], NULL, memory_order_release);
+                atomic_store_explicit((_Atomic(AtomicDict_Block *) *) &meta->blocks[new_block + 1], NULL, memory_order_release);
             }
             int64_t expected2 = greatest_allocated_block;
-            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_block,
-                                                    &expected2,
-                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
+            int ok = atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_block,
+                                                    &expected2, new_block, memory_order_acq_rel, memory_order_acquire);
+            assert(ok);
+            cereggii_unused_in_release_build(ok);
             expected2 = greatest_allocated_block;
             atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_block,
-                                                    &expected2,
-                                                    greatest_allocated_block + 1, memory_order_acq_rel, memory_order_acquire);
+                                                    &expected2, new_block, memory_order_acq_rel, memory_order_acquire);
+            // this cas may fail because another thread helped increasing this counter
             entry_loc->entry = &(block->entries[0].entry);
-            entry_loc->location = (greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
-            int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
-            assert(gab >= 0);
-            assert(AtomicDict_BlockOf(entry_loc->location) <= (uint64_t) gab);
-            cereggii_unused_in_release_build(gab);
+            entry_loc->location = new_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK;
+            assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
             AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
             AtomicDict_ReservationBufferPop(rb, entry_loc);
         } else {
@@ -160,7 +168,9 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_Res
     assert(entry_loc->entry->key == NULL);
     assert(entry_loc->entry->value == NULL);
     assert(entry_loc->entry->hash == 0);
+    assert(entry_loc->location > 0);
     assert(entry_loc->location < (uint64_t) SIZE_OF(meta));
+    assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
     return 1;
     fail:
     entry_loc->entry = NULL;
@@ -182,10 +192,7 @@ AtomicDict_PositionInBlockOf(uint64_t entry_ix)
 AtomicDict_Entry *
 AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 {
-    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
-    assert(gab >= 0);
-    assert(AtomicDict_BlockOf(ix) <= (uint64_t) gab);
-    cereggii_unused_in_release_build(gab);
+    assert(atomic_dict_entry_ix_sanity_check(ix, meta));
     AtomicDict_Block *block = atomic_load_explicit((_Atomic (AtomicDict_Block *) *) &meta->blocks[AtomicDict_BlockOf(ix)], memory_order_acquire);
     assert(block != NULL);
     return &(

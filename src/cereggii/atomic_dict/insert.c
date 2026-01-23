@@ -56,9 +56,9 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
         }
 
         *current = entry.value;
-        void *exp = *current;
+        PyObject *exp = *current;
         assert(exp != NULL);
-        *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &exp, desired,
+        *done = atomic_compare_exchange_strong_explicit((_Atomic(PyObject *) *) &entry_p->value, &exp, desired,
                                                         memory_order_acq_rel, memory_order_acquire);
 
         if (!*done) {
@@ -118,12 +118,13 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
             to_insert.index = entry_loc->location;
             to_insert.tag = hash;
+            assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
             done = AtomicDict_AtomicWriteNodeAt(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (node.node == TOMBSTONE(meta)) {
+        } else if (node.index == 0) {  // tombstone
             // pass
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
@@ -226,7 +227,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (meta == NULL)
         goto fail;
 
-    PyMutex_Lock(&storage->self_mutex);
+    PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex, self->accessors);
     if (migrated) {
         // self_mutex was unlocked during the operation
@@ -254,6 +255,10 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto beginning;
         }
 
+        assert(entry_loc.location > 0);
+        assert(entry_loc.entry != NULL);
+        assert(entry_loc.location < (uint64_t) SIZE_OF(meta));
+        assert(atomic_dict_entry_ix_sanity_check(entry_loc.location, meta));
         assert(key != NULL);
         assert(hash != -1);
         assert(desired != NULL);
@@ -278,13 +283,14 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
     if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
         atomic_dict_accessor_len_inc(self, storage, 1);
+        atomic_dict_accessor_inserted_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || atomic_dict_approx_len(self) >= SIZE_OF(meta) * 2 / 3) {
+    if (must_grow || atomic_dict_approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)

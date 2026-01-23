@@ -500,6 +500,16 @@ atomic_dict_approx_len(AtomicDict *self)
     return len + sum_of_accessors_len(self);
 }
 
+int64_t
+atomic_dict_approx_inserted(AtomicDict *self)
+{
+    int64_t inserted = 0;
+    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        inserted += (int64_t) atomic_load_explicit((_Atomic (int32_t) *) &storage->local_inserted, memory_order_acquire);
+    }
+    return inserted;
+}
+
 PyObject *
 AtomicDict_ApproxLen(AtomicDict *self)
 {

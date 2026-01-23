@@ -180,12 +180,16 @@ AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uin
 int AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
                              AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);
 
+int atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta);
+
 
 /// accessor storage
 typedef struct AtomicDict_AccessorStorage {
     struct AtomicDict_AccessorStorage *next_accessor;
     PyMutex self_mutex;
     int32_t local_len;
+    int32_t local_inserted;
+    int32_t local_tombstones;
     int participant_in_migration;
     AtomicDict_ReservationBuffer reservation_buffer;
     AtomicDict_Meta *meta;
@@ -207,8 +211,13 @@ void AtomicDict_EndSynchronousOperation(AtomicDict *self);
 
 int64_t atomic_dict_approx_len(AtomicDict *self);
 
+int64_t atomic_dict_approx_inserted(AtomicDict *self);
+
 void atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, int32_t inc);
 
+void atomic_dict_accessor_inserted_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, int32_t inc);
+
+void atomic_dict_accessor_tombstones_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, int32_t inc);
 
 /// migrations
 int AtomicDict_Grow(AtomicDict *self);
@@ -226,7 +235,7 @@ void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
 
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, uint64_t trailing_cluster_end);
+void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, uint64_t trailing_cluster_start, uint64_t trailing_cluster_size);
 
 void AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 

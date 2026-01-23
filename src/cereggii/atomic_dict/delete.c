@@ -62,7 +62,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (hash == -1)
         goto fail;
 
-    PyMutex_Lock(&storage->self_mutex);
+    PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
     int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex, self->accessors);
     if (migrated) {
         // self_mutex was unlocked during the operation
@@ -73,18 +73,22 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     AtomicDict_SearchResult result;
     AtomicDict_Delete(meta, key, hash, &result);
 
-    PyMutex_Unlock(&storage->self_mutex);
-
     if (result.error) {
+        PyMutex_Unlock(&storage->self_mutex);
         goto fail;
     }
 
     if (!result.found) {
+        PyMutex_Unlock(&storage->self_mutex);
         PyErr_SetObject(PyExc_KeyError, key);
         goto fail;
     }
 
     atomic_dict_accessor_len_inc(self, storage, -1);
+    atomic_dict_accessor_tombstones_inc(self, storage, 1);
+
+    PyMutex_Unlock(&storage->self_mutex);
+
     Py_DECREF(result.entry.key);
     // todo: is decrefing the key safe?
     //   - in maybe-weakref state: +1

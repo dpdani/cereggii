@@ -25,7 +25,7 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
             goto not_found;
         }
 
-        if (result->node.node == TOMBSTONE(meta))
+        if (result->node.index == 0)  // tombstone
             continue;
 
         if (result->node.tag == (hash & TAG_MASK(meta))) {
@@ -254,7 +254,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         if (node.node == 0)
             continue;
 
-        if (node.node == TOMBSTONE(meta))
+        if (node.index == 0)  // tombstone
             continue;
 
         if (node.tag == (hash & TAG_MASK(meta))) {

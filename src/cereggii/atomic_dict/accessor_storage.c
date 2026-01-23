@@ -22,6 +22,8 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         storage->next_accessor = NULL;
         storage->self_mutex = (PyMutex) {0};
         atomic_store_explicit((_Atomic(int32_t) *) &storage->local_len, 0, memory_order_release);
+        atomic_store_explicit((_Atomic(int32_t) *) &storage->local_inserted, 0, memory_order_release);
+        atomic_store_explicit((_Atomic(int32_t) *) &storage->local_tombstones, 0, memory_order_release);
         storage->participant_in_migration = 0;
         storage->reservation_buffer.head = 0;
         storage->reservation_buffer.tail = 0;
@@ -143,6 +145,7 @@ AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_Ent
         AtomicDict_EntryLoc *head = &rb->reservations[rb->head];
         head->entry = AtomicDict_GetEntryAt(entry_loc->location + i, meta);
         head->location = entry_loc->location + i;
+        assert(atomic_dict_entry_ix_sanity_check(head->location, meta));
         rb->head++;
         if (rb->head == 64) {
             rb->head = 0;
@@ -197,4 +200,20 @@ atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *stora
     const int32_t new = current + inc; // TODO: overflow
     atomic_store_explicit((_Atomic (int32_t) *) &storage->local_len, new, memory_order_release);
     atomic_store_explicit((_Atomic (uint8_t) *) &self->len_dirty, 1, memory_order_release);
+}
+
+void
+atomic_dict_accessor_inserted_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+{
+    const int32_t current = atomic_load_explicit((_Atomic (int32_t) *) &storage->local_inserted, memory_order_acquire);
+    const int32_t new = current + inc; // TODO: overflow
+    atomic_store_explicit((_Atomic (int32_t) *) &storage->local_inserted, new, memory_order_release);
+}
+
+void
+atomic_dict_accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+{
+    const int32_t current = atomic_load_explicit((_Atomic (int32_t) *) &storage->local_tombstones, memory_order_acquire);
+    const int32_t new = current + inc; // TODO: overflow
+    atomic_store_explicit((_Atomic (int32_t) *) &storage->local_tombstones, new, memory_order_release);
 }
