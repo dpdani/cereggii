@@ -117,12 +117,12 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     int64_t inserted_before_migration = 0;
     int64_t tombstones_before_migration = 0;
     for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
-        int32_t local_inserted = atomic_load_explicit((_Atomic (int32_t) *) &accessor->local_inserted, memory_order_acquire);
-        int32_t local_tombstones = atomic_load_explicit((_Atomic (int32_t) *) &accessor->local_tombstones, memory_order_acquire);
+        int64_t local_inserted = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
+        int64_t local_tombstones = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, memory_order_acquire);
         inserted_before_migration += local_inserted;
         tombstones_before_migration += local_tombstones;
-        atomic_store_explicit((_Atomic (int32_t) *) &accessor->local_inserted, 0, memory_order_release);
-        atomic_store_explicit((_Atomic (int32_t) *) &accessor->local_tombstones, 0, memory_order_release);
+        atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_inserted, 0, memory_order_release);
+        atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, 0, memory_order_release);
     }
 
     if (from_log_size < to_log_size) {
@@ -155,7 +155,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         int64_t inserted_after_migration = 0;
         for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
             atomic_store_explicit((_Atomic(int) *) &accessor->participant_in_migration, 0, memory_order_release);
-            inserted_after_migration += atomic_load_explicit((_Atomic (int32_t) *) &accessor->local_inserted, memory_order_acquire);
+            inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         }
         assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
     }
@@ -341,11 +341,51 @@ initialize_in_new_meta(AtomicDict_Meta *new_meta, const uint64_t start, const ui
 
 #define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 4096
 
-int32_t
+
+int64_t
+to_migrate(AtomicDict_Meta *current_meta, int64_t start_of_block, uint64_t end_of_block)
+{
+    uint64_t current_size = SIZE_OF(current_meta);
+    uint64_t current_size_mask = current_size - 1;
+    uint64_t i = start_of_block;
+    int64_t to_migrate = 0;
+    AtomicDict_Node node = {0};
+
+    while (i < end_of_block) {
+        if (AtomicDict_ReadRawNodeAt(i, current_meta) == 0)
+            break;
+
+        i++;
+    }
+
+    if (i >= end_of_block)
+        return 0;
+
+    while (i < end_of_block) {
+        AtomicDict_ReadNodeAt(i, &node, current_meta);
+        if (node.node != 0 && node.index != 0) {
+            to_migrate++;
+        }
+        i++;
+    }
+
+    assert(i == end_of_block);
+
+    do {
+        AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
+        if (node.node != 0 && node.index != 0) {
+            to_migrate++;
+        }
+        i++;
+    } while (node.node != 0);
+
+    return to_migrate;
+}
+
+int64_t
 AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, int64_t start_of_block)
 {
-    int32_t migrated_count = 0;
-    int32_t to_migrate = 0;
+    int64_t migrated_count = 0;
     uint64_t current_size = SIZE_OF(current_meta);
     uint64_t current_size_mask = current_size - 1;
     uint64_t i = start_of_block;
@@ -357,29 +397,6 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     assert(end_of_block > i);
 
     AtomicDict_Node node = {0};
-
-    while (i < end_of_block) {
-        if (AtomicDict_ReadRawNodeAt(i, current_meta) == 0)
-            break;
-
-        i++;
-    }
-    while (i < end_of_block) {
-        AtomicDict_ReadNodeAt(i, &node, current_meta);
-        if (node.node != 0 && node.index != 0) {
-            to_migrate++;
-        }
-        i++;
-    }
-    assert(i == end_of_block);
-    do {
-        AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
-        if (node.node != 0 && node.index != 0) {
-            to_migrate++;
-        }
-        i++;
-    } while (node.node != 0);
-    i = start_of_block;
 
     // find first empty slot
     while (i < end_of_block) {
@@ -443,7 +460,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
         }
     }
 
-    assert(migrated_count == to_migrate);
+    assert(to_migrate(current_meta, start_of_block, end_of_block) == migrated_count);
     return migrated_count;
 }
 
@@ -453,7 +470,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     uint64_t current_size = SIZE_OF(current_meta);
     int64_t node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate,
                                                       ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
-    int32_t migrated_count = 0;
+    int64_t migrated_count = 0;
 
     while ((uint64_t) node_to_migrate < current_size) {
         migrated_count += AtomicDict_BlockWiseMigrate(current_meta, new_meta, node_to_migrate);
@@ -465,7 +482,7 @@ AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta
     int ok = atomic_compare_exchange_strong_explicit((_Atomic(int) *) &storage->participant_in_migration, &expected, 2, memory_order_acq_rel, memory_order_acquire);
     assert(ok);
     cereggii_unused_in_release_build(ok);
-    atomic_store_explicit((_Atomic(int32_t) *) &storage->local_inserted, migrated_count, memory_order_release);
+    atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, migrated_count, memory_order_release);
 }
 
 int

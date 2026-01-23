@@ -187,9 +187,9 @@ int atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta);
 typedef struct AtomicDict_AccessorStorage {
     struct AtomicDict_AccessorStorage *next_accessor;
     PyMutex self_mutex;
-    int32_t local_len;
-    int32_t local_inserted;
-    int32_t local_tombstones;
+    int64_t local_len;
+    int64_t local_inserted;
+    int64_t local_tombstones;
     int participant_in_migration;
     AtomicDict_ReservationBuffer reservation_buffer;
     AtomicDict_Meta *meta;

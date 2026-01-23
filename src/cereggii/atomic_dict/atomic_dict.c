@@ -488,7 +488,7 @@ sum_of_accessors_len(AtomicDict *self)
 {
     int64_t len = 0;
     for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &storage->next_accessor, memory_order_acquire)) {
-        len += (int64_t) atomic_load_explicit((_Atomic (int32_t) *) &storage->local_len, memory_order_acquire);
+        len += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
     }
     return len;
 }
@@ -505,7 +505,7 @@ atomic_dict_approx_inserted(AtomicDict *self)
 {
     int64_t inserted = 0;
     for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
-        inserted += (int64_t) atomic_load_explicit((_Atomic (int32_t) *) &storage->local_inserted, memory_order_acquire);
+        inserted += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_inserted, memory_order_acquire);
     }
     return inserted;
 }
@@ -567,7 +567,7 @@ AtomicDict_Len_impl(AtomicDict *self)
     self->len = len_ssize_t;
     self->len_dirty = 0;
     for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
-        storage->local_len = 0;
+        atomic_store_explicit((_Atomic (int64_t) *) &storage->local_len, 0, memory_order_release);
     }
     Py_DECREF(len);
     Py_DECREF(added_since_clean);
