@@ -44,6 +44,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->migration_leader = 0;
     meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
+    meta->participants = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
@@ -228,6 +229,10 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 
     if (self->blocks != NULL) {
         PyMem_RawFree(self->blocks);
+    }
+
+    if (self->participants != NULL) {
+        PyMem_RawFree(self->participants);
     }
 
     PyMem_RawFree(self->generation);

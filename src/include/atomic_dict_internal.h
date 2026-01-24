@@ -103,6 +103,8 @@ struct AtomicDict_Meta {
     uintptr_t migration_leader;
     int64_t node_to_migrate;
     Py_tss_t *accessor_key;
+    int64_t *participants;
+    int32_t participants_count;
     AtomicEvent *new_metadata_ready;
     AtomicEvent *node_migration_done;
     AtomicEvent *migration_done;
@@ -190,7 +192,7 @@ typedef struct AtomicDict_AccessorStorage {
     int64_t local_len;
     int64_t local_inserted;
     int64_t local_tombstones;
-    int participant_in_migration;
+    int32_t accessor_ix;
     AtomicDict_ReservationBuffer reservation_buffer;
     AtomicDict_Meta *meta;
 } AtomicDict_AccessorStorage;
@@ -222,24 +224,24 @@ void atomic_dict_accessor_tombstones_inc(AtomicDict *self, AtomicDict_AccessorSt
 /// migrations
 int AtomicDict_Grow(AtomicDict *self);
 
-int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex, AtomicDict_AccessorStorage *accessors);
+int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex);
 
 int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
 
 int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
                              uint8_t from_log_size, uint8_t to_log_size);
 
-void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta, AtomicDict_AccessorStorage *accessors);
+void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta);
 
-void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta, AtomicDict_AccessorStorage *accessors);
+void AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 int AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
 void AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, uint64_t trailing_cluster_start, uint64_t trailing_cluster_size);
 
-void AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
+int64_t AtomicDict_MigrateNodes(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta);
 
-int AtomicDict_NodesMigrationDone(AtomicDict_AccessorStorage *accessors);
+int AtomicDict_NodesMigrationDone(AtomicDict_Meta *accessors);
 
 
 /// iter

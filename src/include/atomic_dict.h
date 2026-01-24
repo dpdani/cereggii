@@ -26,6 +26,7 @@ typedef struct AtomicDict {
 
     Py_tss_t *accessor_key;
     PyMutex accessors_lock;
+    int32_t accessors_len;
     struct AtomicDict_AccessorStorage *accessors;
 } AtomicDict;
 

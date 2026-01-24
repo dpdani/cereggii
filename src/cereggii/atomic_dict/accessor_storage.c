@@ -24,7 +24,6 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_len, 0, memory_order_release);
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, 0, memory_order_release);
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_tombstones, 0, memory_order_release);
-        storage->participant_in_migration = 0;
         storage->reservation_buffer.head = 0;
         storage->reservation_buffer.tail = 0;
         storage->reservation_buffer.count = 0;
@@ -36,13 +35,16 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
             goto fail;
 
         PyMutex_Lock(&self->accessors_lock); // todo: maybe help migrate?
+        storage->accessor_ix = self->accessors_len;
         if (self->accessors == NULL) {
             self->accessors = storage;
+            self->accessors_len = 1;
         } else {
             AtomicDict_AccessorStorage *s = NULL;
             for (s = self->accessors; s->next_accessor != NULL; s = s->next_accessor) {}
             assert(s != NULL);
             atomic_store_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &s->next_accessor, storage, memory_order_release);
+            self->accessors_len++;
         }
         PyMutex_Unlock(&self->accessors_lock);
     }

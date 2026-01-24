@@ -30,6 +30,7 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
         self->len_dirty = 0;
         self->accessor_key = NULL;
         self->accessors_lock = (PyMutex) {0};
+        self->accessors_len = 0;
         self->accessors = NULL;
 
         self->metadata = (AtomicRef *) AtomicRef_new(&AtomicRef_Type, NULL, NULL);
@@ -210,6 +211,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     AtomicDict_EntryLoc entry_loc;
     self->sync_op = (PyMutex) {0};
     self->accessors_lock = (PyMutex) {0};
+    self->accessors_len = 0;
     self->len = 0;
     self->len_dirty = 0;
 

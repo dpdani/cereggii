@@ -63,7 +63,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto fail;
 
     PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
-    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex, self->accessors);
+    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
         meta = NULL;
