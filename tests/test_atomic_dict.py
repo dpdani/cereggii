@@ -99,6 +99,7 @@ def test_getitem():
     with raises(TypeError, match="unhashable type"):
         d.get(list())
 
+
 def test_getitem_confused():
     d = AtomicDict()
     d[0] = 1
