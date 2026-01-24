@@ -197,6 +197,13 @@ typedef struct AtomicDict_AccessorStorage {
     AtomicDict_Meta *meta;
 } AtomicDict_AccessorStorage;
 
+#define FOR_EACH_ACCESSOR(atomic_dict, a) \
+    for ( \
+        (a) = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &(atomic_dict)->accessors, memory_order_acquire); \
+        (a) != NULL; \
+        (a) = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &(a)->next_accessor, memory_order_acquire) \
+    )
+
 AtomicDict_AccessorStorage *AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self);
 
 AtomicDict_AccessorStorage *AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key);

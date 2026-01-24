@@ -323,7 +323,8 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         Py_VISIT(storage->meta);
     }
     return 0;
@@ -463,7 +464,8 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     Py_ssize_t threads_count = 0;
     int64_t lower = 0;
-    for (AtomicDict_AccessorStorage *st = self->accessors; st != NULL; st = st->next_accessor) {
+    AtomicDict_AccessorStorage *st;
+    FOR_EACH_ACCESSOR(self, st) {
         threads_count++;
 
         AtomicDict_ReservationBuffer *rb = &st->reservation_buffer;
@@ -489,7 +491,8 @@ static inline int64_t
 sum_of_accessors_len(AtomicDict *self)
 {
     int64_t len = 0;
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = atomic_load_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &storage->next_accessor, memory_order_acquire)) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         len += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
     }
     return len;
@@ -506,7 +509,8 @@ int64_t
 atomic_dict_approx_inserted(AtomicDict *self)
 {
     int64_t inserted = 0;
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         inserted += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_inserted, memory_order_acquire);
     }
     return inserted;
@@ -568,7 +572,8 @@ AtomicDict_Len_impl(AtomicDict *self)
     }
     self->len = len_ssize_t;
     self->len_dirty = 0;
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         atomic_store_explicit((_Atomic (int64_t) *) &storage->local_len, 0, memory_order_release);
     }
     Py_DECREF(len);

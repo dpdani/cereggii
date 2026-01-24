@@ -130,7 +130,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
 
     int64_t inserted_before_migration = 0;
     int64_t tombstones_before_migration = 0;
-    for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
+    AtomicDict_AccessorStorage *accessor;
+    FOR_EACH_ACCESSOR(self, accessor) {
         int64_t local_inserted = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         int64_t local_tombstones = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, memory_order_acquire);
         inserted_before_migration += local_inserted;
@@ -169,7 +170,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         int64_t inserted_after_migration = 0;
-        for (AtomicDict_AccessorStorage *accessor = self->accessors; accessor != NULL; accessor = accessor->next_accessor) {
+        FOR_EACH_ACCESSOR(self, accessor) {
             inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         }
         assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);

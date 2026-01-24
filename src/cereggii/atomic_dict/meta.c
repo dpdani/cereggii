@@ -156,7 +156,8 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 
         to_meta->blocks[block_j] = from_meta->blocks[block_i];
 
-        for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        AtomicDict_AccessorStorage *storage;
+        FOR_EACH_ACCESSOR(self, storage) {
             AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);
         }
 

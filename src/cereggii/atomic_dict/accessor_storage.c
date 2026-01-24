@@ -111,7 +111,8 @@ AtomicDict_BeginSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Lock(&self->sync_op);
     PyMutex_Lock(&self->accessors_lock);
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Lock(&storage->self_mutex);
     }
 }
@@ -120,7 +121,8 @@ void
 AtomicDict_EndSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Unlock(&self->sync_op);
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Unlock(&storage->self_mutex);
     }
     PyMutex_Unlock(&self->accessors_lock);
