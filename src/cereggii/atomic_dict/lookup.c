@@ -149,7 +149,9 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     value = AtomicDict_GetItemOrDefault(self, key, NULL);
 
     if (value == NULL) {
-        PyErr_SetObject(PyExc_KeyError, key);
+        if (!PyErr_Occurred()) {
+            PyErr_SetObject(PyExc_KeyError, key);
+        }
     }
 
     return value;
@@ -167,12 +169,7 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
     if (default_value == NULL)
         default_value = Py_None;
 
-    PyObject *value = NULL;
-retry:
-    value = AtomicDict_GetItemOrDefault(self, key, default_value);
-    if (!_Py_TryIncref(value))
-        goto retry;
-    return value;
+    return AtomicDict_GetItemOrDefault(self, key, default_value);
 }
 
 PyObject *
