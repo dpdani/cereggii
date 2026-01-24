@@ -138,6 +138,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_inserted, 0, memory_order_release);
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, 0, memory_order_release);
     }
+    cereggii_unused_in_release_build(inserted_before_migration);
+    cereggii_unused_in_release_build(tombstones_before_migration);
 
     if (from_log_size < to_log_size) {
         atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
@@ -171,6 +173,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
             inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         }
         assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
+        cereggii_unused_in_release_build(inserted_after_migration);
     }
 
     AtomicEvent_Set(current_meta->migration_done);
