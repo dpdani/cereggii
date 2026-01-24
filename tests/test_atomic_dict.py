@@ -94,6 +94,10 @@ def test_getitem():
     d = AtomicDict({"spam": 42})
     assert d["spam"] == 42
 
+    with raises(TypeError, match="unhashable type"):
+        d[list()]
+    with raises(TypeError, match="unhashable type"):
+        d.get(list())
 
 def test_getitem_confused():
     d = AtomicDict()
