@@ -18,7 +18,7 @@ jobs:
   test:
     timeout-minutes: 10
     runs-on: ${{ inputs.os }}
-    name: ${{ inputs.os }}, ${{ inputs.python-version }}, ${{ inputs.build-type }}
+    name: ${{ inputs.os }} ${{ inputs.python-version }} ${{ inputs.build-type }}
 
     steps:
       - uses: actions/checkout@v6
