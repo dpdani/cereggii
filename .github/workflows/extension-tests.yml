@@ -42,6 +42,8 @@ jobs:
           # to be removed after this issue is resolved upstream
           # https://github.com/actions/setup-python/issues/1267
           - os: windows-11-arm
+            python-version: 3.13t
+          - os: windows-11-arm
             python-version: 3.14t
     with:
       os: ${{ matrix.os }}
@@ -50,6 +52,7 @@ jobs:
 
   tsan:
     runs-on: ubuntu-latest
+    name: sanitizers / TSan
     container:
       image: ghcr.io/nascheme/cpython-tsan:3.14t
     steps:
@@ -67,6 +70,7 @@ jobs:
 
   asan:
     runs-on: ubuntu-latest
+    name: sanitizers / ASan
     container:
       image: ghcr.io/nascheme/cpython-asan:3.14t
     steps:
