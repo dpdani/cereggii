@@ -6,7 +6,7 @@ on:
 jobs:
   tests:
     uses: ./.github/workflows/reusable-tests.yml
-    name: tests
+    name: tests${{ '' }}
     strategy:
       fail-fast: false
       matrix:
