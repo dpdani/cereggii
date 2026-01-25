@@ -34,7 +34,7 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
         if (set != 0)
             goto fail;
 
-        PyMutex_Lock(&self->accessors_lock); // todo: maybe help migrate?
+        PyMutex_Lock(&self->accessors_lock);
         storage->accessor_ix = self->accessors_len;
         if (self->accessors == NULL) {
             self->accessors = storage;
