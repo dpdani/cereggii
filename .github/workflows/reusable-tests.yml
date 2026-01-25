@@ -20,6 +20,12 @@ jobs:
     runs-on: ${{ inputs.os }}
     name: ${{ inputs.os }} / ${{ inputs.python-version }} / ${{ inputs.build-type }}${{ '' }}
 
+    strategy:
+      matrix:
+        os: ${{ inputs.os }}
+        python-version: ${{ inputs.python-version }}
+        build-type: ${{ inputs.build-type }}
+
     steps:
       - uses: actions/checkout@v6
       - name: set up python ${{ inputs.python-version }}
