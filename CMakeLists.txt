@@ -3,6 +3,3 @@ project(cereggii)
 
 
 add_subdirectory(src)
-
-
-
