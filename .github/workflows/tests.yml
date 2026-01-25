@@ -15,7 +15,6 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # todo: remove me
           - ubuntu-24.04-arm
           - windows-latest
           - windows-11-arm
@@ -28,10 +27,15 @@ jobs:
           - Debug
           - RelWithDebInfo
         exclude:
+          # to be removed after this issue is resolved upstream
+          # https://discuss.python.org/t/building-debug-version-of-extensions-on-windows-without-debug-binaries/105012
           - os: windows-latest
             build-type: Debug
           - os: windows-11-arm
             build-type: Debug
+
+          # to be removed after this issue is resolved upstream
+          # https://github.com/actions/setup-python/issues/1267
           - os: windows-11-arm
             python-version: 3.14t
 
