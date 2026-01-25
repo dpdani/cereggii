@@ -12,8 +12,9 @@ on:
       - 'pyproject.toml'
 
 jobs:
-  test:
+  tests:
     uses: ./.github/workflows/reusable-tests.yml
+    name: tests${{ '' }}
     strategy:
       fail-fast: false
       matrix:
