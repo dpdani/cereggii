@@ -8,13 +8,18 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/reusable-tests.yml
     strategy:
       fail-fast: false
       matrix:
+        os:
+          - ubuntu-latest
         python-version:
           - 3.13
           - 3.13t
           - 3.14
           - 3.14t
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      build-type: ${{ matrix.build-type }}
