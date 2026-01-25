@@ -273,7 +273,7 @@ dkms.conf
 .py-build-cmake_cache/
 
 ## CMake
-cmake-build-debug/
+cmake-build-*/
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
