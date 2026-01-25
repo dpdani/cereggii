@@ -20,6 +20,11 @@ jobs:
           - windows-11-arm
           - macos-15-intel  # https://github.com/actions/runner-images/issues/13046
           - macos-latest
+        exclude:
+          # to be removed after this issue is resolved upstream
+          # https://github.com/actions/setup-python/issues/1267
+          - os: windows-11-arm
+            python-version: 3.14t
 
     steps:
       - uses: actions/checkout@v6
