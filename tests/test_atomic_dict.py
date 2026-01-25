@@ -593,6 +593,33 @@ def test_fast_iter_race_with_delete():
         (iterating | deleting | inserting).join()
 
 
+def test_racy_deletes():
+    num_deleting = 2
+    num_inserting = 2
+    num_keys = 100_000
+    d = AtomicDict(min_size=num_keys)
+    barrier = threading.Barrier(num_deleting + num_inserting)
+
+    @TestingThreadSet.repeat(num_deleting)
+    def deleting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in range(num_keys):
+            try:
+                del dh[_]
+            except KeyError:
+                pass
+
+    @TestingThreadSet.repeat(num_inserting)
+    def inserting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in range(num_keys):
+            dh[_] = None
+
+    (deleting | inserting).start_and_join()
+
+
 def test_compare_and_set():
     d = AtomicDict(
         {
