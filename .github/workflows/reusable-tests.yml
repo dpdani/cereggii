@@ -1,0 +1,39 @@
+name: tests
+
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+      build-type:
+        required: true
+        type: string
+
+
+jobs:
+  test:
+    timeout-minutes: 10
+    runs-on: ${{ inputs.os }}
+    name: ${{ inputs.os }} / ${{ inputs.python-version }} / ${{ inputs.build-type }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: set up python ${{ inputs.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+      - run: python --version --version && which python
+      - name: system info
+        run: uname -a
+      - name: install dependencies & cereggii
+        run: |
+          python -m pip install --upgrade pip
+          pip -V
+          pip install ".[dev]" -C "override=cmake.build_type=${{ inputs.build-type }}"
+      - name: test with pytest
+        run: |
+          pytest -sv

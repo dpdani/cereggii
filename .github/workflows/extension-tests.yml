@@ -1,0 +1,83 @@
+name: tests
+on:
+  # push:
+  #   branches:
+  #     - main <- already covered by wheels.yml
+  pull_request:
+    paths:
+      - 'src/**/*.c'
+      - 'src/**/*.h'
+      - 'src/**/*.h.in'
+      - '**/CMakeLists.txt'
+      - 'pyproject.toml'
+
+jobs:
+  test:
+    uses: ./.github/workflows/reusable-tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          # - ubuntu-latest <- already covered by tests.yml
+          - ubuntu-24.04-arm
+          - windows-latest
+          - windows-11-arm
+          - macos-15-intel  # https://github.com/actions/runner-images/issues/13046
+          - macos-latest
+        python-version:
+          - 3.13
+          - 3.13t
+          - 3.14
+          - 3.14t
+        build-type:
+          - Debug
+          - RelWithDebInfo
+        exclude:
+          # to be removed after this issue is resolved upstream
+          # https://discuss.python.org/t/building-debug-version-of-extensions-on-windows-without-debug-binaries/105012
+          - os: windows-latest
+            build-type: Debug
+          - os: windows-11-arm
+            build-type: Debug
+
+          # to be removed after this issue is resolved upstream
+          # https://github.com/actions/setup-python/issues/1267
+          - os: windows-11-arm
+            python-version: 3.14t
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      build-type: ${{ matrix.build-type }}
+
+  tsan:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nascheme/cpython-tsan:3.14t
+    steps:
+      - uses: actions/checkout@v6
+      - name: install dependencies & cereggii
+        env:
+          PIP_ROOT_USER_ACTION: ignore
+        run: |
+          CEREGGII_TSAN=enabled \
+          pip install ".[dev]"
+      - name: Test
+        run: |
+          TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/tsan/suppressions.txt" \
+          pytest -sv
+
+  asan:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nascheme/cpython-asan:3.14t
+    steps:
+      - uses: actions/checkout@v6
+      - name: install dependencies & cereggii
+        env:
+          PIP_ROOT_USER_ACTION: ignore
+        run: |
+          CEREGGII_ASAN=enabled \
+          pip install ".[dev]"
+      - name: Test
+        run: |
+          pytest -sv
