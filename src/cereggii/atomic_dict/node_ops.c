@@ -16,19 +16,24 @@
 void
 AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
+#ifdef CEREGGII_DEBUG
     assert(node->index < (1ull << meta->log_size));
     uint64_t index = node->index;
     int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
     if (greatest_allocated_block >= 0) {
-        assert(node->index < (((uint64_t) greatest_allocated_block + 1) << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
+        assert(atomic_dict_entry_ix_sanity_check(index, meta));
     }
+#endif
+
     node->node =
         (node->index << (NODE_SIZE - meta->log_size))
         | (node->tag & TAG_MASK(meta));
+
+#ifdef CEREGGII_DEBUG
     AtomicDict_Node check_node;
     AtomicDict_ParseNodeFromRaw(node->node, &check_node, meta);
     assert(index == check_node.index);
-    cereggii_unused_in_release_build(index);
+#endif
 }
 
 #define UPPER_SEED 12923598712359872066ull
@@ -100,9 +105,11 @@ void
 AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
     assert(ix < (1ull << meta->log_size));
+#ifdef CEREGGII_DEBUG
     AtomicDict_Node node;
     AtomicDict_ParseNodeFromRaw(raw_node, &node, meta);
     assert(atomic_dict_entry_ix_sanity_check(node.index, meta));
+#endif
 
     atomic_store_explicit((_Atomic (uint64_t) *) &meta->index[ix], raw_node, memory_order_release);
 }

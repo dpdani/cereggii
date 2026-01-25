@@ -14,15 +14,19 @@ endif ()
 
 if (MSVC)
     add_compile_options(/Wall /WX)
+
+    # warnings ignored because causing many false positives
     add_compile_options(/wd4820)  # padding added after data member
     add_compile_options(/wd4324)  # structure was padded due to alignment specifier
-    add_compile_options(/wd4191)  # eq. to cast-function-type
+    add_compile_options(/wd4191)  # like cast-function-type
     add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
     add_compile_options(/wd5045)  # compiler will insert Spectre mitigation for memory load
     add_compile_options(/wd4710)  # function not inlined
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-    add_compile_options(-Wno-cast-function-type)  # this raises a large amount of false positives
+
+    # warnings ignored because causing many false positives
+    add_compile_options(-Wno-cast-function-type)
 endif()
 
 message(STATUS "CEREGGII_TSAN=$ENV{CEREGGII_TSAN}")
@@ -77,6 +81,14 @@ else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
 endif ()
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CEREGGII_DEBUG 1)
+else ()
+    if (EXISTS CEREGGII_DEBUG)
+        message(FATAL_ERROR "CEREGGII_DEBUG flag set for a non-debug build")
+    endif ()
+endif ()
+
 configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
@@ -108,13 +120,6 @@ Python3_add_library(_cereggii MODULE
         "cereggii/constants.c"
         "cereggii/thread_handle.c"
 )
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(_cereggii
-            PRIVATE
-            $<$<CONFIG:Debug>:DEBUG>
-    )
-endif ()
 
 # Install the module
 install(TARGETS _cereggii
