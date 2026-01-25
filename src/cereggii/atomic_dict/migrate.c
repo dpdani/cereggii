@@ -128,6 +128,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     atomic_store_explicit((_Atomic (int64_t *) *) &current_meta->participants, participants, memory_order_release);
     atomic_store_explicit((_Atomic (int32_t) *) &current_meta->participants_count, accessors_len, memory_order_release);
 
+#ifdef CEREGGII_DEBUG
     int64_t inserted_before_migration = 0;
     int64_t tombstones_before_migration = 0;
     AtomicDict_AccessorStorage *accessor;
@@ -139,8 +140,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_inserted, 0, memory_order_release);
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, 0, memory_order_release);
     }
-    cereggii_unused_in_release_build(inserted_before_migration);
-    cereggii_unused_in_release_build(tombstones_before_migration);
+#endif
 
     if (from_log_size < to_log_size) {
         atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
@@ -167,6 +167,7 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     assert(set);
     cereggii_unused_in_release_build(set);
 
+#ifdef CEREGGII_DEBUG
     if (from_log_size < to_log_size) {
         assert(holding_sync_lock);
         int64_t inserted_after_migration = 0;
@@ -174,8 +175,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
             inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         }
         assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
-        cereggii_unused_in_release_build(inserted_after_migration);
     }
+#endif
 
     AtomicEvent_Set(current_meta->migration_done);
     Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
