@@ -1,4 +1,4 @@
-name: lint
+name: checks
 
 on:
   push:
@@ -7,27 +7,33 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  style:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - 3.14
-
     steps:
       - uses: actions/checkout@v6
-      - name: set up python ${{ matrix.python-version }}
+      - name: set up python
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.14
       - name: install dependencies & cereggii
         run: |
           python -m pip install --upgrade pip
-          pip install .[dev]
+          pip install ".[dev]"
       - name: black
         run: black --check .
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: set up python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+      - name: install dependencies & cereggii
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
       - name: lint
         run: |
           ruff check .

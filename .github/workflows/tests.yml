@@ -1,66 +1,23 @@
-name: tests
+name: checks
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
 
 jobs:
-  test:
-    timeout-minutes: 10
-    runs-on: ${{ matrix.os }}
+  tests:
+    uses: ./.github/workflows/reusable-tests.yml
+    name: tests${{ '' }}
     strategy:
       fail-fast: false
       matrix:
         os:
           - ubuntu-latest
-          - ubuntu-24.04-arm
-          - windows-latest
-          - windows-11-arm
-          - macos-15-intel  # https://github.com/actions/runner-images/issues/13046
-          - macos-latest
         python-version:
+          - 3.13
+          - 3.13t
           - 3.14
           - 3.14t
-        build-type:
-          - Debug
-          - RelWithDebInfo
-        exclude:
-          # to be removed after this issue is resolved upstream
-          # https://discuss.python.org/t/building-debug-version-of-extensions-on-windows-without-debug-binaries/105012
-          - os: windows-latest
-            build-type: Debug
-          - os: windows-11-arm
-            build-type: Debug
-
-          # to be removed after this issue is resolved upstream
-          # https://github.com/actions/setup-python/issues/1267
-          - os: windows-11-arm
-            python-version: 3.14t
-
-    name: ${{ matrix.os }} / ${{ matrix.python-version }} / ${{ matrix.build-type }}
-
-    steps:
-      - uses: actions/checkout@v6
-      - name: set up python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: python --version --version && which python
-      - name: system info
-        run: uname -a
-      - name: processor info
-        if: matrix.os == 'ubuntu-latest'
-        run: cat /proc/cpuinfo
-      - name: processor info
-        if: matrix.os == 'macos-latest'
-        run: system_profiler SPHardwareDataType
-      - name: install dependencies & cereggii
-        run: |
-          python -m pip install --upgrade pip
-          pip -V
-          pip install ".[dev]" -C "override=cmake.build_type=${{ matrix.build-type }}"
-      - name: test with pytest
-        run: |
-          pytest
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      build-type: Debug
