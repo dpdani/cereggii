@@ -22,6 +22,9 @@ if (MSVC)
     add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
     add_compile_options(/wd5045)  # compiler will insert Spectre mitigation for memory load
     add_compile_options(/wd4710)  # function not inlined
+
+    # from pythoncapi-compat PyAPI_FUNC
+    add_compile_options(/wd4210)  # nonstandard extension used: function given file scope
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
