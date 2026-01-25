@@ -7,9 +7,9 @@ on:
   pull_request:
 
 jobs:
-  test:
+  tests:
     uses: ./.github/workflows/reusable-tests.yml
-    name: ${{ '' }}
+    name: tests${{ '' }}
     strategy:
       fail-fast: false
       matrix:
