@@ -31,7 +31,6 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
     cereggii_unused_in_release_build(index);
 }
 
-
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
 #define REHASH(x) (uint64_t) ( \
@@ -119,7 +118,6 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
     uint64_t _expected = expected->node;
     return atomic_compare_exchange_strong_explicit((_Atomic (uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
 }
-
 
 void
 AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
