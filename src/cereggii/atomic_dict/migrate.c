@@ -414,13 +414,13 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     for (; i < end_of_block; i++) {
         AtomicDict_ReadNodeAt(i, &node, current_meta);
 
-        if (node.node == 0) {
+        if (AtomicDict_IsEmpty(&node)) {
             start_of_cluster = i + 1;
             cluster_size = 0;
             continue;
         }
         cluster_size++;
-        if (node.index == 0 /*tombstone*/)
+        if (AtomicDict_IsTombstone(&node))
             continue;
 
         AtomicDict_MigrateNode(&node, new_meta, start_of_cluster, cluster_size);
@@ -436,7 +436,7 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
     uint64_t j = end_of_block;
     while (1) {
         AtomicDict_ReadNodeAt(j & current_size_mask, &node, current_meta);
-        if (node.node == 0) {
+        if (AtomicDict_IsEmpty(&node)) {
             break;
         }
         j++;
@@ -445,11 +445,11 @@ AtomicDict_BlockWiseMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_
         initialize_in_new_meta(new_meta, end_of_block, j - 1);
         while (1) {
             AtomicDict_ReadNodeAt(i & current_size_mask, &node, current_meta);
-            if (node.node == 0) {
+            if (AtomicDict_IsEmpty(&node)) {
                 break;
             }
             cluster_size++;
-            if (node.index != 0 /*tombstone*/) {
+            if (!AtomicDict_IsTombstone(&node)) {
                 AtomicDict_MigrateNode(&node, new_meta, start_of_cluster, cluster_size);
                 migrated_count++;
             }

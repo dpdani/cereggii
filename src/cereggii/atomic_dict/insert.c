@@ -109,7 +109,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
         uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
         AtomicDict_ReadNodeAt(ix, &node, meta);
 
-        if (node.node == 0) {
+        if (AtomicDict_IsEmpty(&node)) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -124,7 +124,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (node.index == 0) {  // tombstone
+        } else if (AtomicDict_IsTombstone(&node)) {
             // pass
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass

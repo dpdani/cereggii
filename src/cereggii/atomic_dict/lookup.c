@@ -21,11 +21,11 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     for (; distance < (1ull << meta->log_size); distance++) {
         AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-        if (result->node.node == 0) {
+        if (AtomicDict_IsEmpty(&result->node)) {
             goto not_found;
         }
 
-        if (result->node.index == 0)  // tombstone
+        if (AtomicDict_IsTombstone(&result->node))
             continue;
 
         if (result->node.tag == (hash & TAG_MASK(meta))) {
@@ -82,7 +82,7 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     for (; distance < 1ull << meta->log_size; distance++) {
         AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-        if (result->node.node == 0) {
+        if (AtomicDict_IsEmpty(&result->node)) {
             goto not_found;
         }
         if (result->node.index == entry_ix) {
@@ -248,10 +248,10 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         AtomicDict_ReadNodeAt(d0, &node, meta);
 
-        if (node.node == 0)
+        if (AtomicDict_IsEmpty(&node))
             continue;
 
-        if (node.index == 0)  // tombstone
+        if (AtomicDict_IsTombstone(&node))
             continue;
 
         if (node.tag == (hash & TAG_MASK(meta))) {

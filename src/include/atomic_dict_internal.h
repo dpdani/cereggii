@@ -153,6 +153,10 @@ uint64_t AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta);
 
 uint64_t AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta);
 
+int AtomicDict_IsEmpty(AtomicDict_Node *node);
+
+int AtomicDict_IsTombstone(AtomicDict_Node *node);
+
 void AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);
 
 void AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta);

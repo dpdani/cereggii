@@ -69,6 +69,18 @@ AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
     return atomic_load_explicit((_Atomic (uint64_t) *) &meta->index[ix & ((1 << meta->log_size) - 1)], memory_order_acquire);
 }
 
+int
+AtomicDict_IsEmpty(AtomicDict_Node *node)
+{
+    return node->node == 0;
+}
+
+int
+AtomicDict_IsTombstone(AtomicDict_Node *node)
+{
+    return node->node != 0 && node->index == 0;
+}
+
 void
 AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
@@ -114,7 +126,7 @@ AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
 {
     AtomicDict_Node node;
     AtomicDict_ReadNodeAt(ix, &node, meta);
-    if (node.node != 0 && node.index == 0) {
+    if (AtomicDict_IsTombstone(&node)) {
         printf("<node at %" PRIu64 ": %" PRIu64 " (tombstone) seen by thread=%" PRIuPTR ">\n", ix, node.node, _Py_ThreadId());
         return;
     }
