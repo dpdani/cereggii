@@ -90,9 +90,6 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     PyMutex_Unlock(&storage->self_mutex);
 
     Py_DECREF(result.entry.key);
-    // todo: is decrefing the key safe?
-    //   - in maybe-weakref state: +1
-    //   - concurrent PyObject_RichCompareBool: -1
     Py_DECREF(result.entry.value);
 
     return 0;
