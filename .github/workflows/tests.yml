@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     uses: ./.github/workflows/reusable-tests.yml
+    name: ${{ '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -22,4 +23,4 @@ jobs:
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
-      build-type: ${{ matrix.build-type }}
+      build-type: Debug
