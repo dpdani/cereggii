@@ -221,9 +221,10 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
     AtomicDict_AccessorStorage *storage = AtomicDict_GetAccessorStorage(ak);
     assert(storage != NULL);
 
-    // _Atomic(int64_t) *participant = (_Atomic(int64_t) *) &current_meta->participants[storage->accessor_ix];
     int64_t *participants = atomic_load_explicit((_Atomic(int64_t *) *) &current_meta->participants, memory_order_acquire);
     int64_t *participant = &participants[storage->accessor_ix];
+    assert(participant != NULL);
+
     int64_t expected, ok;
 
     expected = 0ll;
@@ -237,6 +238,7 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
     ok = atomic_compare_exchange_strong_explicit((_Atomic (int64_t) *) participant, &expected, 2ll, memory_order_acq_rel, memory_order_acquire);
     assert(ok);
     cereggii_unused_in_release_build(ok);
+
     atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, migrated_count, memory_order_release);
 
     if (AtomicDict_NodesMigrationDone(current_meta)) {
