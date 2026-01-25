@@ -19,10 +19,11 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
         return;
     }
 
-    while (!atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &result->entry_p->value,
-                                              &result->entry.value,
-                                              NULL, memory_order_acq_rel,
-                                                   memory_order_acquire)) {
+    while (!atomic_compare_exchange_strong_explicit(
+        (_Atomic(PyObject *) *) &result->entry_p->value,
+        &result->entry.value, NULL,
+        memory_order_acq_rel, memory_order_acquire
+    )) {
         AtomicDict_ReadEntry(result->entry_p, &result->entry);
 
         if (result->entry.value == NULL) {
@@ -38,6 +39,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
 
     int ok = AtomicDict_AtomicWriteNodeAt(result->position, &result->node, &tombstone, meta);
     assert(ok);
+    cereggii_unused_in_release_build(ok);
 }
 
 int
@@ -60,8 +62,8 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (hash == -1)
         goto fail;
 
-    PyMutex_Lock(&storage->self_mutex);
-    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex, self->accessors);
+    PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
+    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
         meta = NULL;
@@ -71,19 +73,22 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     AtomicDict_SearchResult result;
     AtomicDict_Delete(meta, key, hash, &result);
 
-    PyMutex_Unlock(&storage->self_mutex);
-
     if (result.error) {
+        PyMutex_Unlock(&storage->self_mutex);
         goto fail;
     }
 
     if (!result.found) {
+        PyMutex_Unlock(&storage->self_mutex);
         PyErr_SetObject(PyExc_KeyError, key);
         goto fail;
     }
 
-    storage->local_len--;
-    self->len_dirty = 1;
+    atomic_dict_accessor_len_inc(self, storage, -1);
+    atomic_dict_accessor_tombstones_inc(self, storage, 1);
+
+    PyMutex_Unlock(&storage->self_mutex);
+
     Py_DECREF(result.entry.key);
     Py_DECREF(result.entry.value);
 

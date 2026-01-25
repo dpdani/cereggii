@@ -6,9 +6,7 @@
 
 #include "constants.h"
 #include "atomic_dict_internal.h"
-#include "atomic_ref.h"
 #include <stdatomic.h>
-#include "pythread.h"
 #include "_internal_py_core.h"
 
 
@@ -22,61 +20,53 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
     entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
     AtomicDict_ReadEntry(entry_p, &entry);
 
-    if (hash != entry.hash)
+    if (entry.value == NULL || hash != entry.hash)
         return 0;
 
-    int eq = 0;
     if (entry.key != key) {
-        eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
+        const int eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
 
         if (eq < 0)  // exception raised during compare
             goto fail;
+
+        if (!eq)
+            return 0;
     }
 
-    if (entry.key == key || eq) {
-        if (expected == NOT_FOUND) {
-            if (entry.value != NULL) {
-                *done = 1;
-                *expectation = 0;
-                return 1;
-            }
-            // expected == NOT_FOUND && value == NULL:
-            //   it means there's another thread T concurrently
-            //   deleting this key.
-            //   T's linearization point (setting value = NULL) has
-            //   already been reached, thus we can proceed visiting
-            //   the probe.
-        } else {
-            // expected != NOT_FOUND
-            do {
-                if (entry.value != expected && expected != ANY) {
-                    *done = 1;
-                    *expectation = 0;
-                    return 1;
-                }
+    // key found
 
-                *current = entry.value;
-                PyObject *expected = *current;
-                *done = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &entry_p->value, &expected, desired, memory_order_acq_rel, memory_order_acquire);
+    if (expected == NOT_FOUND) {
+        assert(entry.value != NULL);
+        *done = 1;
+        *expectation = 0;
+        return 1;
+    }
 
-                if (!*done) {
-                    AtomicDict_ReadEntry(entry_p, &entry);
-
-                    if (*current == NULL)
-                        return 0;
-                }
-            } while (!*done);
-
-            if (!*done) {
-                *current = NULL;
-                return 0;
-            }
-
+    // expected != NOT_FOUND
+    do {
+        if (entry.value != expected && expected != ANY) {
+            *done = 1;
+            *expectation = 0;
             return 1;
         }
-    }
 
-    return 0;
+        if (entry.value == NULL) {
+            *current = NULL;
+            return 0;
+        }
+
+        *current = entry.value;
+        PyObject *exp = *current;
+        assert(exp != NULL);
+        *done = atomic_compare_exchange_strong_explicit((_Atomic(PyObject *) *) &entry_p->value, &exp, desired,
+                                                        memory_order_acq_rel, memory_order_acquire);
+
+        if (!*done) {
+            AtomicDict_ReadEntry(entry_p, &entry);
+        }
+    } while (!*done);
+
+    return 1;
     fail:
     return -1;
 }
@@ -119,7 +109,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
         uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
         AtomicDict_ReadNodeAt(ix, &node, meta);
 
-        if (node.node == 0) {
+        if (AtomicDict_IsEmpty(&node)) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -128,12 +118,13 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
             to_insert.index = entry_loc->location;
             to_insert.tag = hash;
+            assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
             done = AtomicDict_AtomicWriteNodeAt(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (node.node == TOMBSTONE(meta)) {
+        } else if (AtomicDict_IsTombstone(&node)) {
             // pass
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
@@ -149,7 +140,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
 
         distance++;
 
-        if (distance >= (1 << meta->log_size)) {
+        if (distance >= (1ull << meta->log_size)) {
             // traversed the entire dictionary without finding an empty slot
             *must_grow = 1;
             goto fail;
@@ -236,8 +227,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (meta == NULL)
         goto fail;
 
-    PyMutex_Lock(&storage->self_mutex);
-    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex, self->accessors);
+    PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
+    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
         goto beginning;
@@ -264,33 +255,42 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             goto beginning;
         }
 
-        entry_loc.entry->key = key;
-        entry_loc.entry->hash = hash;
-        entry_loc.entry->value = desired;
+        assert(entry_loc.location > 0);
+        assert(entry_loc.entry != NULL);
+        assert(entry_loc.location < (uint64_t) SIZE_OF(meta));
+        assert(atomic_dict_entry_ix_sanity_check(entry_loc.location, meta));
+        assert(key != NULL);
+        assert(hash != -1);
+        assert(desired != NULL);
+        atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->key, key, memory_order_release);
+        atomic_store_explicit((_Atomic(Py_hash_t) *) &entry_loc.entry->hash, hash, memory_order_release);
+        atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->value, desired, memory_order_release);
     }
 
     int must_grow;
     PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
-    if (result != NOT_FOUND && entry_loc.location != 0) {
-        entry_loc.entry->flags &= ENTRY_FLAGS_RESERVED; // keep reserved, or set to 0
-        entry_loc.entry->key = 0;
-        entry_loc.entry->value = 0;
-        entry_loc.entry->hash = 0;
+    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
+        // keep entry_loc.entry->flags reserved, or set to 0
+        uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
+        atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
+        atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
+        atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
         AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
+        Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
-    if (result == NOT_FOUND && entry_loc.location != 0) {
-        storage->local_len++; // TODO: overflow
-        self->len_dirty = 1;
+    if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
+        atomic_dict_accessor_len_inc(self, storage, 1);
+        atomic_dict_accessor_inserted_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || (meta->greatest_allocated_block - meta->greatest_deleted_block + meta->greatest_refilled_block) *
-                     ATOMIC_DICT_ENTRIES_IN_BLOCK >= SIZE_OF(meta) * 2 / 3) {
+    if (must_grow || atomic_dict_approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
         migrated = AtomicDict_Grow(self);
 
         if (migrated < 0)
@@ -908,7 +908,7 @@ AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwarg
 }
 
 static inline PyObject *
-reduce_count_zip_iter_with_ones(AtomicDict *self, PyObject *iterable)
+reduce_count_zip_iter_with_ones(AtomicDict *Py_UNUSED(self), PyObject *iterable)
 {
     // we want to return `zip(iterable, itertools.repeat(1))`
     PyObject *iterator = NULL;

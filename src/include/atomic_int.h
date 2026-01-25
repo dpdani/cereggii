@@ -14,7 +14,7 @@
 typedef struct atomic_int {
     PyObject_HEAD
 
-    int64_t integer;
+    _Atomic(int64_t) integer;
 } AtomicInt64;
 
 

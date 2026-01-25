@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#include <stdatomic.h>
+
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
 
@@ -19,8 +21,9 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
 
         storage->next_accessor = NULL;
         storage->self_mutex = (PyMutex) {0};
-        storage->local_len = 0;
-        storage->participant_in_migration = 0;
+        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_len, 0, memory_order_release);
+        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, 0, memory_order_release);
+        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_tombstones, 0, memory_order_release);
         storage->reservation_buffer.head = 0;
         storage->reservation_buffer.tail = 0;
         storage->reservation_buffer.count = 0;
@@ -32,13 +35,16 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
             goto fail;
 
         PyMutex_Lock(&self->accessors_lock);
+        storage->accessor_ix = self->accessors_len;
         if (self->accessors == NULL) {
             self->accessors = storage;
+            self->accessors_len = 1;
         } else {
             AtomicDict_AccessorStorage *s = NULL;
             for (s = self->accessors; s->next_accessor != NULL; s = s->next_accessor) {}
             assert(s != NULL);
-            s->next_accessor = storage;
+            atomic_store_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &s->next_accessor, storage, memory_order_release);
+            self->accessors_len++;
         }
         PyMutex_Unlock(&self->accessors_lock);
     }
@@ -88,7 +94,10 @@ AtomicDict_FreeAccessorStorageList(AtomicDict_AccessorStorage *head)
 AtomicDict_Meta *
 AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage)
 {
-    if (self->metadata->reference == (PyObject *) storage->meta)
+    assert(storage != NULL);
+    PyObject *shared = self->metadata->reference;
+    PyObject *mine = (PyObject *) storage->meta;
+    if (shared == mine)
         return storage->meta;
 
     Py_CLEAR(storage->meta);
@@ -102,7 +111,8 @@ AtomicDict_BeginSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Lock(&self->sync_op);
     PyMutex_Lock(&self->accessors_lock);
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Lock(&storage->self_mutex);
     }
 }
@@ -111,7 +121,8 @@ void
 AtomicDict_EndSynchronousOperation(AtomicDict *self)
 {
     PyMutex_Unlock(&self->sync_op);
-    for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+    AtomicDict_AccessorStorage *storage;
+    FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Unlock(&storage->self_mutex);
     }
     PyMutex_Unlock(&self->accessors_lock);
@@ -138,6 +149,7 @@ AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_Ent
         AtomicDict_EntryLoc *head = &rb->reservations[rb->head];
         head->entry = AtomicDict_GetEntryAt(entry_loc->location + i, meta);
         head->location = entry_loc->location + i;
+        assert(atomic_dict_entry_ix_sanity_check(head->location, meta));
         rb->head++;
         if (rb->head == 64) {
             rb->head = 0;
@@ -183,4 +195,29 @@ AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uin
                 (to_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
         }
     }
+}
+
+void
+atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, const int32_t inc)
+{
+    const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
+    const int64_t new = current + inc; // TODO: overflow
+    atomic_store_explicit((_Atomic (int64_t) *) &storage->local_len, new, memory_order_release);
+    atomic_store_explicit((_Atomic (uint8_t) *) &self->len_dirty, 1, memory_order_release);
+}
+
+void
+atomic_dict_accessor_inserted_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+{
+    const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_inserted, memory_order_acquire);
+    const int64_t new = current + inc; // TODO: overflow
+    atomic_store_explicit((_Atomic (int64_t) *) &storage->local_inserted, new, memory_order_release);
+}
+
+void
+atomic_dict_accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+{
+    const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_tombstones, memory_order_acquire);
+    const int64_t new = current + inc; // TODO: overflow
+    atomic_store_explicit((_Atomic (int64_t) *) &storage->local_tombstones, new, memory_order_release);
 }

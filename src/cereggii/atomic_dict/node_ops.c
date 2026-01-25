@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include "atomic_dict_internal.h"
+#include <thread_id.h>
 #include <stdatomic.h>
 #include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
@@ -15,32 +16,31 @@
 void
 AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
-    assert(node->index < (1 << meta->log_size));
+#ifdef CEREGGII_DEBUG
+    assert(node->index < (1ull << meta->log_size));
+    uint64_t index = node->index;
+    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+    if (greatest_allocated_block >= 0) {
+        assert(atomic_dict_entry_ix_sanity_check(index, meta));
+    }
+#endif
+
     node->node =
         (node->index << (NODE_SIZE - meta->log_size))
         | (node->tag & TAG_MASK(meta));
+
+#ifdef CEREGGII_DEBUG
+    AtomicDict_Node check_node;
+    AtomicDict_ParseNodeFromRaw(node->node, &check_node, meta);
+    assert(index == check_node.index);
+#endif
 }
-
-
-#ifdef __aarch64__
-#  if !defined(__ARM_FEATURE_CRC32)
-#    error "CRC32 hardware support not available"
-#  endif
-#  if defined(__GNUC__)
-#    include <arm_acle.h>
-#    define CRC32(x, y) __crc32d((x), (y))
-#  elif defined(__clang__)
-#    define CRC32(x, y) __builtin_arm_crc32d((x), (y))
-#  else
-#    error "Unsupported compiler for __aarch64__"
-#  endif // __crc32d
-#else
-#  define CRC32(x, y) cereggii_crc32_u64((x), (y))
-#endif // __aarch64__
 
 #define UPPER_SEED 12923598712359872066ull
 #define LOWER_SEED 7467732452331123588ull
-#define REHASH(x) (uint64_t) (CRC32((x), LOWER_SEED) | (((uint64_t) CRC32((x), UPPER_SEED)) << 32))
+#define REHASH(x) (uint64_t) ( \
+    (uint64_t) cereggii_crc32_u64((uint64_t)(x), LOWER_SEED) \
+    | (((uint64_t) cereggii_crc32_u64((uint64_t)(x), UPPER_SEED)) << 32ull))
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
@@ -67,27 +67,51 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
     node->tag = node_raw & TAG_MASK(meta);
 }
 
+uint64_t
+AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
+{
+    return atomic_load_explicit((_Atomic (uint64_t) *) &meta->index[ix & ((1 << meta->log_size) - 1)], memory_order_acquire);
+}
+
+int
+AtomicDict_IsEmpty(AtomicDict_Node *node)
+{
+    return node->node == 0;
+}
+
+int
+AtomicDict_IsTombstone(AtomicDict_Node *node)
+{
+    return node->node != 0 && node->index == 0;
+}
+
 void
 AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
-    const uint64_t raw = meta->index[ix & ((1 << meta->log_size) - 1)];
+    const uint64_t raw = AtomicDict_ReadRawNodeAt(ix, meta);
     AtomicDict_ParseNodeFromRaw(raw, node, meta);
 }
 
 void
 AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
 {
+    assert(ix < (1ull << meta->log_size));
     AtomicDict_ComputeRawNode(node, meta);
+    assert(atomic_dict_entry_ix_sanity_check(node->index, meta));
     AtomicDict_WriteRawNodeAt(ix, node->node, meta);
 }
 
 void
 AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 {
-    assert(ix >= 0);
-    assert(ix < (1 << meta->log_size));
+    assert(ix < (1ull << meta->log_size));
+#ifdef CEREGGII_DEBUG
+    AtomicDict_Node node;
+    AtomicDict_ParseNodeFromRaw(raw_node, &node, meta);
+    assert(atomic_dict_entry_ix_sanity_check(node.index, meta));
+#endif
 
-    meta->index[ix] = raw_node;
+    atomic_store_explicit((_Atomic (uint64_t) *) &meta->index[ix], raw_node, memory_order_release);
 }
 
 int
@@ -95,7 +119,21 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
 {
     AtomicDict_ComputeRawNode(expected, meta);
     AtomicDict_ComputeRawNode(desired, meta);
+    assert(atomic_dict_entry_ix_sanity_check(expected->index, meta));
+    assert(atomic_dict_entry_ix_sanity_check(desired->index, meta));
 
     uint64_t _expected = expected->node;
-    return atomic_compare_exchange_strong_explicit((_Atomic(uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
+    return atomic_compare_exchange_strong_explicit((_Atomic (uint64_t) *) &meta->index[ix], &_expected, desired->node, memory_order_acq_rel, memory_order_acquire);
+}
+
+void
+AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
+{
+    AtomicDict_Node node;
+    AtomicDict_ReadNodeAt(ix, &node, meta);
+    if (AtomicDict_IsTombstone(&node)) {
+        printf("<node at %" PRIu64 ": %" PRIu64 " (tombstone) seen by thread=%" PRIuPTR ">\n", ix, node.node, _Py_ThreadId());
+        return;
+    }
+    printf("<node at %" PRIu64 ": %" PRIu64 " (index=%" PRIu64 ", tag=%" PRIu64 ") seen by thread=%" PRIuPTR ">\n", ix, node.node, node.index, node.tag, _Py_ThreadId());
 }

@@ -18,14 +18,14 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
     const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
     uint64_t distance = 0;
 
-    for (; distance < (1 << meta->log_size); distance++) {
+    for (; distance < (1ull << meta->log_size); distance++) {
         AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-        if (result->node.node == 0) {
+        if (AtomicDict_IsEmpty(&result->node)) {
             goto not_found;
         }
 
-        if (result->node.node == TOMBSTONE(meta))
+        if (AtomicDict_IsTombstone(&result->node))
             continue;
 
         if (result->node.tag == (hash & TAG_MASK(meta))) {
@@ -79,14 +79,12 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
     const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
     uint64_t distance = 0;
 
-    for (; distance < (1 << meta->log_size); distance++) {
+    for (; distance < 1ull << meta->log_size; distance++) {
         AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
 
-        if (result->node.node == 0) {
+        if (AtomicDict_IsEmpty(&result->node)) {
             goto not_found;
         }
-
-        check_entry:
         if (result->node.index == entry_ix) {
             goto found;
         }
@@ -151,7 +149,9 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
     value = AtomicDict_GetItemOrDefault(self, key, NULL);
 
     if (value == NULL) {
-        PyErr_SetObject(PyExc_KeyError, key);
+        if (!PyErr_Occurred()) {
+            PyErr_SetObject(PyExc_KeyError, key);
+        }
     }
 
     return value;
@@ -169,12 +169,7 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
     if (default_value == NULL)
         default_value = Py_None;
 
-    PyObject *value = NULL;
-retry:
-    value = AtomicDict_GetItemOrDefault(self, key, default_value);
-    if (!_Py_TryIncref(value))
-        goto retry;
-    return value;
+    return AtomicDict_GetItemOrDefault(self, key, default_value);
 }
 
 PyObject *
@@ -253,10 +248,10 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         AtomicDict_ReadNodeAt(d0, &node, meta);
 
-        if (node.node == 0)
+        if (AtomicDict_IsEmpty(&node))
             continue;
 
-        if (node.node == TOMBSTONE(meta))
+        if (AtomicDict_IsTombstone(&node))
             continue;
 
         if (node.tag == (hash & TAG_MASK(meta))) {

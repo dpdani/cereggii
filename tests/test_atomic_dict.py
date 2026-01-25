@@ -94,6 +94,11 @@ def test_getitem():
     d = AtomicDict({"spam": 42})
     assert d["spam"] == 42
 
+    with raises(TypeError, match="unhashable type"):
+        d[list()]
+    with raises(TypeError, match="unhashable type"):
+        d.get(list())
+
 
 def test_getitem_confused():
     d = AtomicDict()
@@ -159,7 +164,7 @@ def test_full_dict():
     d = AtomicDict(min_size=64)
     for k in range(62):
         d[k] = None
-    assert len(d._debug()["index"]) == 64
+    assert len(d._debug()["index"]) == 128
 
     d = AtomicDict({k: None for k in range((1 << 10) - 1)})
     assert len(d._debug()["index"]) == 1 << 11
@@ -586,6 +591,33 @@ def test_fast_iter_race_with_delete():
     finally:
         stop.set()
         (iterating | deleting | inserting).join()
+
+
+def test_racy_deletes():
+    num_deleting = 2
+    num_inserting = 2
+    num_keys = 100_000
+    d = AtomicDict(min_size=num_keys)
+    barrier = threading.Barrier(num_deleting + num_inserting)
+
+    @TestingThreadSet.repeat(num_deleting)
+    def deleting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in range(num_keys):
+            try:
+                del dh[_]
+            except KeyError:
+                pass
+
+    @TestingThreadSet.repeat(num_inserting)
+    def inserting():
+        dh = ThreadHandle(d)
+        barrier.wait()
+        for _ in range(num_keys):
+            dh[_] = None
+
+    (deleting | inserting).start_and_join()
 
 
 def test_compare_and_set():

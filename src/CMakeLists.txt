@@ -12,13 +12,37 @@ if (CMAKE_SIZE_OF_VOID_P EQUAL 4)
     message(FATAL_ERROR "32-bit platforms are unsupported")
 endif ()
 
-if (NOT MSVC)
-    add_compile_options("-Werror=implicit-function-declaration")
-endif ()
+if (MSVC)
+    add_compile_options(/Wall /WX)
+
+    # warnings ignored because causing many false positives
+    add_compile_options(/wd4820)  # padding added after data member
+    add_compile_options(/wd4324)  # structure was padded due to alignment specifier
+    add_compile_options(/wd4191)  # like cast-function-type
+    add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
+    add_compile_options(/wd5045)  # compiler will insert Spectre mitigation for memory load
+    add_compile_options(/wd4710)  # function not inlined
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+
+    # warnings ignored because causing many false positives
+    add_compile_options(-Wno-cast-function-type)
+endif()
+
+message(STATUS "CEREGGII_TSAN=$ENV{CEREGGII_TSAN}")
 
 if (DEFINED ENV{CEREGGII_TSAN})
     add_compile_options("-fsanitize=thread")
     add_link_options("-fsanitize=thread")
+    add_compile_options("-g")
+    add_compile_options("-fno-omit-frame-pointer")
+endif ()
+
+message(STATUS "CEREGGII_ASAN=$ENV{CEREGGII_ASAN}")
+
+if (DEFINED ENV{CEREGGII_ASAN})
+    add_compile_options("-fsanitize=address,undefined")
+    add_link_options("-fsanitize=address")
     add_compile_options("-g")
     add_compile_options("-fno-omit-frame-pointer")
 endif ()
@@ -55,6 +79,14 @@ elseif (WIN32)
     set(LEVEL1_DCACHE_LINESIZE 64)
 else ()
     message(FATAL_ERROR "Unsupported platform: ${CMAKE_HOST_SYSTEM_NAME}")
+endif ()
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CEREGGII_DEBUG 1)
+else ()
+    if (EXISTS CEREGGII_DEBUG)
+        message(FATAL_ERROR "CEREGGII_DEBUG flag set for a non-debug build")
+    endif ()
 endif ()
 
 configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")

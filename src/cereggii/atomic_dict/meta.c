@@ -4,6 +4,8 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include <stdatomic.h>
+
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
@@ -20,7 +22,7 @@ AtomicDictMeta_New(uint8_t log_size)
     if (generation == NULL)
         goto fail;
 
-    index = PyMem_RawMalloc(sizeof(uint64_t) * (1 << log_size));
+    index = PyMem_RawMalloc(sizeof(uint64_t) * (1ull << log_size));
     if (index == NULL)
         goto fail;
 
@@ -42,6 +44,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->migration_leader = 0;
     meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
+    meta->participants = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->new_metadata_ready == NULL)
@@ -104,7 +107,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 
     AtomicDict_Block **previous_blocks = from_meta->blocks;
     int64_t inserting_block = from_meta->inserting_block;
-    int64_t greatest_allocated_block = from_meta->greatest_allocated_block;
+    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_block, memory_order_acquire);
     int64_t greatest_deleted_block = from_meta->greatest_deleted_block;
     int64_t greatest_refilled_block = from_meta->greatest_refilled_block;
 
@@ -131,7 +134,7 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
     to_meta->blocks = blocks;
 
     to_meta->inserting_block = inserting_block;
-    to_meta->greatest_allocated_block = greatest_allocated_block;
+    atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_block, greatest_allocated_block, memory_order_release);
     to_meta->greatest_deleted_block = greatest_deleted_block;
     to_meta->greatest_refilled_block = greatest_refilled_block;
 
@@ -153,7 +156,8 @@ AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, Atomic
 
         to_meta->blocks[block_j] = from_meta->blocks[block_i];
 
-        for (AtomicDict_AccessorStorage *storage = self->accessors; storage != NULL; storage = storage->next_accessor) {
+        AtomicDict_AccessorStorage *storage;
+        FOR_EACH_ACCESSOR(self, storage) {
             AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);
         }
 
@@ -188,7 +192,8 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
     if (self->blocks == NULL)
         return 0;
 
-    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_block, memory_order_acquire);
+    for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
         Py_VISIT(self->blocks[block_i]);
     }
     return 0;
@@ -197,7 +202,8 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 int
 AtomicDictMeta_clear(AtomicDict_Meta *self)
 {
-    for (uint64_t block_i = 0; block_i <= self->greatest_allocated_block; ++block_i) {
+    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_block, memory_order_acquire);
+    for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
         Py_CLEAR(self->blocks[block_i]);
     }
 
@@ -224,6 +230,10 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
 
     if (self->blocks != NULL) {
         PyMem_RawFree(self->blocks);
+    }
+
+    if (self->participants != NULL) {
+        PyMem_RawFree(self->participants);
     }
 
     PyMem_RawFree(self->generation);
