@@ -301,38 +301,6 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
     return done;
 }
 
-CEREGGII_UNUSED int
-AtomicDict_IndexNotFound(uint64_t index, AtomicDict_Meta *meta)
-{
-    AtomicDict_Node node;
-
-    for (int64_t i = 0; i < SIZE_OF(meta); ++i) {
-        AtomicDict_ReadNodeAt(i, &node, meta);
-
-        if (node.index == index) {
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-CEREGGII_UNUSED uint64_t
-AtomicDict_DebugLen(AtomicDict_Meta *meta)
-{
-    uint64_t len = 0;
-    AtomicDict_Node node;
-
-    for (int64_t i = 0; i < SIZE_OF(meta); ++i) {
-        AtomicDict_ReadNodeAt(i, &node, meta);
-
-        if (node.node != 0 && node.index != 0 /*tombstone*/)
-            len++;
-    }
-
-    return len;
-}
-
 inline void
 AtomicDict_MigrateNode(AtomicDict_Node *node, AtomicDict_Meta *new_meta, const uint64_t trailing_cluster_start, const uint64_t trailing_cluster_size)
 {
