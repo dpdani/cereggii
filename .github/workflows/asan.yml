@@ -1,0 +1,24 @@
+name: Address Sanitizer
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  asan:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nascheme/cpython-asan:3.14t
+    steps:
+      - uses: actions/checkout@v6
+      - name: install dependencies & cereggii
+        env:
+          PIP_ROOT_USER_ACTION: ignore
+        run: |
+          CEREGGII_ASAN=enabled \
+          pip install ".[dev]"
+      - name: Test
+        run: |
+          pytest -s
