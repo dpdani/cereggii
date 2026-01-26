@@ -69,8 +69,10 @@ class AtomicCache[K, V]:
     def __getitem__(self, key: K) -> V:
         while True:
             entry = self._cache.get(key, default=NOT_FOUND)
-            if entry is NOT_FOUND or entry is _tombstone or (
-                entry.expires is not None and entry.expires < time.monotonic()
+            if (
+                entry is NOT_FOUND
+                or entry is _tombstone
+                or (entry.expires is not None and entry.expires < time.monotonic())
             ):
                 entry = self._do_fill(key, current=entry)
             if entry.is_reservation:
@@ -83,10 +85,12 @@ class AtomicCache[K, V]:
         return entry.value
 
     def __setitem__(self, key: K, value: V):
-        raise NotImplementedError("AtomicCache does not allow direct assignment "
-                                  "so as to avoid race conditions. Please, use "
-                                  "__getitem__() or get() instead, or consider "
-                                  "using AtomicDict if you need more flexibility.")
+        raise NotImplementedError(
+            "AtomicCache does not allow direct assignment "
+            "so as to avoid race conditions. Please, use "
+            "__getitem__() or get() instead, or consider "
+            "using AtomicDict if you need more flexibility."
+        )
 
     def invalidate(self, key: K):
         entry = self._cache.get(key, default=NOT_FOUND)
