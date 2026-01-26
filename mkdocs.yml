@@ -11,6 +11,7 @@ nav:
     - 'compatibility.md'
   - 'API Reference':
       - 'api/AtomicDict.md'
+      - 'api/AtomicCache.md'
       - 'api/AtomicInt64.md'
       - 'api/CountDownLatch.md'
       - 'api/AtomicRef.md'
@@ -151,3 +152,4 @@ watch:
   - ./src/cereggii/thread_set.py
   - ./src/cereggii/locks.py
   - ./src/cereggii/misc.py
+  - ./src/cereggii/atomic_dict/atomic_cache.py

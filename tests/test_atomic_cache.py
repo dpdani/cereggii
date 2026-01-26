@@ -200,6 +200,27 @@ def test_memoize_kwargs_order_independent():
     assert calls == 1
 
 
+def test_memoize_passes_ttl_to_atomic_cache(monkeypatch):
+    calls = AtomicInt64(0)
+    now = [100.0]
+
+    def fake_monotonic():
+        return now[0]
+
+    monkeypatch.setattr(atomic_cache.time, "monotonic", fake_monotonic)
+
+    @AtomicCache.memoize(ttl=10.0)
+    def fill(_):
+        return calls.increment_and_get()
+
+    assert fill("k") == 1
+    now[0] = 105.0
+    assert fill("k") == 1
+    now[0] = 111.0
+    assert fill("k") == 2
+    assert calls == 2
+
+
 def test_contains_missing_key():
     cache = AtomicCache(lambda key: key)
     assert "missing" not in cache
