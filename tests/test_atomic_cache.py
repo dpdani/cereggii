@@ -110,11 +110,10 @@ def test_concurrent_getitem_single_fill():
     calls = AtomicInt64(0)
     started = threading.Event()
     allow_fill = threading.Event()
-    results = queue.Queue()
     n = 5
     barrier = threading.Barrier(n)
 
-    def fill(key):
+    def fill(_):
         calls.increment_and_get()
         started.set()
         allow_fill.wait()
@@ -125,15 +124,13 @@ def test_concurrent_getitem_single_fill():
     @TestingThreadSet.repeat(n)
     def workers():
         barrier.wait()
-        results.put(cache["k"])
+        assert cache["k"] == "value"
 
     workers.start()
     assert started.wait(timeout=1)
     allow_fill.set()
     workers.join()
-
     assert calls == 1
-    assert [results.get_nowait() for _ in range(n)] == ["value"] * n
 
 
 def test_ttl_expiration_triggers_refill(monkeypatch):
