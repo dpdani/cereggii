@@ -69,11 +69,7 @@ class AtomicCache[K, V]:
     def __getitem__(self, key: K) -> V:
         while True:
             entry = self._cache.get(key, default=NOT_FOUND)
-            if (
-                entry is NOT_FOUND
-                or entry is _tombstone
-                or (entry.expires is not None and entry.expires < time.monotonic())
-            ):
+            if self._not_contains(entry):
                 entry = self._do_fill(key, current=entry)
             if entry.is_reservation:
                 entry.ready.wait()
@@ -83,6 +79,17 @@ class AtomicCache[K, V]:
             raise entry.exception
         assert not entry.is_reservation
         return entry.value
+
+    def _not_contains(self, entry: _CacheEntry) -> bool:
+        return (
+            entry is NOT_FOUND
+            or entry is _tombstone
+            or (entry.expires is not None and entry.expires < time.monotonic())
+        )
+
+    def __contains__(self, key: K) -> bool:
+        entry = self._cache.get(key, default=NOT_FOUND)
+        return not self._not_contains(entry)
 
     def __setitem__(self, key: K, value: V):
         raise NotImplementedError(

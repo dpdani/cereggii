@@ -24,6 +24,7 @@ def test_getitem_fills_once_and_caches():
     assert cache["spam"] == 1
     assert cache["spam"] == 1
     assert calls == 1
+    assert "spam" in cache
 
 
 def test_getitem_raises_and_caches_exception():
@@ -40,6 +41,7 @@ def test_getitem_raises_and_caches_exception():
     with pytest.raises(ValueError, match="bad"):
         cache["bad"]
     assert calls == 1
+    assert "bad" in cache
 
 
 def test_getitem_refills_after_invalidate():
@@ -52,6 +54,7 @@ def test_getitem_refills_after_invalidate():
 
     assert cache["key"] == 1
     cache.invalidate("key")
+    assert "key" not in cache
     assert cache["key"] == 2
 
 
@@ -142,15 +145,18 @@ def test_ttl_expiration_triggers_refill(monkeypatch):
 
     monkeypatch.setattr(atomic_cache.time, "monotonic", fake_monotonic)
 
-    def fill(key):
+    def fill(_):
         return calls.increment_and_get()
 
     cache = AtomicCache(fill, ttl=10.0)
 
     assert cache["k"] == 1
+    assert "k" in cache
     now[0] = 105.0
     assert cache["k"] == 1
+    assert "k" in cache
     now[0] = 111.0
+    assert "k" not in cache
     assert cache["k"] == 2
     assert calls == 2
 
@@ -192,3 +198,27 @@ def test_memoize_kwargs_order_independent():
     assert add(a=1, b=2) == 3
     assert add(b=2, a=1) == 3
     assert calls == 1
+
+
+def test_contains_missing_key():
+    cache = AtomicCache(lambda key: key)
+    assert "missing" not in cache
+
+
+def test_contains_present_key():
+    cache = AtomicCache(lambda key: key * 2)
+    assert cache["spam"] == "spamspam"
+    assert "spam" in cache
+
+
+def test_contains_does_not_fill():
+    calls = AtomicInt64(0)
+
+    def fill(key):
+        calls.increment_and_get()
+        return key
+
+    cache = AtomicCache(fill)
+
+    assert "never_accessed" not in cache
+    assert calls == 0
