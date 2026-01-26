@@ -86,10 +86,9 @@ class AtomicCache[K, V]:
 
     def __setitem__(self, key: K, value: V):
         raise NotImplementedError(
-            "AtomicCache does not allow direct assignment "
-            "so as to avoid race conditions. Please, use "
-            "__getitem__() or get() instead, or consider "
-            "using AtomicDict if you need more flexibility."
+            "AtomicCache does not allow direct assignment so as to avoid race "
+            "conditions. Please, use __getitem__() instead, or consider using "
+            "AtomicDict if you need more flexibility."
         )
 
     def invalidate(self, key: K):
