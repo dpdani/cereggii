@@ -35,12 +35,11 @@ _tombstone = _CacheEntry(
 
 class AtomicCache[K, V]:
     """
-    Thread-safe cache with atomic operations and optional TTL support.
+    Thread-safe cache based on [AtomicDict][cereggii._cereggii.AtomicDict].
 
-    AtomicCache provides a lock-free, thread-safe caching mechanism that automatically
-    fills cache entries on-demand using a provided fill function. It supports optional
-    time-to-live (TTL) expiration and ensures that each key is filled exactly once,
-    even when multiple threads access the same key concurrently.
+    AtomicCache provides a thread-safe caching mechanism that automatically
+    fills cache entries using a provided `fill` function. It supports optional
+    time-to-live (TTL) expiration and explicit invalidation.
 
     When multiple threads access the same key concurrently, only one thread will execute
     the fill function, while others wait for the result to be ready. This ensures that
@@ -80,11 +79,12 @@ class AtomicCache[K, V]:
             return fib(n - 1) + fib(n - 2)
         ```
 
-    :param fill: A callable that takes a key and returns the corresponding value.
-              This function is called once per key to populate the cache.
+    :param fill: A callable that takes a key and returns the value to cache.
+        This function is called once per key to populate the cache, even if
+        multiple threads access the same key concurrently.
     :param ttl: Optional time-to-live in seconds. If specified, cached entries will
-             expire after this duration and be refilled on the next access. Expired
-             keys are removed lazily. Do not rely on this TTL for memory management.
+        expire after this duration and be refilled on the next access. Expired
+        keys are removed lazily. Do not rely on this TTL for memory management.
     """
 
     def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
@@ -111,7 +111,7 @@ class AtomicCache[K, V]:
             exception = e
         if self._ttl is not None:
             now = time.monotonic()
-            expires = now + self._ttl if self._ttl is not None else None
+            expires = now + self._ttl
         entry = _CacheEntry(ready=AtomicEvent(), value=value, exception=exception, expires=expires)
         entry.ready.set()
         self._cache.compare_and_set(key, expected=reservation, desired=entry)
@@ -123,13 +123,14 @@ class AtomicCache[K, V]:
         """
         Get the cached value for a key, filling it if necessary.
 
-        If the key is not in the cache or has expired, the fill function is called
+        If the key is not in the cache or has expired, the
+        [`fill`][cereggii.atomic_dict.atomic_cache.AtomicCache] function is called
         to compute the value. If multiple threads request the same key concurrently,
-        only one thread will execute the fill function while others wait for the result.
+        only one thread will execute the `fill` function while others wait for the result.
 
         :param key: The key to look up in the cache.
         :returns: The cached or newly computed value.
-        :raises Exception: If the fill function raised an exception for this key,
+        :raises Exception: If the `fill` function raised an exception for this key,
             that exception is re-raised.
         """
         while True:
@@ -145,7 +146,8 @@ class AtomicCache[K, V]:
         assert not entry.is_reservation
         return entry.value
 
-    def _not_contains(self, entry: _CacheEntry) -> bool:
+    @staticmethod
+    def _not_contains(entry: _CacheEntry) -> bool:
         return (
             entry is NOT_FOUND
             or entry is _tombstone
@@ -156,9 +158,11 @@ class AtomicCache[K, V]:
         """
         Check if a key exists in the cache and has not expired.
 
+        This method never calls the `fill` function, and never blocks.
+
         ```python
         cache = AtomicCache(lambda x: x * 2)
-        _ = cache[5]  # Populate cache
+        _ = cache[5]  # populate cache
         assert 5 in cache
         assert 10 not in cache
         ```
@@ -186,34 +190,33 @@ class AtomicCache[K, V]:
 
     def invalidate(self, key: K):
         """
-        Remove a key from the cache, forcing it to be refilled on next access.
+        Remove a key from the cache, forcing it to be refilled on the next access.
 
         If the key is currently being filled by another thread, this method waits
         for the fill operation to complete before invalidating. Subsequent accesses
-        to the key will trigger a fresh fill operation.
+        to the key will trigger a new fill operation.
 
         ```python
         cache = AtomicCache(lambda x: x * 2)
-        result1 = cache[5]  # Computes 10
+        result1 = cache[5]  # computes 10
         cache.invalidate(5)
-        result2 = cache[5]  # Recomputes 10
+        result2 = cache[5]  # recomputes 10
         ```
 
         :param key: The key to invalidate.
         """
-        entry = self._cache.get(key, default=NOT_FOUND)
         while True:
+            entry = self._cache.get(key, default=NOT_FOUND)
             if entry is NOT_FOUND:
                 return
             if entry.is_reservation:
                 # being filled right now, wait for it to finish
                 entry.ready.wait()
-                entry = self._cache.get(key, default=NOT_FOUND)
                 continue
             try:
                 self._cache.compare_and_set(key, expected=entry, desired=_tombstone)
             except ExpectationFailed:
-                entry = self._cache.get(key, default=NOT_FOUND)
+                continue
             else:
                 # CAS succeeded
                 return
@@ -246,13 +249,6 @@ class AtomicCache[K, V]:
         return decorator
 
     class MemoizedFunction[RV]:
-        """
-        A memoized function wrapper that caches results based on arguments.
-
-        This class is created by the `memoize()` decorator and provides thread-safe
-        caching of function results with support for both positional and keyword arguments.
-        """
-
         def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV], *args, **kwargs):
 
             def _func(params: tuple[tuple, tuple]):
@@ -261,7 +257,7 @@ class AtomicCache[K, V]:
 
             self._cache = cache_class[tuple[tuple, tuple], RV](_func, *args, **kwargs)
 
-        def __call__(self, *args, **kwargs):
+        def __call__(self, *args, **kwargs) -> RV:
             """
             Call the memoized function with the given arguments.
 
@@ -280,8 +276,9 @@ class AtomicCache[K, V]:
             def compute(x, y):
                 return x + y
 
-            result = compute(1, 2)  # Cached
-            compute.invalidate(1, 2)  # Remove from cache
+            result = compute(1, 2)  # computed
+            result = compute(1, 2)  # cached
+            compute.invalidate(1, 2)  # remove from cache
             ```
             """
             return self._cache.invalidate(self._make_key(args, kwargs))
