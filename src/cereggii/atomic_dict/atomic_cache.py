@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -121,7 +123,7 @@ class AtomicCache[K, V]:
         return cache
 
     class MemoizedFunction[RV]:
-        def __init__(self, cache_class: Type["AtomicCache"], func: Callable[..., RV]):
+        def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV]):
 
             def _func(params: tuple[tuple, tuple]):
                 args, kwargs = params
