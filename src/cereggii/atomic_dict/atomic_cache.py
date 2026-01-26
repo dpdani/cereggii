@@ -86,6 +86,7 @@ class AtomicCache[K, V]:
              expire after this duration and be refilled on the next access. Expired
              keys are removed lazily. Do not rely on this TTL for memory management.
     """
+
     def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
         _tombstone.ready.set()
         self._fill = fill
@@ -251,6 +252,7 @@ class AtomicCache[K, V]:
         This class is created by the `memoize()` decorator and provides thread-safe
         caching of function results with support for both positional and keyword arguments.
         """
+
         def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV], *args, **kwargs):
 
             def _func(params: tuple[tuple, tuple]):
