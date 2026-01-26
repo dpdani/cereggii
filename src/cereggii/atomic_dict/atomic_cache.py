@@ -111,14 +111,15 @@ class AtomicCache[K, V]:
                 return
 
     @classmethod
-    def memoize(cls, func):
+    def memoize(cls):
         """
         Decorator for caching the return values of a function.
         :param func:
         :return:
         """
-        cache = cls.MemoizedFunction(cls, func)
-        return cache
+        def decorator(func):
+            return cls.MemoizedFunction(cls, func)
+        return decorator
 
     class MemoizedFunction[RV]:
         def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV]):

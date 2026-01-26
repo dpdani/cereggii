@@ -164,7 +164,7 @@ def test_setitem_not_supported():
 def test_memoize_caches_and_invalidates():
     calls = AtomicInt64(0)
 
-    @AtomicCache.memoize
+    @AtomicCache.memoize()
     def add(a, b):
         calls.increment_and_get()
         return a + b
@@ -184,7 +184,7 @@ def test_memoize_caches_and_invalidates():
 def test_memoize_kwargs_order_independent():
     calls = AtomicInt64(0)
 
-    @AtomicCache.memoize
+    @AtomicCache.memoize()
     def add(a, b):
         calls.increment_and_get()
         return a + b
