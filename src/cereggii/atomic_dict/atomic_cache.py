@@ -123,8 +123,10 @@ class AtomicCache[K, V]:
         :param func:
         :return:
         """
+
         def decorator(func):
             return cls.MemoizedFunction(cls, func)
+
         return decorator
 
     class MemoizedFunction[RV]:
