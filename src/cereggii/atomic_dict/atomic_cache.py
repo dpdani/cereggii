@@ -34,13 +34,11 @@ _tombstone = _CacheEntry(
 
 
 class AtomicCache[K, V]:
-    def __init__(self, fill: Callable[[K], V], initial: dict[K, V] | None = None, ttl: float | None = None):
+    def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
         _tombstone.ready.set()
         self._fill = fill
         self._ttl = ttl
-        if initial is None:
-            initial = {}
-        self._cache = AtomicDict[K, _CacheEntry](initial)
+        self._cache = AtomicDict[K, _CacheEntry]()
 
     def _do_fill(self, key: K, current: _CacheEntry | NOT_FOUND) -> _CacheEntry:
         reservation = _CacheEntry(ready=AtomicEvent(), value=_reserved)
