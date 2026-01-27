@@ -40,7 +40,7 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     iter->meta = NULL;
-    iter->meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    iter->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
     if (iter->meta == NULL)
         goto fail;
 
@@ -75,11 +75,11 @@ PyObject *AtomicDictFastIterator_GetIter(AtomicDict_FastIterator *self)
 PyObject *
 AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
 {
-    AtomicDict_Entry *entry_p, entry = {
+    AtomicDictEntry *entry_p, entry = {
         .value = NULL,
     };
 
-    AtomicDict_Meta *meta = self->meta;
+    AtomicDictMeta *meta = self->meta;
     int64_t gap = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
     if (gap < 0) {
         PyErr_SetNone(PyExc_StopIteration);

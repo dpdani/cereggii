@@ -11,12 +11,12 @@
 #include "pythread.h"
 
 
-AtomicDict_Meta *
+AtomicDictMeta *
 AtomicDictMeta_New(uint8_t log_size)
 {
     void *generation = NULL;
     uint64_t *index = NULL;
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     generation = PyMem_RawMalloc(1);
     if (generation == NULL)
@@ -26,7 +26,7 @@ AtomicDictMeta_New(uint8_t log_size)
     if (index == NULL)
         goto fail;
 
-    meta = PyObject_GC_New(AtomicDict_Meta, &AtomicDictMeta_Type);
+    meta = PyObject_GC_New(AtomicDictMeta, &AtomicDictMeta_Type);
     if (meta == NULL)
         goto fail;
 
@@ -68,13 +68,13 @@ AtomicDictMeta_New(uint8_t log_size)
 }
 
 void
-AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
+AtomicDictMeta_ClearIndex(AtomicDictMeta *meta)
 {
     memset(meta->index, 0, sizeof(uint64_t) * SIZE_OF(meta));
 }
 
 int
-AtomicDictMeta_InitPages(AtomicDict_Meta *meta)
+AtomicDictMeta_InitPages(AtomicDictMeta *meta)
 {
     AtomicDict_Page **pages = NULL;
     // here we're abusing virtual memory:
@@ -95,7 +95,7 @@ AtomicDictMeta_InitPages(AtomicDict_Meta *meta)
 }
 
 int
-AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+AtomicDictMeta_CopyPages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
 {
     assert(from_meta != NULL);
     assert(to_meta != NULL);
@@ -137,7 +137,7 @@ AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 }
 
 int
-AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
+AtomicDictMeta_traverse(AtomicDictMeta *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->new_gen_metadata);
     Py_VISIT(self->new_metadata_ready);
@@ -155,7 +155,7 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 }
 
 int
-AtomicDictMeta_clear(AtomicDict_Meta *self)
+AtomicDictMeta_clear(AtomicDictMeta *self)
 {
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
     for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
@@ -171,7 +171,7 @@ AtomicDictMeta_clear(AtomicDict_Meta *self)
 }
 
 void
-AtomicDictMeta_dealloc(AtomicDict_Meta *self)
+AtomicDictMeta_dealloc(AtomicDictMeta *self)
 {
     PyObject_GC_UnTrack(self);
 

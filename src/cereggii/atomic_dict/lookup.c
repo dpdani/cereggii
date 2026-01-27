@@ -11,8 +11,8 @@
 
 
 void
-AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
-                  AtomicDict_SearchResult *result)
+AtomicDict_Lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
+                  AtomicDictSearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
     const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
@@ -71,8 +71,8 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
 }
 
 void
-AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
-                       AtomicDict_SearchResult *result)
+AtomicDict_LookupEntry(AtomicDictMeta *meta, uint64_t entry_ix, Py_hash_t hash,
+                       AtomicDictSearchResult *result)
 {
     // index-only search
 
@@ -104,13 +104,13 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 PyObject *
 AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)
 {
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
 
-    AtomicDict_SearchResult result;
-    AtomicDict_AccessorStorage *storage = NULL;
+    AtomicDictSearchResult result;
+    AtomicDictAccessorStorage *storage = NULL;
     storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
         goto fail;
@@ -196,7 +196,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     Py_hash_t hash;
     Py_hash_t *hashes = NULL;
     PyObject **keys = NULL;
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     hashes = PyMem_RawMalloc(chunk_size * sizeof(Py_hash_t));
     if (hashes == NULL)
@@ -206,8 +206,8 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (keys == NULL)
         goto fail;
 
-    AtomicDict_SearchResult result;
-    AtomicDict_AccessorStorage *storage = NULL;
+    AtomicDictSearchResult result;
+    AtomicDictAccessorStorage *storage = NULL;
     storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
         goto fail;
@@ -244,7 +244,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         key = keys[i % chunk_size];
 
         uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
-        AtomicDict_Node node;
+        AtomicDictNode node;
 
         AtomicDict_ReadNodeAt(d0, &node, meta);
 

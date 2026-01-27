@@ -27,13 +27,13 @@ typedef struct AtomicDict {
     Py_tss_t *accessor_key;
     PyMutex accessors_lock;
     int32_t accessors_len;
-    struct AtomicDict_AccessorStorage *accessors;
+    struct AtomicDictAccessorStorage *accessors;
 } AtomicDict;
 
 extern PyTypeObject AtomicDict_Type;
 
-struct AtomicDict_FastIterator;
-typedef struct AtomicDict_FastIterator AtomicDict_FastIterator;
+struct AtomicDictFastIterator;
+typedef struct AtomicDictFastIterator AtomicDict_FastIterator;
 
 
 PyObject *AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value);

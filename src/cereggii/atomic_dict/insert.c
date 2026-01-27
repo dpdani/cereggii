@@ -11,12 +11,12 @@
 
 
 int
-AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
+AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
                                PyObject *key, Py_hash_t hash,
                                PyObject *expected, PyObject *desired, PyObject **current,
                                int *done, int *expectation)
 {
-    AtomicDict_Entry *entry_p, entry;
+    AtomicDictEntry *entry_p, entry;
     entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
     AtomicDict_ReadEntry(entry_p, &entry);
 
@@ -73,9 +73,9 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
 
 
 PyObject *
-AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+AtomicDict_ExpectedInsertOrUpdate(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                                   PyObject *expected, PyObject *desired,
-                                  AtomicDict_EntryLoc *entry_loc, int *must_grow,
+                                  AtomicDictEntryLoc *entry_loc, int *must_grow,
                                   int skip_entry_check)
 {
     assert(meta != NULL);
@@ -97,13 +97,13 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     *must_grow = 0;
 
     uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
-    AtomicDict_Node node;
+    AtomicDictNode node;
 
     done = 0;
     expectation = 1;
     uint64_t distance = 0;
     PyObject *current = NULL;
-    AtomicDict_Node to_insert;
+    AtomicDictNode to_insert;
 
     while (!done) {
         uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
@@ -211,13 +211,13 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     _Py_SetWeakrefAndIncref(key);
     _Py_SetWeakrefAndIncref(desired);
 
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
 
-    AtomicDict_AccessorStorage *storage = NULL;
+    AtomicDictAccessorStorage *storage = NULL;
     storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
         goto fail;
@@ -234,7 +234,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto beginning;
     }
 
-    AtomicDict_EntryLoc entry_loc = {
+    AtomicDictEntryLoc entry_loc = {
         .entry = NULL,
         .location = 0,
     };

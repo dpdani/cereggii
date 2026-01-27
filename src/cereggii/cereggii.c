@@ -183,7 +183,7 @@ PyTypeObject AtomicDict_Type = {
 PyTypeObject AtomicDictMeta_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictMeta",
-    .tp_basicsize = sizeof(AtomicDict_Meta),
+    .tp_basicsize = sizeof(AtomicDictMeta),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,

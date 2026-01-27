@@ -89,7 +89,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     PyObject *initial = NULL;
     PyObject *min_size_arg = NULL;
     PyObject *buffer_size_arg = NULL;
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     char *kw_list[] = {"initial", "min_size", "buffer_size", NULL};
 
@@ -207,8 +207,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     }
 
     meta->inserting_page = 0;
-    AtomicDict_AccessorStorage *storage;
-    AtomicDict_EntryLoc entry_loc;
+    AtomicDictAccessorStorage *storage;
+    AtomicDictEntryLoc entry_loc;
     self->sync_op = (PyMutex) {0};
     self->accessors_lock = (PyMutex) {0};
     self->accessors_len = 0;
@@ -228,7 +228,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 goto fail;
 
             self->len++; // we want to avoid pos = 0
-            AtomicDict_Entry *entry = AtomicDict_GetEntryAt(self->len, meta);
+            AtomicDictEntry *entry = AtomicDict_GetEntryAt(self->len, meta);
             _Py_SetWeakrefAndIncref(key);
             _Py_SetWeakrefAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
@@ -323,7 +323,7 @@ int
 AtomicDict_traverse(AtomicDict *self, visitproc visit, void *arg)
 {
     Py_VISIT(self->metadata);
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         Py_VISIT(storage->meta);
     }
@@ -335,7 +335,7 @@ AtomicDict_clear(AtomicDict *self)
 {
     Py_CLEAR(self->metadata);
     if (self->accessors != NULL) {
-        AtomicDict_AccessorStorage *storage = self->accessors;
+        AtomicDictAccessorStorage *storage = self->accessors;
         self->accessors = NULL;
         AtomicDict_FreeAccessorStorageList(storage);
     }
@@ -370,11 +370,11 @@ AtomicDict_dealloc(AtomicDict *self)
  * calls to this function don't try to insert the same key into the same AtomicDict.
  **/
 int
-AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
+AtomicDict_UnsafeInsert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
 {
     // pos === node_index
-    AtomicDict_Node temp;
-    AtomicDict_Node node = {
+    AtomicDictNode temp;
+    AtomicDictNode node = {
         .index = pos,
         .tag = hash,
     };
@@ -396,12 +396,12 @@ AtomicDict_UnsafeInsert(AtomicDict_Meta *meta, Py_hash_t hash, uint64_t pos)
 }
 
 int
-AtomicDict_CountKeysInPage(int64_t page_ix, AtomicDict_Meta *meta)
+AtomicDict_CountKeysInPage(int64_t page_ix, AtomicDictMeta *meta)
 {
     int found = 0;
 
-    AtomicDict_Entry *entry_p, entry;
-    AtomicDict_SearchResult sr;
+    AtomicDictEntry *entry_p, entry;
+    AtomicDictSearchResult sr;
 
     for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
         uint64_t entry_ix = page_ix * ATOMIC_DICT_ENTRIES_IN_PAGE + i;
@@ -439,7 +439,7 @@ static inline int64_t
 sum_of_accessors_len(AtomicDict *self)
 {
     int64_t len = 0;
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         len += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
     }
@@ -457,7 +457,7 @@ int64_t
 atomic_dict_approx_inserted(AtomicDict *self)
 {
     int64_t inserted = 0;
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         inserted += atomic_load_explicit((_Atomic (int64_t) *) &storage->local_inserted, memory_order_acquire);
     }
@@ -520,7 +520,7 @@ AtomicDict_Len_impl(AtomicDict *self)
     }
     self->len = len_ssize_t;
     self->len_dirty = 0;
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         atomic_store_explicit((_Atomic (int64_t) *) &storage->local_len, 0, memory_order_release);
     }
@@ -548,7 +548,7 @@ AtomicDict_Len(AtomicDict *self)
 PyObject *
 AtomicDict_Debug(AtomicDict *self)
 {
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
     PyObject *metadata = NULL;
     PyObject *index_nodes = NULL;
     PyObject *pages = NULL;
@@ -556,7 +556,7 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *entry_tuple = NULL;
     PyObject *page_info = NULL;
 
-    meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
     metadata = Py_BuildValue("{sOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
@@ -569,7 +569,7 @@ AtomicDict_Debug(AtomicDict *self)
     if (index_nodes == NULL)
         goto fail;
 
-    AtomicDict_Node node;
+    AtomicDictNode node;
     for (uint64_t i = 0; i < (uint64_t) SIZE_OF(meta); i++) {
         AtomicDict_ReadNodeAt(i, &node, meta);
         PyObject *n = Py_BuildValue("K", node.node);

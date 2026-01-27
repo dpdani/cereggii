@@ -7,7 +7,7 @@
 
 
 void
-AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDict_SearchResult *result)
+AtomicDict_Delete(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash, AtomicDictSearchResult *result)
 {
     AtomicDict_Lookup(meta, key, hash, result);
 
@@ -32,7 +32,7 @@ AtomicDict_Delete(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash, AtomicDi
         }
     }
 
-    AtomicDict_Node tombstone = {
+    AtomicDictNode tombstone = {
         .index = 0,
         .tag = TOMBSTONE(meta),
     };
@@ -47,8 +47,8 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
 {
     assert(key != NULL);
 
-    AtomicDict_Meta *meta = NULL;
-    AtomicDict_AccessorStorage *storage = NULL;
+    AtomicDictMeta *meta = NULL;
+    AtomicDictAccessorStorage *storage = NULL;
     storage = AtomicDict_GetOrCreateAccessorStorage(self);
     if (storage == NULL)
         goto fail;
@@ -70,7 +70,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         goto beginning;
     }
 
-    AtomicDict_SearchResult result;
+    AtomicDictSearchResult result;
     AtomicDict_Delete(meta, key, hash, &result);
 
     if (result.error) {

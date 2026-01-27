@@ -14,7 +14,7 @@
 
 
 void
-AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
+AtomicDict_ComputeRawNode(AtomicDictNode *node, AtomicDictMeta *meta)
 {
 #ifdef CEREGGII_DEBUG
     assert(node->index < (1ull << meta->log_size));
@@ -30,7 +30,7 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
         | (node->tag & TAG_MASK(meta));
 
 #ifdef CEREGGII_DEBUG
-    AtomicDict_Node check_node;
+    AtomicDictNode check_node;
     AtomicDict_ParseNodeFromRaw(node->node, &check_node, meta);
     assert(index == check_node.index);
 #endif
@@ -53,14 +53,14 @@ AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
 }
 
 uint64_t
-AtomicDict_Distance0Of(Py_hash_t hash, AtomicDict_Meta *meta)
+AtomicDict_Distance0Of(Py_hash_t hash, AtomicDictMeta *meta)
 {
     return REHASH(hash) >> (SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size);
 }
 
 void
-AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
-                            AtomicDict_Meta *meta)
+AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDictNode *node,
+                            AtomicDictMeta *meta)
 {
     node->node = node_raw;
     node->index = node_raw >> (NODE_SIZE - meta->log_size);
@@ -68,32 +68,32 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDict_Node *node,
 }
 
 uint64_t
-AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDict_Meta *meta)
+AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDictMeta *meta)
 {
     return atomic_load_explicit((_Atomic (uint64_t) *) &meta->index[ix & ((1 << meta->log_size) - 1)], memory_order_acquire);
 }
 
 int
-AtomicDict_IsEmpty(AtomicDict_Node *node)
+AtomicDict_IsEmpty(AtomicDictNode *node)
 {
     return node->node == 0;
 }
 
 int
-AtomicDict_IsTombstone(AtomicDict_Node *node)
+AtomicDict_IsTombstone(AtomicDictNode *node)
 {
     return node->node != 0 && node->index == 0;
 }
 
 void
-AtomicDict_ReadNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
+AtomicDict_ReadNodeAt(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
 {
     const uint64_t raw = AtomicDict_ReadRawNodeAt(ix, meta);
     AtomicDict_ParseNodeFromRaw(raw, node, meta);
 }
 
 void
-AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta)
+AtomicDict_WriteNodeAt(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
 {
     assert(ix < (1ull << meta->log_size));
     AtomicDict_ComputeRawNode(node, meta);
@@ -102,11 +102,11 @@ AtomicDict_WriteNodeAt(uint64_t ix, AtomicDict_Node *node, AtomicDict_Meta *meta
 }
 
 void
-AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
+AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDictMeta *meta)
 {
     assert(ix < (1ull << meta->log_size));
 #ifdef CEREGGII_DEBUG
-    AtomicDict_Node node;
+    AtomicDictNode node;
     AtomicDict_ParseNodeFromRaw(raw_node, &node, meta);
     assert(atomic_dict_entry_ix_sanity_check(node.index, meta));
 #endif
@@ -115,7 +115,7 @@ AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDict_Meta *meta)
 }
 
 int
-AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_Node *desired, AtomicDict_Meta *meta)
+AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDictNode *expected, AtomicDictNode *desired, AtomicDictMeta *meta)
 {
     AtomicDict_ComputeRawNode(expected, meta);
     AtomicDict_ComputeRawNode(desired, meta);
@@ -127,9 +127,9 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDict_Node *expected, AtomicDict_
 }
 
 void
-AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDict_Meta *meta)
+AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDictMeta *meta)
 {
-    AtomicDict_Node node;
+    AtomicDictNode node;
     AtomicDict_ReadNodeAt(ix, &node, meta);
     if (AtomicDict_IsTombstone(&node)) {
         printf("<node at %" PRIu64 ": %" PRIu64 " (tombstone) seen by thread=%" PRIuPTR ">\n", ix, node.node, _Py_ThreadId());

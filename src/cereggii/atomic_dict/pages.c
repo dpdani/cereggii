@@ -10,7 +10,7 @@
 
 
 AtomicDict_Page *
-AtomicDictPage_New(AtomicDict_Meta *meta)
+AtomicDictPage_New(AtomicDictMeta *meta)
 {
     AtomicDict_Page *new = NULL;
     new = PyObject_GC_New(AtomicDict_Page, &AtomicDictPage_Type);
@@ -31,7 +31,7 @@ AtomicDictPage_New(AtomicDict_Meta *meta)
 int
 AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg)
 {
-    AtomicDict_Entry entry;
+    AtomicDictEntry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
         entry = self->entries[i].entry;
 
@@ -48,7 +48,7 @@ AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg)
 int
 AtomicDictPage_clear(AtomicDict_Page *self)
 {
-    AtomicDict_Entry *entry;
+    AtomicDictEntry *entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
         entry = &self->entries[i].entry;
 
@@ -73,7 +73,7 @@ AtomicDictPage_dealloc(AtomicDict_Page *self)
 
 
 int
-atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta)
+atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta)
 {
     int64_t gap = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
     assert(gap >= 0);
@@ -85,8 +85,8 @@ atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta)
 
 
 int
-AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
-                         AtomicDict_EntryLoc *entry_loc, Py_hash_t hash)
+AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
+                         AtomicDictEntryLoc *entry_loc, Py_hash_t hash)
 {
     AtomicDict_ReservationBufferPop(rb, entry_loc);
 
@@ -189,8 +189,8 @@ AtomicDict_PositionInPageOf(uint64_t entry_ix)
     return entry_ix & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1);
 }
 
-AtomicDict_Entry *
-AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
+AtomicDictEntry *
+AtomicDict_GetEntryAt(uint64_t ix, AtomicDictMeta *meta)
 {
     assert(atomic_dict_entry_ix_sanity_check(ix, meta));
     AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[AtomicDict_PageOf(ix)], memory_order_acquire);
@@ -203,7 +203,7 @@ AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta)
 }
 
 void
-AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry)
+AtomicDict_ReadEntry(AtomicDictEntry *entry_p, AtomicDictEntry *entry)
 {
     entry->flags = atomic_load_explicit((_Atomic(uint8_t) *) &entry_p->flags, memory_order_acquire);
     entry->value = atomic_load_explicit((_Atomic(PyObject *) *) &entry_p->value, memory_order_acquire);
