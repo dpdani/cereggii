@@ -11,6 +11,7 @@
 #include "atomic_dict_internal.h"
 #include "atomic_ref.h"
 #include "pythread.h"
+#include "thread_id.h"
 #include "thread_handle.h"
 #include "_internal_py_core.h"
 #include <vendor/pythoncapi_compat/pythoncapi_compat.h>
