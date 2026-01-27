@@ -124,6 +124,13 @@ Python3_add_library(_cereggii MODULE
         "cereggii/thread_handle.c"
 )
 
+if (CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+    message(STATUS "IPO / LTO enabled")
+    set_property(TARGET _cereggii PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else ()
+    message(STATUS "IPO / LTO disabled")
+endif ()
+
 # Install the module
 install(TARGETS _cereggii
         EXCLUDE_FROM_ALL
