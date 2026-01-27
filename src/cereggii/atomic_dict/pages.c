@@ -77,7 +77,7 @@ atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta)
 {
     int64_t gap = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
     assert(gap >= 0);
-    assert(AtomicDict_PageOf(entry_ix) <= (uint64_t) gap);
+    assert(page_of(entry_ix) <= (uint64_t) gap);
     cereggii_unused_in_release_build(entry_ix);
     cereggii_unused_in_release_build(gap);
     return 1;
@@ -85,10 +85,10 @@ atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta)
 
 
 int
-AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
+get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
                          AtomicDictEntryLoc *entry_loc, Py_hash_t hash)
 {
-    AtomicDict_ReservationBufferPop(rb, entry_loc);
+    reservation_buffer_pop(rb, entry_loc);
 
     if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1) & ~(self->reservation_buffer_size - 1);
@@ -108,8 +108,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReser
                         (inserting_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE);
                     assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-                    AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
-                    AtomicDict_ReservationBufferPop(rb, entry_loc);
+                    reservation_buffer_put(rb, entry_loc, self->reservation_buffer_size, meta);
+                    reservation_buffer_pop(rb, entry_loc);
                     goto done;
                 }
             }
@@ -155,8 +155,8 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReser
             entry_loc->entry = &(page->entries[0].entry);
             entry_loc->location = new_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
             assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-            AtomicDict_ReservationBufferPut(rb, entry_loc, self->reservation_buffer_size, meta);
-            AtomicDict_ReservationBufferPop(rb, entry_loc);
+            reservation_buffer_put(rb, entry_loc, self->reservation_buffer_size, meta);
+            reservation_buffer_pop(rb, entry_loc);
         } else {
             Py_DECREF(page);
             goto reserve_in_inserting_page;
@@ -178,32 +178,32 @@ AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReser
 }
 
 uint64_t
-AtomicDict_PageOf(uint64_t entry_ix)
+page_of(uint64_t entry_ix)
 {
     return entry_ix >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
 }
 
 uint64_t
-AtomicDict_PositionInPageOf(uint64_t entry_ix)
+position_in_page_of(uint64_t entry_ix)
 {
     return entry_ix & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1);
 }
 
 AtomicDictEntry *
-AtomicDict_GetEntryAt(uint64_t ix, AtomicDictMeta *meta)
+get_entry_at(uint64_t ix, AtomicDictMeta *meta)
 {
     assert(atomic_dict_entry_ix_sanity_check(ix, meta));
-    AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[AtomicDict_PageOf(ix)], memory_order_acquire);
+    AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[page_of(ix)], memory_order_acquire);
     assert(page != NULL);
     return &(
         page
-            ->entries[AtomicDict_PositionInPageOf(ix)]
+            ->entries[position_in_page_of(ix)]
             .entry
     );
 }
 
 void
-AtomicDict_ReadEntry(AtomicDictEntry *entry_p, AtomicDictEntry *entry)
+read_entry(AtomicDictEntry *entry_p, AtomicDictEntry *entry)
 {
     entry->flags = atomic_load_explicit((_Atomic(uint8_t) *) &entry_p->flags, memory_order_acquire);
     entry->value = atomic_load_explicit((_Atomic(PyObject *) *) &entry_p->value, memory_order_acquire);

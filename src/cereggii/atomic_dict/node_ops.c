@@ -14,7 +14,7 @@
 
 
 void
-AtomicDict_ComputeRawNode(AtomicDictNode *node, AtomicDictMeta *meta)
+compute_raw_node(AtomicDictNode *node, AtomicDictMeta *meta)
 {
 #ifdef CEREGGII_DEBUG
     assert(node->index < (1ull << meta->log_size));
@@ -31,7 +31,7 @@ AtomicDict_ComputeRawNode(AtomicDictNode *node, AtomicDictMeta *meta)
 
 #ifdef CEREGGII_DEBUG
     AtomicDictNode check_node;
-    AtomicDict_ParseNodeFromRaw(node->node, &check_node, meta);
+    parse_node_from_raw(node->node, &check_node, meta);
     assert(index == check_node.index);
 #endif
 }
@@ -53,13 +53,13 @@ AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
 }
 
 uint64_t
-AtomicDict_Distance0Of(Py_hash_t hash, AtomicDictMeta *meta)
+distance0_of(Py_hash_t hash, AtomicDictMeta *meta)
 {
     return REHASH(hash) >> (SIZEOF_PY_HASH_T * CHAR_BIT - meta->log_size);
 }
 
 void
-AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDictNode *node,
+parse_node_from_raw(uint64_t node_raw, AtomicDictNode *node,
                             AtomicDictMeta *meta)
 {
     node->node = node_raw;
@@ -68,46 +68,46 @@ AtomicDict_ParseNodeFromRaw(uint64_t node_raw, AtomicDictNode *node,
 }
 
 uint64_t
-AtomicDict_ReadRawNodeAt(uint64_t ix, AtomicDictMeta *meta)
+read_raw_node_at(uint64_t ix, AtomicDictMeta *meta)
 {
     return atomic_load_explicit((_Atomic (uint64_t) *) &meta->index[ix & ((1 << meta->log_size) - 1)], memory_order_acquire);
 }
 
 int
-AtomicDict_IsEmpty(AtomicDictNode *node)
+is_empty(AtomicDictNode *node)
 {
     return node->node == 0;
 }
 
 int
-AtomicDict_IsTombstone(AtomicDictNode *node)
+is_tombstone(AtomicDictNode *node)
 {
     return node->node != 0 && node->index == 0;
 }
 
 void
-AtomicDict_ReadNodeAt(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
+read_node_at(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
 {
-    const uint64_t raw = AtomicDict_ReadRawNodeAt(ix, meta);
-    AtomicDict_ParseNodeFromRaw(raw, node, meta);
+    const uint64_t raw = read_raw_node_at(ix, meta);
+    parse_node_from_raw(raw, node, meta);
 }
 
 void
-AtomicDict_WriteNodeAt(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
+write_node_at(uint64_t ix, AtomicDictNode *node, AtomicDictMeta *meta)
 {
     assert(ix < (1ull << meta->log_size));
-    AtomicDict_ComputeRawNode(node, meta);
+    compute_raw_node(node, meta);
     assert(atomic_dict_entry_ix_sanity_check(node->index, meta));
-    AtomicDict_WriteRawNodeAt(ix, node->node, meta);
+    write_raw_node_at(ix, node->node, meta);
 }
 
 void
-AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDictMeta *meta)
+write_raw_node_at(uint64_t ix, uint64_t raw_node, AtomicDictMeta *meta)
 {
     assert(ix < (1ull << meta->log_size));
 #ifdef CEREGGII_DEBUG
     AtomicDictNode node;
-    AtomicDict_ParseNodeFromRaw(raw_node, &node, meta);
+    parse_node_from_raw(raw_node, &node, meta);
     assert(atomic_dict_entry_ix_sanity_check(node.index, meta));
 #endif
 
@@ -115,10 +115,10 @@ AtomicDict_WriteRawNodeAt(uint64_t ix, uint64_t raw_node, AtomicDictMeta *meta)
 }
 
 int
-AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDictNode *expected, AtomicDictNode *desired, AtomicDictMeta *meta)
+atomic_write_node_at(uint64_t ix, AtomicDictNode *expected, AtomicDictNode *desired, AtomicDictMeta *meta)
 {
-    AtomicDict_ComputeRawNode(expected, meta);
-    AtomicDict_ComputeRawNode(desired, meta);
+    compute_raw_node(expected, meta);
+    compute_raw_node(desired, meta);
     assert(atomic_dict_entry_ix_sanity_check(expected->index, meta));
     assert(atomic_dict_entry_ix_sanity_check(desired->index, meta));
 
@@ -127,11 +127,11 @@ AtomicDict_AtomicWriteNodeAt(uint64_t ix, AtomicDictNode *expected, AtomicDictNo
 }
 
 void
-AtomicDict_PrintNodeAt(const uint64_t ix, AtomicDictMeta *meta)
+print_node_at(const uint64_t ix, AtomicDictMeta *meta)
 {
     AtomicDictNode node;
-    AtomicDict_ReadNodeAt(ix, &node, meta);
-    if (AtomicDict_IsTombstone(&node)) {
+    read_node_at(ix, &node, meta);
+    if (is_tombstone(&node)) {
         printf("<node at %" PRIu64 ": %" PRIu64 " (tombstone) seen by thread=%" PRIuPTR ">\n", ix, node.node, _Py_ThreadId());
         return;
     }

@@ -17,8 +17,8 @@ AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
                                int *done, int *expectation)
 {
     AtomicDictEntry *entry_p, entry;
-    entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-    AtomicDict_ReadEntry(entry_p, &entry);
+    entry_p = get_entry_at(entry_ix, meta);
+    read_entry(entry_p, &entry);
 
     if (entry.value == NULL || hash != entry.hash)
         return 0;
@@ -62,7 +62,7 @@ AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
                                                         memory_order_acq_rel, memory_order_acquire);
 
         if (!*done) {
-            AtomicDict_ReadEntry(entry_p, &entry);
+            read_entry(entry_p, &entry);
         }
     } while (!*done);
 
@@ -73,7 +73,7 @@ AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
 
 
 PyObject *
-AtomicDict_ExpectedInsertOrUpdate(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
+expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                                   PyObject *expected, PyObject *desired,
                                   AtomicDictEntryLoc *entry_loc, int *must_grow,
                                   int skip_entry_check)
@@ -96,7 +96,7 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDictMeta *meta, PyObject *key, Py_hash_t
     int done, expectation;
     *must_grow = 0;
 
-    uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
+    uint64_t distance_0 = distance0_of(hash, meta);
     AtomicDictNode node;
 
     done = 0;
@@ -107,9 +107,9 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDictMeta *meta, PyObject *key, Py_hash_t
 
     while (!done) {
         uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
-        AtomicDict_ReadNodeAt(ix, &node, meta);
+        read_node_at(ix, &node, meta);
 
-        if (AtomicDict_IsEmpty(&node)) {
+        if (is_empty(&node)) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -120,11 +120,11 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDictMeta *meta, PyObject *key, Py_hash_t
             to_insert.tag = hash;
             assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
-            done = AtomicDict_AtomicWriteNodeAt(ix, &node, &to_insert, meta);
+            done = atomic_write_node_at(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (AtomicDict_IsTombstone(&node)) {
+        } else if (is_tombstone(&node)) {
             // pass
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
@@ -218,17 +218,17 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto fail;
 
     AtomicDictAccessorStorage *storage = NULL;
-    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
 
     beginning:
-    meta = AtomicDict_GetMeta(self, storage);
+    meta = get_meta(self, storage);
     if (meta == NULL)
         goto fail;
 
     PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
-    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
+    int migrated = maybe_help_migrate(meta, &storage->self_mutex);
     if (migrated) {
         // self_mutex was unlocked during the operation
         goto beginning;
@@ -239,7 +239,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         .location = 0,
     };
     if (expected == NOT_FOUND || expected == ANY) {
-        int got_entry = AtomicDict_GetEmptyEntry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
+        int got_entry = get_empty_entry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
         if (entry_loc.entry == NULL || got_entry == -1) {
             PyMutex_Unlock(&storage->self_mutex);
             goto fail;
@@ -247,7 +247,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
         if (got_entry == 0) {  // => must grow
             PyMutex_Unlock(&storage->self_mutex);
-            migrated = AtomicDict_Grow(self);
+            migrated = grow(self);
 
             if (migrated < 0)
                 goto fail;
@@ -268,7 +268,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     }
 
     int must_grow;
-    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
+    PyObject *result = expected_insert_or_update(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
     if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
         // keep entry_loc.entry->flags reserved, or set to 0
@@ -277,21 +277,21 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
-        AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
+        reservation_buffer_put(&storage->reservation_buffer, &entry_loc, 1, meta);
         Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
     if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
-        atomic_dict_accessor_len_inc(self, storage, 1);
-        atomic_dict_accessor_inserted_inc(self, storage, 1);
+        accessor_len_inc(self, storage, 1);
+        accessor_inserted_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || atomic_dict_approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
-        migrated = AtomicDict_Grow(self);
+    if (must_grow || approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
+        migrated = grow(self);
 
         if (migrated < 0)
             goto fail;

@@ -68,13 +68,13 @@ AtomicDictMeta_New(uint8_t log_size)
 }
 
 void
-AtomicDictMeta_ClearIndex(AtomicDictMeta *meta)
+meta_clear_index(AtomicDictMeta *meta)
 {
     memset(meta->index, 0, sizeof(uint64_t) * SIZE_OF(meta));
 }
 
 int
-AtomicDictMeta_InitPages(AtomicDictMeta *meta)
+meta_init_pages(AtomicDictMeta *meta)
 {
     AtomicDict_Page **pages = NULL;
     // here we're abusing virtual memory:
@@ -95,7 +95,7 @@ AtomicDictMeta_InitPages(AtomicDictMeta *meta)
 }
 
 int
-AtomicDictMeta_CopyPages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
+meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
 {
     assert(from_meta != NULL);
     assert(to_meta != NULL);

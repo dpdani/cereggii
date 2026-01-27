@@ -177,8 +177,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     meta = AtomicDictMeta_New(log_size);
     if (meta == NULL)
         goto fail;
-    AtomicDictMeta_ClearIndex(meta);
-    if (AtomicDictMeta_InitPages(meta) < 0)
+    meta_clear_index(meta);
+    if (meta_init_pages(meta) < 0)
         goto fail;
 
     AtomicDict_Page *page;
@@ -228,7 +228,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 goto fail;
 
             self->len++; // we want to avoid pos = 0
-            AtomicDictEntry *entry = AtomicDict_GetEntryAt(self->len, meta);
+            AtomicDictEntry *entry = get_entry_at(self->len, meta);
             _Py_SetWeakrefAndIncref(key);
             _Py_SetWeakrefAndIncref(value);
             entry->flags = ENTRY_FLAGS_RESERVED;
@@ -236,7 +236,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
             assert(key != NULL);
             entry->key = key;
             entry->value = value;
-            int inserted = AtomicDict_UnsafeInsert(meta, hash, self->len);
+            int inserted = unsafe_insert(meta, hash, self->len);
             if (inserted == -1) {
                 Py_DECREF(meta);
                 log_size++;
@@ -249,21 +249,21 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         meta->inserting_page = self->len >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
 
         if (self->len > 0) {
-            storage = AtomicDict_GetOrCreateAccessorStorage(self);
+            storage = get_or_create_accessor_storage(self);
             if (storage == NULL)
                 goto fail;
 
             // handle possibly misaligned reservations on last page
             // => put them into this thread's reservation buffer
             assert(meta->greatest_allocated_page >= 0);
-            if (AtomicDict_PageOf(self->len + 1) <= (uint64_t) meta->greatest_allocated_page) {
-                entry_loc.entry = AtomicDict_GetEntryAt(self->len + 1, meta);
+            if (page_of(self->len + 1) <= (uint64_t) meta->greatest_allocated_page) {
+                entry_loc.entry = get_entry_at(self->len + 1, meta);
                 entry_loc.location = self->len + 1;
 
                 uint8_t n =
                     self->reservation_buffer_size - (uint8_t) (entry_loc.location % self->reservation_buffer_size);
                 assert(n <= ATOMIC_DICT_ENTRIES_IN_PAGE);
-                while (AtomicDict_PageOf(self->len + n) > (uint64_t) meta->greatest_allocated_page) {
+                while (page_of(self->len + n) > (uint64_t) meta->greatest_allocated_page) {
                     n--;
 
                     if (n == 0)
@@ -271,22 +271,22 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
 
                 if (n > 0) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, n, meta);
+                    reservation_buffer_put(&storage->reservation_buffer, &entry_loc, n, meta);
                 }
             }
         }
     }
 
-    if (!(AtomicDict_GetEntryAt(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
-        storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    if (!(get_entry_at(0, meta)->flags & ENTRY_FLAGS_RESERVED)) {
+        storage = get_or_create_accessor_storage(self);
         if (storage == NULL)
             goto fail;
 
         // mark entry 0 as reserved and put the remaining entries
         // into this thread's reservation buffer
-        AtomicDict_GetEntryAt(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
+        get_entry_at(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
         for (i = 1; i < self->reservation_buffer_size; ++i) {
-            entry_loc.entry = AtomicDict_GetEntryAt(i, meta);
+            entry_loc.entry = get_entry_at(i, meta);
             entry_loc.location = i;
             if (entry_loc.entry->key == NULL) {
                 int found = 0;
@@ -297,7 +297,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                     }
                 }
                 if (!found) {
-                    AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
+                    reservation_buffer_put(&storage->reservation_buffer, &entry_loc, 1, meta);
                 }
             }
         }
@@ -337,7 +337,7 @@ AtomicDict_clear(AtomicDict *self)
     if (self->accessors != NULL) {
         AtomicDictAccessorStorage *storage = self->accessors;
         self->accessors = NULL;
-        AtomicDict_FreeAccessorStorageList(storage);
+        free_accessor_storage_list(storage);
     }
     // this should be enough to deallocate the reservation buffers themselves as well:
     // the list should be the only reference to them
@@ -370,7 +370,7 @@ AtomicDict_dealloc(AtomicDict *self)
  * calls to this function don't try to insert the same key into the same AtomicDict.
  **/
 int
-AtomicDict_UnsafeInsert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
+unsafe_insert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
 {
     // pos === node_index
     AtomicDictNode temp;
@@ -378,13 +378,13 @@ AtomicDict_UnsafeInsert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
         .index = pos,
         .tag = hash,
     };
-    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
+    const uint64_t d0 = distance0_of(hash, meta);
 
     for (uint64_t distance = 0; distance < (uint64_t) SIZE_OF(meta); distance++) {
-        AtomicDict_ReadNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
+        read_node_at((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
 
         if (temp.node == 0) {
-            AtomicDict_WriteNodeAt((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
+            write_node_at((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
             goto done;
         }
     }
@@ -393,30 +393,6 @@ AtomicDict_UnsafeInsert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
     return -1;
     done:
     return 0;
-}
-
-int
-AtomicDict_CountKeysInPage(int64_t page_ix, AtomicDictMeta *meta)
-{
-    int found = 0;
-
-    AtomicDictEntry *entry_p, entry;
-    AtomicDictSearchResult sr;
-
-    for (int64_t i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
-        uint64_t entry_ix = page_ix * ATOMIC_DICT_ENTRIES_IN_PAGE + i;
-        entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-        AtomicDict_ReadEntry(entry_p, &entry);
-
-        if (entry.value != NULL) {
-            AtomicDict_LookupEntry(meta, entry_ix, entry.hash, &sr);
-            if (sr.found) {
-                found++;
-            }
-        }
-    }
-
-    return found;
 }
 
 PyObject *
@@ -447,14 +423,14 @@ sum_of_accessors_len(AtomicDict *self)
 }
 
 int64_t
-atomic_dict_approx_len(AtomicDict *self)
+approx_len(AtomicDict *self)
 {
     int64_t len = self->len;
     return len + sum_of_accessors_len(self);
 }
 
 int64_t
-atomic_dict_approx_inserted(AtomicDict *self)
+approx_inserted(AtomicDict *self)
 {
     int64_t inserted = 0;
     AtomicDictAccessorStorage *storage;
@@ -538,9 +514,9 @@ Py_ssize_t
 AtomicDict_Len(AtomicDict *self)
 {
     Py_ssize_t len;
-    AtomicDict_BeginSynchronousOperation(self);
+    begin_synchronous_operation(self);
     len = AtomicDict_Len_impl(self);
-    AtomicDict_EndSynchronousOperation(self);
+    end_synchronous_operation(self);
 
     return len;
 }
@@ -571,7 +547,7 @@ AtomicDict_Debug(AtomicDict *self)
 
     AtomicDictNode node;
     for (uint64_t i = 0; i < (uint64_t) SIZE_OF(meta); i++) {
-        AtomicDict_ReadNodeAt(i, &node, meta);
+        read_node_at(i, &node, meta);
         PyObject *n = Py_BuildValue("K", node.node);
         if (n == NULL)
             goto fail;

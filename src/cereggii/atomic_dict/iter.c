@@ -87,13 +87,13 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
     }
 
     while (entry.value == NULL) {
-        if (AtomicDict_PageOf(self->position) > (uint64_t) gap) {
+        if (page_of(self->position) > (uint64_t) gap) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }
 
-        entry_p = AtomicDict_GetEntryAt(self->position, self->meta);
-        AtomicDict_ReadEntry(entry_p, &entry);
+        entry_p = get_entry_at(self->position, self->meta);
+        read_entry(entry_p, &entry);
 
         // it doesn't seem to be worth it
 //        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0
