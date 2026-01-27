@@ -21,13 +21,13 @@ typedef struct AtomicDict {
 
     PyMutex sync_op;
 
-    Py_ssize_t len;
     uint8_t len_dirty;
+    Py_ssize_t len;
 
-    Py_tss_t *accessor_key;
-    PyMutex accessors_lock;
-    int32_t accessors_len;
     struct AtomicDictAccessorStorage *accessors;
+    Py_tss_t *accessor_key;
+    int32_t accessors_len;
+    PyMutex accessors_lock;
 } AtomicDict;
 
 extern PyTypeObject AtomicDict_Type;

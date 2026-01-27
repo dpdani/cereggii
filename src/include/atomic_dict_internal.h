@@ -64,7 +64,6 @@ typedef struct AtomicDict_PaddedEntry {
 typedef struct AtomicDictPage {
     PyObject_HEAD
 
-    void *generation;
     // PyObject *iteration;
 
     AtomicDict_PaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_PAGE];
@@ -126,7 +125,7 @@ int meta_init_pages(AtomicDictMeta *meta);
 
 int meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta);
 
-AtomicDict_Page *AtomicDictPage_New(AtomicDictMeta *meta);
+AtomicDict_Page *AtomicDictPage_New(void);
 
 uint64_t page_of(uint64_t entry_ix);
 
@@ -166,18 +165,17 @@ void print_node_at(uint64_t ix, AtomicDictMeta *meta);
 #define RESERVATION_BUFFER_SIZE 64
 
 typedef struct AtomicDictReservationBuffer {
-    int head, tail, count;
-    AtomicDictEntryLoc reservations[RESERVATION_BUFFER_SIZE];
+    uint64_t start;
+    uint8_t size, used;
 } AtomicDictReservationBuffer;
 
-void reservation_buffer_put(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, int n, AtomicDictMeta *meta);
+void reservation_buffer_put(AtomicDictReservationBuffer *rb, uint64_t location, uint8_t size, AtomicDictMeta *meta);
 
-void reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc);
+void reservation_buffer_put_back_one(AtomicDictReservationBuffer *rb);
 
-void update_pages_in_reservation_buffer(AtomicDictReservationBuffer *rb, uint64_t from_page, uint64_t to_page);
+void reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, AtomicDictMeta* meta);
 
-int get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
-                             AtomicDictEntryLoc *entry_loc, Py_hash_t hash);
+int get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, Py_hash_t hash);
 
 int atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta);
 
@@ -185,13 +183,13 @@ int atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta);
 /// accessor storage
 typedef struct AtomicDictAccessorStorage {
     struct AtomicDictAccessorStorage *next_accessor;
-    PyMutex self_mutex;
+    AtomicDictMeta *meta;
     int64_t local_len;
     int64_t local_inserted;
     int64_t local_tombstones;
     int32_t accessor_ix;
+    PyMutex self_mutex;
     AtomicDictReservationBuffer reservation_buffer;
-    AtomicDictMeta *meta;
 } AtomicDictAccessorStorage;
 
 #define FOR_EACH_ACCESSOR(atomic_dict, a) \

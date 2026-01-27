@@ -10,7 +10,7 @@
 
 
 AtomicDict_Page *
-AtomicDictPage_New(AtomicDictMeta *meta)
+AtomicDictPage_New(void)
 {
     AtomicDict_Page *new = NULL;
     new = PyObject_GC_New(AtomicDict_Page, &AtomicDictPage_Type);
@@ -18,7 +18,6 @@ AtomicDictPage_New(AtomicDictMeta *meta)
     if (new == NULL)
         return NULL;
 
-    new->generation = meta->generation;
     cereggii_tsan_ignore_writes_begin();
     memset(new->entries, 0, sizeof(AtomicDict_PaddedEntry) * ATOMIC_DICT_ENTRIES_IN_PAGE);
     cereggii_tsan_ignore_writes_end();
@@ -88,7 +87,7 @@ int
 get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
                          AtomicDictEntryLoc *entry_loc, Py_hash_t hash)
 {
-    reservation_buffer_pop(rb, entry_loc);
+    reservation_buffer_pop(rb, entry_loc, meta);
 
     if (entry_loc->entry == NULL) {
         Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1) & ~(self->reservation_buffer_size - 1);
@@ -108,8 +107,8 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
                         (inserting_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) +
                         ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE);
                     assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-                    reservation_buffer_put(rb, entry_loc, self->reservation_buffer_size, meta);
-                    reservation_buffer_pop(rb, entry_loc);
+                    reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
+                    reservation_buffer_pop(rb, entry_loc, meta);
                     goto done;
                 }
             }
@@ -131,7 +130,7 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
         assert((uint64_t) greatest_allocated_page + 1u <= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE);
 
         AtomicDict_Page *page = NULL;
-        page = AtomicDictPage_New(meta);
+        page = AtomicDictPage_New();
         if (page == NULL)
             goto fail;
 
@@ -155,8 +154,8 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
             entry_loc->entry = &(page->entries[0].entry);
             entry_loc->location = new_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
             assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-            reservation_buffer_put(rb, entry_loc, self->reservation_buffer_size, meta);
-            reservation_buffer_pop(rb, entry_loc);
+            reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
+            reservation_buffer_pop(rb, entry_loc, meta);
         } else {
             Py_DECREF(page);
             goto reserve_in_inserting_page;

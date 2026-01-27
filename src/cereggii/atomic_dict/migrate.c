@@ -131,10 +131,6 @@ leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 
     atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
 
-    for (int64_t page = 0; page <= new_meta->greatest_allocated_page; ++page) {
-        new_meta->pages[page]->generation = new_meta->generation;
-    }
-
     // 👀
     Py_INCREF(new_meta);
     atomic_store_explicit((_Atomic (AtomicDictMeta *) *) &current_meta->new_gen_metadata, new_meta, memory_order_release);

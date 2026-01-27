@@ -24,10 +24,9 @@ get_or_create_accessor_storage(AtomicDict *self)
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_len, 0, memory_order_release);
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, 0, memory_order_release);
         atomic_store_explicit((_Atomic(int64_t) *) &storage->local_tombstones, 0, memory_order_release);
-        storage->reservation_buffer.head = 0;
-        storage->reservation_buffer.tail = 0;
-        storage->reservation_buffer.count = 0;
-        memset(storage->reservation_buffer.reservations, 0, sizeof(AtomicDictEntryLoc) * RESERVATION_BUFFER_SIZE);
+        storage->reservation_buffer.start = 0;
+        storage->reservation_buffer.size = 0;
+        storage->reservation_buffer.used = 0;
         storage->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
 
         int set = PyThread_tss_set(self->accessor_key, storage);
@@ -133,68 +132,39 @@ end_synchronous_operation(AtomicDict *self)
  * caller must ensure no segfaults, et similia.
  * */
 void
-reservation_buffer_put(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, int n, AtomicDictMeta *meta)
+reservation_buffer_put(AtomicDictReservationBuffer *rb, uint64_t location, uint8_t size, AtomicDictMeta *meta)
 {
-    // use asserts to check for circular buffer correctness (don't return and check for error)
+    // use asserts to check for correctness (don't return and check for error)
 
-    assert(n > 0);
-    assert(n <= 64);
+    assert(size > 0);
+    assert(size <= 64);
+    assert(rb->size == rb->used);  // don't waste space
+    assert(atomic_dict_entry_ix_sanity_check(location, meta));
+    assert(atomic_dict_entry_ix_sanity_check(location + size - 1, meta));
 
-    for (int i = 0; i < n; ++i) {
-        if (entry_loc->location + i == 0) {
-            // entry 0 is reserved for correctness of tombstones
-            continue;
-        }
-        assert(rb->count < 64);
-        AtomicDictEntryLoc *head = &rb->reservations[rb->head];
-        head->entry = get_entry_at(entry_loc->location + i, meta);
-        head->location = entry_loc->location + i;
-        assert(atomic_dict_entry_ix_sanity_check(head->location, meta));
-        rb->head++;
-        if (rb->head == 64) {
-            rb->head = 0;
-        }
-        rb->count++;
-    }
-    assert(rb->count <= 64);
+    rb->start = location;
+    rb->size = size;
+    rb->used = 0;
 }
 
 void
-reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc)
+reservation_buffer_put_back_one(AtomicDictReservationBuffer *rb)
 {
-    if (rb->count == 0) {
+    assert(rb->used > 0);
+    rb->used--;
+}
+
+void
+reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, AtomicDictMeta *meta)
+{
+    if (rb->used == rb->size) {
         entry_loc->entry = NULL;
         return;
     }
 
-    AtomicDictEntryLoc *tail = &rb->reservations[rb->tail];
-    entry_loc->entry = tail->entry;
-    entry_loc->location = tail->location;
-    memset(&rb->reservations[rb->tail], 0, sizeof(AtomicDictEntryLoc));
-    rb->tail++;
-    if (rb->tail == 64) {
-        rb->tail = 0;
-    }
-    rb->count--;
-
-    assert(rb->count >= 0);
-}
-
-void
-update_pages_in_reservation_buffer(AtomicDictReservationBuffer *rb, uint64_t from_page, uint64_t to_page)
-{
-    for (int i = 0; i < rb->count; ++i) {
-        AtomicDictEntryLoc *entry = &rb->reservations[(rb->tail + i) % RESERVATION_BUFFER_SIZE];
-
-        if (entry == NULL)
-            continue;
-
-        if (page_of(entry->location) == from_page) {
-            entry->location =
-                position_in_page_of(entry->location) +
-                (to_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE);
-        }
-    }
+    entry_loc->location = rb->start + rb->used;
+    entry_loc->entry = get_entry_at(entry_loc->location, meta);
+    rb->used++;
 }
 
 void

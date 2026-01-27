@@ -277,7 +277,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
-        reservation_buffer_put(&storage->reservation_buffer, &entry_loc, 1, meta);
+        reservation_buffer_put_back_one(&storage->reservation_buffer);
         Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
