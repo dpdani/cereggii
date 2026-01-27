@@ -87,7 +87,7 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
     }
 
     while (entry.value == NULL) {
-        if (page_of(self->position) > gap) {
+        if (page_of(self->position) > (uint64_t) gap) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }
@@ -99,7 +99,7 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
 //        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0
 //            && AtomicDict_PageOf(self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2) <= self->meta->greatest_allocated_block)
 //        {
-//            for (int64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2; ++i) {
+//            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2; ++i) {
 //                cereggii_prefetch(AtomicDict_GetEntryAt(i, self->meta), 0, 1);
 //                // 0: the prefetch is for a read
 //                // 1: the prefetched address is unlikely to be read again soon

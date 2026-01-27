@@ -12,17 +12,17 @@
 
 
 AtomicDictMeta *
-AtomicDictMeta_New(int8_t log_size)
+AtomicDictMeta_New(uint8_t log_size)
 {
     void *generation = NULL;
-    AtomicDictNode *index = NULL;
+    uint64_t *index = NULL;
     AtomicDictMeta *meta = NULL;
 
     generation = PyMem_RawMalloc(1);
     if (generation == NULL)
         goto fail;
 
-    index = PyMem_RawMalloc(sizeof(AtomicDictNode) * (1ull << log_size));
+    index = PyMem_RawMalloc(sizeof(uint64_t) * (1ull << log_size));
     if (index == NULL)
         goto fail;
 
@@ -70,7 +70,7 @@ AtomicDictMeta_New(int8_t log_size)
 void
 meta_clear_index(AtomicDictMeta *meta)
 {
-    memset(meta->index, NODE_EMPTY.index, sizeof(int64_t) * SIZE_OF(meta));
+    memset(meta->index, 0, sizeof(uint64_t) * SIZE_OF(meta));
 }
 
 int
@@ -177,7 +177,7 @@ AtomicDictMeta_dealloc(AtomicDictMeta *self)
 
     AtomicDictMeta_clear(self);
 
-    AtomicDictNode *index = self->index;
+    uint64_t *index = self->index;
     if (index != NULL) {
         self->index = NULL;
         PyMem_RawFree(index);

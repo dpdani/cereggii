@@ -32,7 +32,12 @@ delete_(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash, AtomicDictSearchRes
         }
     }
 
-    int ok = atomic_write_node_at(result->position, result->node, NODE_TOMBSTONE, meta);
+    AtomicDictNode tombstone = {
+        .index = 0,
+        .tag = TOMBSTONE(meta),
+    };
+
+    int ok = atomic_write_node_at(result->position, &result->node, &tombstone, meta);
     assert(ok);
     cereggii_unused_in_release_build(ok);
 }

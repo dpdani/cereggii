@@ -16,13 +16,13 @@ typedef struct AtomicDict {
 
     AtomicRef *metadata;
 
-    int8_t min_log_size;
-    int8_t reservation_buffer_size;
+    uint8_t min_log_size;
+    uint8_t reservation_buffer_size;
 
     PyMutex sync_op;
 
     Py_ssize_t len;
-    int8_t len_dirty;
+    uint8_t len_dirty;
 
     Py_tss_t *accessor_key;
     PyMutex accessors_lock;

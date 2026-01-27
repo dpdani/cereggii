@@ -11,7 +11,7 @@
 
 
 int
-expected_update_entry(AtomicDictMeta *meta, int64_t entry_ix,
+AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
                                PyObject *key, Py_hash_t hash,
                                PyObject *expected, PyObject *desired, PyObject **current,
                                int *done, int *expectation)
@@ -96,20 +96,20 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
     int done, expectation;
     *must_grow = 0;
 
-    int64_t distance_0 = distance0_of(hash, meta);
+    uint64_t distance_0 = distance0_of(hash, meta);
     AtomicDictNode node;
 
     done = 0;
     expectation = 1;
-    int64_t distance = 0;
+    uint64_t distance = 0;
     PyObject *current = NULL;
     AtomicDictNode to_insert;
 
     while (!done) {
-        int64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
-        node = read_node_at(ix, meta);
+        uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
+        read_node_at(ix, &node, meta);
 
-        if (is_empty(node)) {
+        if (is_empty(&node)) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -117,16 +117,19 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
             assert(entry_loc != NULL);
 
             to_insert.index = entry_loc->location;
+            to_insert.tag = hash;
             assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
-            done = atomic_write_node_at(ix, node, to_insert, meta);
+            done = atomic_write_node_at(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (is_tombstone(node)) {
+        } else if (is_tombstone(&node)) {
+            // pass
+        } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
         } else if (!skip_entry_check) {
-            int updated = expected_update_entry(meta, node.index, key, hash, expected, desired,
+            int updated = AtomicDict_ExpectedUpdateEntry(meta, node.index, key, hash, expected, desired,
                                                          &current, &done, &expectation);
             if (updated < 0)
                 goto fail;
@@ -137,7 +140,7 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
 
         distance++;
 
-        if (distance >= (1ll << meta->log_size)) {
+        if (distance >= (1ull << meta->log_size)) {
             // traversed the entire dictionary without finding an empty slot
             *must_grow = 1;
             goto fail;
@@ -254,7 +257,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
         assert(entry_loc.location > 0);
         assert(entry_loc.entry != NULL);
-        assert(entry_loc.location < SIZE_OF(meta));
+        assert(entry_loc.location < (uint64_t) SIZE_OF(meta));
         assert(atomic_dict_entry_ix_sanity_check(entry_loc.location, meta));
         assert(key != NULL);
         assert(hash != -1);
@@ -269,8 +272,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
     if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
         // keep entry_loc.entry->flags reserved, or set to 0
-        int8_t flags = atomic_load_explicit((_Atomic (int8_t) *) &entry_loc.entry->flags, memory_order_acquire);
-        atomic_store_explicit((_Atomic (int8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
+        uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
+        atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);

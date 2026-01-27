@@ -375,15 +375,14 @@ def test_delete_concurrent():
 def test_grow():
     keys = keys_for_hash_for_log_size[6]
     d = AtomicDict({keys[0][0]: None, keys[1][0]: None, keys[0][1]: None, keys[1][1]: None})
-    empty = d._debug()["meta"]["empty"]
     assert d._debug()["meta"]["log_size"] == 6
-    assert len(list(filter(lambda _: _ != empty, Counter(d._debug()["index"]).keys()))) == len({0, 1, 64, 65})
+    assert len(list(filter(lambda _: _ != 0, Counter(d._debug()["index"]).keys()))) == len({0, 1, 64, 65})
     d[keys[0][2]] = None
     # assert d._debug()["meta"]["log_size"] == 7
     nodes = Counter(d._debug()["index"])
-    assert len(list(filter(lambda _: _ != empty, nodes))) == len({0, 1, 64, 65, 128})
+    assert len(list(filter(lambda _: _ != 0, nodes))) == len({0, 1, 64, 65, 128})
     for _ in nodes:
-        if _ != empty:
+        if _ != 0:
             assert nodes[_] == 1
     for _ in [keys[0][0], keys[1][0], keys[0][1], keys[1][1], keys[0][2]]:
         assert d[_] is None
