@@ -19,8 +19,8 @@ AtomicDict_ComputeRawNode(AtomicDict_Node *node, AtomicDict_Meta *meta)
 #ifdef CEREGGII_DEBUG
     assert(node->index < (1ull << meta->log_size));
     uint64_t index = node->index;
-    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
-    if (greatest_allocated_block >= 0) {
+    int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
+    if (greatest_allocated_page >= 0) {
         assert(atomic_dict_entry_ix_sanity_check(index, meta));
     }
 #endif

@@ -65,7 +65,7 @@ def test_debug():
     assert type(dbg) is dict
     assert "meta" in dbg
     assert "index" in dbg
-    assert "blocks" in dbg
+    assert "pages" in dbg
     del dbg
     gc_collect_until_stable()
     d._debug()
@@ -228,14 +228,14 @@ def test_delete():
     keys = keys_for_hash_for_log_size[6]  # noqa: F841
 
     # d = AtomicDict({keys[_][0]: None for _ in range(15)})
-    # assert d._debug()["blocks"][0]["entries"][14]  # exists
+    # assert d._debug()["pages"][0]["entries"][14]  # exists
     # del d[keys[14][0]]
     # with raises(KeyError):
     #     d[keys[14][0]]
     # debug = d._debug()
     # assert debug["index"][14] == debug["meta"]["tombstone"]
     # with raises(IndexError):
-    #     debug["blocks"][0]["entries"][14]
+    #     debug["pages"][0]["entries"][14]
 
     # d = AtomicDict({keys[_][0]: None for _ in range(16)})
     # del d[keys[14][0]]

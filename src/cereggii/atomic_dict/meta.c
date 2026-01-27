@@ -30,11 +30,11 @@ AtomicDictMeta_New(uint8_t log_size)
     if (meta == NULL)
         goto fail;
 
-    meta->blocks = NULL;
-    meta->greatest_allocated_block = -1;
-    meta->greatest_deleted_block = -1;
-    meta->greatest_refilled_block = -1;
-    meta->inserting_block = -1;
+    meta->pages = NULL;
+    meta->greatest_allocated_page = -1;
+    meta->greatest_deleted_page = -1;
+    meta->greatest_refilled_page = -1;
+    meta->inserting_page = -1;
 
     meta->log_size = log_size;
     meta->generation = generation;
@@ -76,21 +76,21 @@ AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta)
 }
 
 int
-AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
+AtomicDictMeta_InitPages(AtomicDict_Meta *meta)
 {
-    AtomicDict_Block **blocks = NULL;
+    AtomicDict_Page **pages = NULL;
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) * (SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
-    if (blocks == NULL)
+    pages = PyMem_RawMalloc(sizeof(AtomicDict_Page *) * (SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE));
+    if (pages == NULL)
         goto fail;
 
-    blocks[0] = NULL;
-    meta->blocks = blocks;
-    meta->inserting_block = -1;
-    meta->greatest_allocated_block = -1;
-    meta->greatest_deleted_block = -1;
-    meta->greatest_refilled_block = -1;
+    pages[0] = NULL;
+    meta->pages = pages;
+    meta->inserting_page = -1;
+    meta->greatest_allocated_page = -1;
+    meta->greatest_deleted_page = -1;
+    meta->greatest_refilled_page = -1;
 
     return 0;
 
@@ -99,44 +99,44 @@ AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta)
 }
 
 int
-AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 {
     assert(from_meta != NULL);
     assert(to_meta != NULL);
     assert(from_meta->log_size <= to_meta->log_size);
 
-    AtomicDict_Block **previous_blocks = from_meta->blocks;
-    int64_t inserting_block = from_meta->inserting_block;
-    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_block, memory_order_acquire);
-    int64_t greatest_deleted_block = from_meta->greatest_deleted_block;
-    int64_t greatest_refilled_block = from_meta->greatest_refilled_block;
+    AtomicDict_Page **previous_pages = from_meta->pages;
+    int64_t inserting_page = from_meta->inserting_page;
+    int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_page, memory_order_acquire);
+    int64_t greatest_deleted_page = from_meta->greatest_deleted_page;
+    int64_t greatest_refilled_page = from_meta->greatest_refilled_page;
 
 
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    AtomicDict_Block **blocks = PyMem_RawMalloc(sizeof(AtomicDict_Block *) *
-                                                (SIZE_OF(to_meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK));
-    if (blocks == NULL)
+    AtomicDict_Page **pages = PyMem_RawMalloc(sizeof(AtomicDict_Page *) *
+                                                (SIZE_OF(to_meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE));
+    if (pages == NULL)
         goto fail;
 
-    if (previous_blocks != NULL) {
-        for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
-            blocks[block_i] = previous_blocks[block_i];
+    if (previous_pages != NULL) {
+        for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
+            pages[page_i] = previous_pages[page_i];
         }
     }
 
-    if (previous_blocks == NULL) {
-        blocks[0] = NULL;
+    if (previous_pages == NULL) {
+        pages[0] = NULL;
     } else {
-        blocks[greatest_allocated_block + 1] = NULL;
+        pages[greatest_allocated_page + 1] = NULL;
     }
 
-    to_meta->blocks = blocks;
+    to_meta->pages = pages;
 
-    to_meta->inserting_block = inserting_block;
-    atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_block, greatest_allocated_block, memory_order_release);
-    to_meta->greatest_deleted_block = greatest_deleted_block;
-    to_meta->greatest_refilled_block = greatest_refilled_block;
+    to_meta->inserting_page = inserting_page;
+    atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_page, greatest_allocated_page, memory_order_release);
+    to_meta->greatest_deleted_page = greatest_deleted_page;
+    to_meta->greatest_refilled_page = greatest_refilled_page;
 
     return 1;
 
@@ -145,39 +145,39 @@ AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 }
 
 void
-AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
+AtomicDictMeta_ShrinkPages(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 {
-    to_meta->blocks[0] = from_meta->blocks[0];  // entry 0 must be kept
+    to_meta->pages[0] = from_meta->pages[0];  // entry 0 must be kept
 
-    int64_t block_j = 1;
-    for (int64_t block_i = 1; block_i <= from_meta->greatest_allocated_block; ++block_i) {
-        if (from_meta->greatest_refilled_block < block_i && block_i <= from_meta->greatest_deleted_block)
+    int64_t page_j = 1;
+    for (int64_t page_i = 1; page_i <= from_meta->greatest_allocated_page; ++page_i) {
+        if (from_meta->greatest_refilled_page < page_i && page_i <= from_meta->greatest_deleted_page)
             continue;
 
-        to_meta->blocks[block_j] = from_meta->blocks[block_i];
+        to_meta->pages[page_j] = from_meta->pages[page_i];
 
         AtomicDict_AccessorStorage *storage;
         FOR_EACH_ACCESSOR(self, storage) {
-            AtomicDict_UpdateBlocksInReservationBuffer(&storage->reservation_buffer, block_i, block_j);
+            AtomicDict_UpdatePagesInReservationBuffer(&storage->reservation_buffer, page_i, page_j);
         }
 
-        block_j++;
+        page_j++;
     }
-    block_j--;
+    page_j--;
 
-    to_meta->inserting_block = block_j;
-    to_meta->greatest_allocated_block = block_j;
+    to_meta->inserting_page = page_j;
+    to_meta->greatest_allocated_page = page_j;
 
-    if (from_meta->greatest_refilled_block > 0) {
-        to_meta->greatest_refilled_block = 0;
+    if (from_meta->greatest_refilled_page > 0) {
+        to_meta->greatest_refilled_page = 0;
     } else {
-        to_meta->greatest_refilled_block = -1;
+        to_meta->greatest_refilled_page = -1;
     }
 
-    if (from_meta->greatest_deleted_block > 0) {
-        to_meta->greatest_deleted_block = 0;
+    if (from_meta->greatest_deleted_page > 0) {
+        to_meta->greatest_deleted_page = 0;
     } else {
-        to_meta->greatest_deleted_block = -1;
+        to_meta->greatest_deleted_page = -1;
     }
 }
 
@@ -189,12 +189,12 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
     Py_VISIT(self->node_migration_done);
     Py_VISIT(self->migration_done);
 
-    if (self->blocks == NULL)
+    if (self->pages == NULL)
         return 0;
 
-    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_block, memory_order_acquire);
-    for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
-        Py_VISIT(self->blocks[block_i]);
+    int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
+    for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
+        Py_VISIT(self->pages[page_i]);
     }
     return 0;
 }
@@ -202,9 +202,9 @@ AtomicDictMeta_traverse(AtomicDict_Meta *self, visitproc visit, void *arg)
 int
 AtomicDictMeta_clear(AtomicDict_Meta *self)
 {
-    int64_t greatest_allocated_block = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_block, memory_order_acquire);
-    for (int64_t block_i = 0; block_i <= greatest_allocated_block; ++block_i) {
-        Py_CLEAR(self->blocks[block_i]);
+    int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
+    for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
+        Py_CLEAR(self->pages[page_i]);
     }
 
     Py_CLEAR(self->new_gen_metadata);
@@ -228,8 +228,8 @@ AtomicDictMeta_dealloc(AtomicDict_Meta *self)
         PyMem_RawFree(index);
     }
 
-    if (self->blocks != NULL) {
-        PyMem_RawFree(self->blocks);
+    if (self->pages != NULL) {
+        PyMem_RawFree(self->pages);
     }
 
     if (self->participants != NULL) {

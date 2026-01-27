@@ -51,9 +51,9 @@ typedef struct AtomicDict_Node {
 } AtomicDict_Node;
 
 
-/// blocks
-#define ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK 6
-#define ATOMIC_DICT_ENTRIES_IN_BLOCK (1 << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK)
+/// pages
+#define ATOMIC_DICT_LOG_ENTRIES_IN_PAGE 6
+#define ATOMIC_DICT_ENTRIES_IN_PAGE (1 << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE)
 
 CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
 typedef struct AtomicDict_PaddedEntry {
@@ -61,22 +61,22 @@ typedef struct AtomicDict_PaddedEntry {
     int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(AtomicDict_Entry)];
 } AtomicDict_PaddedEntry;
 
-typedef struct AtomicDict_Block {
+typedef struct AtomicDict_Page {
     PyObject_HEAD
 
     void *generation;
     // PyObject *iteration;
 
-    AtomicDict_PaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_BLOCK];
-} AtomicDict_Block;
+    AtomicDict_PaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_PAGE];
+} AtomicDict_Page;
 
-extern PyTypeObject AtomicDictBlock_Type;
+extern PyTypeObject AtomicDictPage_Type;
 
-int AtomicDictBlock_traverse(AtomicDict_Block *self, visitproc visit, void *arg);
+int AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg);
 
-int AtomicDictBlock_clear(AtomicDict_Block *self);
+int AtomicDictPage_clear(AtomicDict_Page *self);
 
-void AtomicDictBlock_dealloc(AtomicDict_Block *self);
+void AtomicDictPage_dealloc(AtomicDict_Page *self);
 
 
 /// meta
@@ -92,11 +92,11 @@ struct AtomicDict_Meta {
 
     uint64_t *index;
 
-    AtomicDict_Block **blocks;
-    int64_t inserting_block;
-    int64_t greatest_allocated_block;
-    int64_t greatest_deleted_block;
-    int64_t greatest_refilled_block;
+    AtomicDict_Page **pages;
+    int64_t inserting_page;
+    int64_t greatest_allocated_page;
+    int64_t greatest_deleted_page;
+    int64_t greatest_refilled_page;
 
     // migration
     AtomicDict_Meta *new_gen_metadata;
@@ -124,23 +124,23 @@ AtomicDict_Meta *AtomicDictMeta_New(uint8_t log_size);
 
 void AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta);
 
-int AtomicDictMeta_InitBlocks(AtomicDict_Meta *meta);
+int AtomicDictMeta_InitPages(AtomicDict_Meta *meta);
 
-int AtomicDictMeta_CopyBlocks(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
+int AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
-void AtomicDictMeta_ShrinkBlocks(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
+void AtomicDictMeta_ShrinkPages(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
-AtomicDict_Block *AtomicDictBlock_New(AtomicDict_Meta *meta);
+AtomicDict_Page *AtomicDictPage_New(AtomicDict_Meta *meta);
 
-uint64_t AtomicDict_BlockOf(uint64_t entry_ix);
+uint64_t AtomicDict_PageOf(uint64_t entry_ix);
 
-uint64_t AtomicDict_PositionInBlockOf(uint64_t entry_ix);
+uint64_t AtomicDict_PositionInPageOf(uint64_t entry_ix);
 
 AtomicDict_Entry *AtomicDict_GetEntryAt(uint64_t ix, AtomicDict_Meta *meta);
 
 void AtomicDict_ReadEntry(AtomicDict_Entry *entry_p, AtomicDict_Entry *entry);
 
-int AtomicDict_CountKeysInBlock(int64_t block_ix, AtomicDict_Meta *meta);
+int AtomicDict_CountKeysInPage(int64_t page_ix, AtomicDict_Meta *meta);
 
 
 /// operations on nodes (see ./node_ops.c)
@@ -181,7 +181,7 @@ void AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDic
 void AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc);
 
 void
-AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_block, uint64_t to_block);
+AtomicDict_UpdatePagesInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_page, uint64_t to_page);
 
 int AtomicDict_GetEmptyEntry(AtomicDict *self, AtomicDict_Meta *meta, AtomicDict_ReservationBuffer *rb,
                              AtomicDict_EntryLoc *entry_loc, Py_hash_t hash);

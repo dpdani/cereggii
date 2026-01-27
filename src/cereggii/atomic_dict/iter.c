@@ -45,7 +45,7 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     iter->dict = self;
-    iter->position = this_partition * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+    iter->position = this_partition * ATOMIC_DICT_ENTRIES_IN_PAGE;
     iter->partitions = partitions;
 
     return (PyObject *) iter;
@@ -80,14 +80,14 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
     };
 
     AtomicDict_Meta *meta = self->meta;
-    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_block, memory_order_acquire);
+    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
     if (gab < 0) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
 
     while (entry.value == NULL) {
-        if (AtomicDict_BlockOf(self->position) > (uint64_t) gab) {
+        if (AtomicDict_PageOf(self->position) > (uint64_t) gab) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }
@@ -96,19 +96,19 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
         AtomicDict_ReadEntry(entry_p, &entry);
 
         // it doesn't seem to be worth it
-//        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1)) == 0
-//            && AtomicDict_BlockOf(self->position + ATOMIC_DICT_ENTRIES_IN_BLOCK * 2) <= self->meta->greatest_allocated_block)
+//        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0
+//            && AtomicDict_PageOf(self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2) <= self->meta->greatest_allocated_block)
 //        {
-//            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_BLOCK * 2; ++i) {
+//            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2; ++i) {
 //                cereggii_prefetch(AtomicDict_GetEntryAt(i, self->meta), 0, 1);
 //                // 0: the prefetch is for a read
 //                // 1: the prefetched address is unlikely to be read again soon
 //            }
 //        }
 
-        if (((self->position + 1) & (ATOMIC_DICT_ENTRIES_IN_BLOCK - 1)) == 0) {
-            self->position = (self->position & ~(ATOMIC_DICT_ENTRIES_IN_BLOCK - 1))
-                + self->partitions * ATOMIC_DICT_ENTRIES_IN_BLOCK;
+        if (((self->position + 1) & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0) {
+            self->position = (self->position & ~(ATOMIC_DICT_ENTRIES_IN_PAGE - 1))
+                + self->partitions * ATOMIC_DICT_ENTRIES_IN_PAGE;
         }
         else {
             self->position++;

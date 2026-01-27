@@ -181,7 +181,7 @@ AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_Ent
 }
 
 void
-AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_block, uint64_t to_block)
+AtomicDict_UpdatePagesInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_page, uint64_t to_page)
 {
     for (int i = 0; i < rb->count; ++i) {
         AtomicDict_EntryLoc *entry = &rb->reservations[(rb->tail + i) % RESERVATION_BUFFER_SIZE];
@@ -189,10 +189,10 @@ AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uin
         if (entry == NULL)
             continue;
 
-        if (AtomicDict_BlockOf(entry->location) == from_block) {
+        if (AtomicDict_PageOf(entry->location) == from_page) {
             entry->location =
-                AtomicDict_PositionInBlockOf(entry->location) +
-                (to_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
+                AtomicDict_PositionInPageOf(entry->location) +
+                (to_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE);
         }
     }
 }

@@ -108,7 +108,7 @@ include_directories("include/")
 Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/accessor_storage.c"
         "cereggii/atomic_dict/atomic_dict.c"
-        "cereggii/atomic_dict/blocks.c"
+        "cereggii/atomic_dict/pages.c"
         "cereggii/atomic_dict/delete.c"
         "cereggii/atomic_dict/insert.c"
         "cereggii/atomic_dict/iter.c"

@@ -93,25 +93,25 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
         goto beginning;
     }
 
-    // blocks
+    // pages
     AtomicDict_BeginSynchronousOperation(self);
     holding_sync_lock = 1;
     if (from_log_size < to_log_size) {
-        int ok = AtomicDictMeta_CopyBlocks(current_meta, new_meta);
+        int ok = AtomicDictMeta_CopyPages(current_meta, new_meta);
 
         if (ok < 0)
             goto fail;
     } else {
-        int ok = AtomicDictMeta_InitBlocks(new_meta);
+        int ok = AtomicDictMeta_InitPages(new_meta);
 
         if (ok < 0)
             goto fail;
 
-        AtomicDictMeta_ShrinkBlocks(self, current_meta, new_meta);
+        AtomicDictMeta_ShrinkPages(self, current_meta, new_meta);
     }
 
-    for (int64_t block_i = 0; block_i <= new_meta->greatest_allocated_block; ++block_i) {
-        Py_INCREF(new_meta->blocks[block_i]);
+    for (int64_t page_i = 0; page_i <= new_meta->greatest_allocated_page; ++page_i) {
+        Py_INCREF(new_meta->pages[page_i]);
     }
 
 
@@ -145,8 +145,8 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     if (from_log_size < to_log_size) {
         atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
 
-        for (int64_t block = 0; block <= new_meta->greatest_allocated_block; ++block) {
-            new_meta->blocks[block]->generation = new_meta->generation;
+        for (int64_t page = 0; page <= new_meta->greatest_allocated_page; ++page) {
+            new_meta->pages[page]->generation = new_meta->generation;
         }
     } else {
         AtomicDictMeta_ClearIndex(new_meta);
@@ -255,22 +255,22 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
 
     int64_t copy_lock;
 
-    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
-        uint64_t lock = (copy_lock + thread_id) % (new_meta->greatest_allocated_block + 1);
+    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_page; ++copy_lock) {
+        uint64_t lock = (copy_lock + thread_id) % (new_meta->greatest_allocated_page + 1);
 
         void *expected = current_meta->generation;
-        int locked = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &new_meta->blocks[lock]->generation,
+        int locked = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &new_meta->pages[lock]->generation,
                     &expected, NULL, memory_order_acq_rel, memory_order_acquire);
         if (!locked)
             continue;
 
-        if ((uint64_t) new_meta->greatest_refilled_block < lock && lock <= (uint64_t) new_meta->greatest_deleted_block)
+        if ((uint64_t) new_meta->greatest_refilled_page < lock && lock <= (uint64_t) new_meta->greatest_deleted_page)
             goto mark_as_done;
 
         AtomicDict_EntryLoc entry_loc;
 
-        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_BLOCK; ++i) {
-            entry_loc.location = (lock << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK) + i;
+        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
+            entry_loc.location = (lock << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) + i;
             entry_loc.entry = AtomicDict_GetEntryAt(entry_loc.location, new_meta);
 
             if (entry_loc.entry->key == NULL || entry_loc.entry->value == NULL)
@@ -289,13 +289,13 @@ AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *ne
         }
 
         mark_as_done:
-        new_meta->blocks[lock]->generation = new_meta->generation; // mark as done
+        new_meta->pages[lock]->generation = new_meta->generation; // mark as done
     }
 
     int done = 1;
 
-    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_block; ++copy_lock) {
-        if (new_meta->blocks[copy_lock]->generation != new_meta->generation) {
+    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_page; ++copy_lock) {
+        if (new_meta->pages[copy_lock]->generation != new_meta->generation) {
             done = 0;
             break;
         }
