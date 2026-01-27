@@ -80,14 +80,14 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
     };
 
     AtomicDict_Meta *meta = self->meta;
-    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
-    if (gab < 0) {
+    int64_t gap = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
+    if (gap < 0) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
 
     while (entry.value == NULL) {
-        if (AtomicDict_PageOf(self->position) > (uint64_t) gab) {
+        if (AtomicDict_PageOf(self->position) > (uint64_t) gap) {
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
         }

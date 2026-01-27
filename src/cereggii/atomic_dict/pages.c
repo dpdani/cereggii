@@ -75,11 +75,11 @@ AtomicDictPage_dealloc(AtomicDict_Page *self)
 int
 atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDict_Meta *meta)
 {
-    int64_t gab = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
-    assert(gab >= 0);
-    assert(AtomicDict_PageOf(entry_ix) <= (uint64_t) gab);
+    int64_t gap = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
+    assert(gap >= 0);
+    assert(AtomicDict_PageOf(entry_ix) <= (uint64_t) gap);
     cereggii_unused_in_release_build(entry_ix);
-    cereggii_unused_in_release_build(gab);
+    cereggii_unused_in_release_build(gap);
     return 1;
 }
 

@@ -438,7 +438,7 @@ AtomicDict_LenBounds(AtomicDict *self)
 
     int64_t supposedly_full_pages = (gap - gdp + grp - 1);
 
-    // visit the gab
+    // visit the gap
     int64_t found = AtomicDict_CountKeysInPage(gap - 1, meta);
 
     if (gap - 1 != gdp) {
