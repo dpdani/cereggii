@@ -15,43 +15,41 @@ lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                   AtomicDictSearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    const uint64_t d0 = distance0_of(hash, meta);
-    uint64_t distance = 0;
+    const int64_t d0 = distance0_of(hash, meta);
+    int64_t distance = 0;
 
-    for (; distance < (1ull << meta->log_size); distance++) {
-        read_node_at(d0 + distance, &result->node, meta);
+    for (; distance < (1ll << meta->log_size); distance++) {
+        result->node = read_node_at(d0 + distance, meta);
 
-        if (is_empty(&result->node)) {
+        if (is_empty(result->node)) {
             goto not_found;
         }
 
-        if (is_tombstone(&result->node))
+        if (is_tombstone(result->node))
             continue;
 
-        if (result->node.tag == (hash & TAG_MASK(meta))) {
-            result->entry_p = get_entry_at(result->node.index, meta);
-            read_entry(result->entry_p, &result->entry);
+        result->entry_p = get_entry_at(result->node.index, meta);
+        read_entry(result->entry_p, &result->entry);
 
-            if (result->entry.value == NULL) {
-                continue;
-            }
-            if (result->entry.key == key) {
-                goto found;
-            }
-            if (result->entry.hash != hash) {
-                continue;
-            }
-
-            int cmp = PyObject_RichCompareBool(result->entry.key, key, Py_EQ);
-            if (cmp < 0) {
-                // exception thrown during compare
-                goto error;
-            }
-            if (cmp == 0) {
-                continue;
-            }
+        if (result->entry.value == NULL) {
+            continue;
+        }
+        if (result->entry.key == key) {
             goto found;
         }
+        if (result->entry.hash != hash) {
+            continue;
+        }
+
+        int cmp = PyObject_RichCompareBool(result->entry.key, key, Py_EQ);
+        if (cmp < 0) {
+            // exception thrown during compare
+            goto error;
+        }
+        if (cmp == 0) {
+            continue;
+        }
+        goto found;
     }
 
     // have looped over the entire index without finding the key => not found
@@ -71,18 +69,18 @@ lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
 }
 
 void
-lookup_entry(AtomicDictMeta *meta, uint64_t entry_ix, Py_hash_t hash,
-                       AtomicDictSearchResult *result)
+lookup_entry(AtomicDictMeta *meta, int64_t entry_ix, Py_hash_t hash,
+             AtomicDictSearchResult *result)
 {
     // index-only search
 
-    const uint64_t d0 = distance0_of(hash, meta);
-    uint64_t distance = 0;
+    const int64_t d0 = distance0_of(hash, meta);
+    int64_t distance = 0;
 
-    for (; distance < 1ull << meta->log_size; distance++) {
-        read_node_at(d0 + distance, &result->node, meta);
+    for (; distance < 1ll << meta->log_size; distance++) {
+        result->node = read_node_at(d0 + distance, meta);
 
-        if (is_empty(&result->node)) {
+        if (is_empty(result->node)) {
             goto not_found;
         }
         if (result->node.index == entry_ix) {
@@ -243,20 +241,18 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         hash = hashes[i % chunk_size];
         key = keys[i % chunk_size];
 
-        uint64_t d0 = distance0_of(hash, meta);
+        int64_t d0 = distance0_of(hash, meta);
         AtomicDictNode node;
 
-        read_node_at(d0, &node, meta);
+        node = read_node_at(d0, meta);
 
-        if (is_empty(&node))
+        if (is_empty(node))
             continue;
 
-        if (is_tombstone(&node))
+        if (is_tombstone(node))
             continue;
 
-        if (node.tag == (hash & TAG_MASK(meta))) {
-            cereggii_prefetch(get_entry_at(node.index, meta));
-        }
+        cereggii_prefetch(get_entry_at(node.index, meta));
     }
 
     for (Py_ssize_t i = chunk_start; i < chunk_end; ++i) {

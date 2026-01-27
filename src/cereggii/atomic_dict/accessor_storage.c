@@ -181,7 +181,7 @@ reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entr
 }
 
 void
-update_pages_in_reservation_buffer(AtomicDictReservationBuffer *rb, uint64_t from_page, uint64_t to_page)
+update_pages_in_reservation_buffer(AtomicDictReservationBuffer *rb, int64_t from_page, int64_t to_page)
 {
     for (int i = 0; i < rb->count; ++i) {
         AtomicDictEntryLoc *entry = &rb->reservations[(rb->tail + i) % RESERVATION_BUFFER_SIZE];
@@ -203,7 +203,7 @@ accessor_len_inc(AtomicDict *self, AtomicDictAccessorStorage *storage, const int
     const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
     const int64_t new = current + inc; // TODO: overflow
     atomic_store_explicit((_Atomic (int64_t) *) &storage->local_len, new, memory_order_release);
-    atomic_store_explicit((_Atomic (uint8_t) *) &self->len_dirty, 1, memory_order_release);
+    atomic_store_explicit((_Atomic (int8_t) *) &self->len_dirty, 1, memory_order_release);
 }
 
 void
