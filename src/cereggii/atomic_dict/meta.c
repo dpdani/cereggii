@@ -32,8 +32,6 @@ AtomicDictMeta_New(uint8_t log_size)
 
     meta->pages = NULL;
     meta->greatest_allocated_page = -1;
-    meta->greatest_deleted_page = -1;
-    meta->greatest_refilled_page = -1;
     meta->inserting_page = -1;
 
     meta->log_size = log_size;
@@ -89,8 +87,6 @@ AtomicDictMeta_InitPages(AtomicDict_Meta *meta)
     meta->pages = pages;
     meta->inserting_page = -1;
     meta->greatest_allocated_page = -1;
-    meta->greatest_deleted_page = -1;
-    meta->greatest_refilled_page = -1;
 
     return 0;
 
@@ -108,8 +104,6 @@ AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
     AtomicDict_Page **previous_pages = from_meta->pages;
     int64_t inserting_page = from_meta->inserting_page;
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_page, memory_order_acquire);
-    int64_t greatest_deleted_page = from_meta->greatest_deleted_page;
-    int64_t greatest_refilled_page = from_meta->greatest_refilled_page;
 
 
     // here we're abusing virtual memory:
@@ -135,50 +129,11 @@ AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
 
     to_meta->inserting_page = inserting_page;
     atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_page, greatest_allocated_page, memory_order_release);
-    to_meta->greatest_deleted_page = greatest_deleted_page;
-    to_meta->greatest_refilled_page = greatest_refilled_page;
 
     return 1;
 
     fail:
     return -1;
-}
-
-void
-AtomicDictMeta_ShrinkPages(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta)
-{
-    to_meta->pages[0] = from_meta->pages[0];  // entry 0 must be kept
-
-    int64_t page_j = 1;
-    for (int64_t page_i = 1; page_i <= from_meta->greatest_allocated_page; ++page_i) {
-        if (from_meta->greatest_refilled_page < page_i && page_i <= from_meta->greatest_deleted_page)
-            continue;
-
-        to_meta->pages[page_j] = from_meta->pages[page_i];
-
-        AtomicDict_AccessorStorage *storage;
-        FOR_EACH_ACCESSOR(self, storage) {
-            AtomicDict_UpdatePagesInReservationBuffer(&storage->reservation_buffer, page_i, page_j);
-        }
-
-        page_j++;
-    }
-    page_j--;
-
-    to_meta->inserting_page = page_j;
-    to_meta->greatest_allocated_page = page_j;
-
-    if (from_meta->greatest_refilled_page > 0) {
-        to_meta->greatest_refilled_page = 0;
-    } else {
-        to_meta->greatest_refilled_page = -1;
-    }
-
-    if (from_meta->greatest_deleted_page > 0) {
-        to_meta->greatest_deleted_page = 0;
-    } else {
-        to_meta->greatest_deleted_page = -1;
-    }
 }
 
 int

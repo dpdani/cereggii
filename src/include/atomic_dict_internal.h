@@ -95,8 +95,6 @@ struct AtomicDict_Meta {
     AtomicDict_Page **pages;
     int64_t inserting_page;
     int64_t greatest_allocated_page;
-    int64_t greatest_deleted_page;
-    int64_t greatest_refilled_page;
 
     // migration
     AtomicDict_Meta *new_gen_metadata;
@@ -127,8 +125,6 @@ void AtomicDictMeta_ClearIndex(AtomicDict_Meta *meta);
 int AtomicDictMeta_InitPages(AtomicDict_Meta *meta);
 
 int AtomicDictMeta_CopyPages(AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
-
-void AtomicDictMeta_ShrinkPages(AtomicDict *self, AtomicDict_Meta *from_meta, AtomicDict_Meta *to_meta);
 
 AtomicDict_Page *AtomicDictPage_New(AtomicDict_Meta *meta);
 
@@ -237,10 +233,9 @@ int AtomicDict_Grow(AtomicDict *self);
 
 int AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *meta, PyMutex *self_mutex);
 
-int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta, uint8_t from_log_size, uint8_t to_log_size);
+int AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta);
 
-int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta,
-                             uint8_t from_log_size, uint8_t to_log_size);
+int AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta);
 
 void AtomicDict_FollowerMigrate(AtomicDict_Meta *current_meta);
 

@@ -23,7 +23,7 @@ AtomicDict_Grow(AtomicDict *self)
 
     meta = AtomicDict_GetMeta(self, storage);
 
-    int migrate = AtomicDict_Migrate(self, meta, meta->log_size, meta->log_size + 1);
+    int migrate = AtomicDict_Migrate(self, meta);
     if (migrate < 0)
         goto fail;
 
@@ -47,19 +47,15 @@ AtomicDict_MaybeHelpMigrate(AtomicDict_Meta *current_meta, PyMutex *self_mutex)
 
 
 int
-AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed */, uint8_t from_log_size,
-                   uint8_t to_log_size)
+AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed */)
 {
-    assert(to_log_size <= from_log_size + 1);
-    assert(to_log_size >= from_log_size - 1);
-
     if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->migration_leader, memory_order_acquire) == 0) {
         uintptr_t expected = 0;
         int i_am_leader = atomic_compare_exchange_strong_explicit((_Atomic(uintptr_t) *)
             &current_meta->migration_leader,
             &expected, _Py_ThreadId(), memory_order_acq_rel, memory_order_acquire);
         if (i_am_leader) {
-            return AtomicDict_LeaderMigrate(self, current_meta, from_log_size, to_log_size);
+            return AtomicDict_LeaderMigrate(self, current_meta);
         }
     }
 
@@ -69,11 +65,11 @@ AtomicDict_Migrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed *
 }
 
 int
-AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed */, uint8_t from_log_size,
-                         uint8_t to_log_size)
+AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borrowed */)
 {
     int holding_sync_lock = 0;
     AtomicDict_Meta *new_meta;
+    uint8_t to_log_size = current_meta->log_size + 1;
 
     beginning:
     new_meta = NULL;
@@ -96,19 +92,10 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     // pages
     AtomicDict_BeginSynchronousOperation(self);
     holding_sync_lock = 1;
-    if (from_log_size < to_log_size) {
-        int ok = AtomicDictMeta_CopyPages(current_meta, new_meta);
+    int ok = AtomicDictMeta_CopyPages(current_meta, new_meta);
 
-        if (ok < 0)
-            goto fail;
-    } else {
-        int ok = AtomicDictMeta_InitPages(new_meta);
-
-        if (ok < 0)
-            goto fail;
-
-        AtomicDictMeta_ShrinkPages(self, current_meta, new_meta);
-    }
+    if (ok < 0)
+        goto fail;
 
     for (int64_t page_i = 0; page_i <= new_meta->greatest_allocated_page; ++page_i) {
         Py_INCREF(new_meta->pages[page_i]);
@@ -142,16 +129,10 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     }
 #endif
 
-    if (from_log_size < to_log_size) {
-        atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
+    atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
 
-        for (int64_t page = 0; page <= new_meta->greatest_allocated_page; ++page) {
-            new_meta->pages[page]->generation = new_meta->generation;
-        }
-    } else {
-        AtomicDictMeta_ClearIndex(new_meta);
-        AtomicDict_EndSynchronousOperation(self);
-        holding_sync_lock = 0;
+    for (int64_t page = 0; page <= new_meta->greatest_allocated_page; ++page) {
+        new_meta->pages[page]->generation = new_meta->generation;
     }
 
     // 👀
@@ -168,14 +149,12 @@ AtomicDict_LeaderMigrate(AtomicDict *self, AtomicDict_Meta *current_meta /* borr
     cereggii_unused_in_release_build(set);
 
 #ifdef CEREGGII_DEBUG
-    if (from_log_size < to_log_size) {
-        assert(holding_sync_lock);
-        int64_t inserted_after_migration = 0;
-        FOR_EACH_ACCESSOR(self, accessor) {
-            inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
-        }
-        assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
+    assert(holding_sync_lock);
+    int64_t inserted_after_migration = 0;
+    FOR_EACH_ACCESSOR(self, accessor) {
+        inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
     }
+    assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
 #endif
 
     AtomicEvent_Set(current_meta->migration_done);
@@ -246,62 +225,6 @@ AtomicDict_CommonMigrate(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_met
         AtomicEvent_Set(current_meta->node_migration_done);
     }
     AtomicEvent_Wait(current_meta->node_migration_done);
-}
-
-int
-AtomicDict_MigrateReInsertAll(AtomicDict_Meta *current_meta, AtomicDict_Meta *new_meta)
-{
-    uint64_t thread_id = _Py_ThreadId();
-
-    int64_t copy_lock;
-
-    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_page; ++copy_lock) {
-        uint64_t lock = (copy_lock + thread_id) % (new_meta->greatest_allocated_page + 1);
-
-        void *expected = current_meta->generation;
-        int locked = atomic_compare_exchange_strong_explicit((_Atomic(void *) *) &new_meta->pages[lock]->generation,
-                    &expected, NULL, memory_order_acq_rel, memory_order_acquire);
-        if (!locked)
-            continue;
-
-        if ((uint64_t) new_meta->greatest_refilled_page < lock && lock <= (uint64_t) new_meta->greatest_deleted_page)
-            goto mark_as_done;
-
-        AtomicDict_EntryLoc entry_loc;
-
-        for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
-            entry_loc.location = (lock << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) + i;
-            entry_loc.entry = AtomicDict_GetEntryAt(entry_loc.location, new_meta);
-
-            if (entry_loc.entry->key == NULL || entry_loc.entry->value == NULL)
-                continue;
-
-            int must_grow;
-            PyObject *result = AtomicDict_ExpectedInsertOrUpdate(new_meta,
-                                                                 entry_loc.entry->key, entry_loc.entry->hash,
-                                                                 NOT_FOUND, entry_loc.entry->value,
-                                                                 &entry_loc, &must_grow, 1);
-            assert(result != EXPECTATION_FAILED);
-            assert(!must_grow);
-            assert(result != NULL);
-            assert(result == NOT_FOUND);
-            cereggii_unused_in_release_build(result);
-        }
-
-        mark_as_done:
-        new_meta->pages[lock]->generation = new_meta->generation; // mark as done
-    }
-
-    int done = 1;
-
-    for (copy_lock = 0; copy_lock <= new_meta->greatest_allocated_page; ++copy_lock) {
-        if (new_meta->pages[copy_lock]->generation != new_meta->generation) {
-            done = 0;
-            break;
-        }
-    }
-
-    return done;
 }
 
 inline void

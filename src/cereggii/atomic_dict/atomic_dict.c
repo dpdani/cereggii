@@ -423,64 +423,12 @@ PyObject *
 AtomicDict_LenBounds(AtomicDict *self)
 {
     // deprecated in favor of AtomicDict_ApproxLen
-    AtomicDict_Meta *meta = NULL;
-    AtomicDict_AccessorStorage *storage = AtomicDict_GetOrCreateAccessorStorage(self);
-    if (storage == NULL)
+    PyObject *approx_len = AtomicDict_ApproxLen(self);
+    if (approx_len == NULL) {
         goto fail;
-
-    meta = AtomicDict_GetMeta(self, storage);
-    if (meta == NULL)
-        goto fail;
-
-    int64_t gap = meta->greatest_allocated_page + 1;
-    int64_t gdp = meta->greatest_deleted_page + 1;
-    int64_t grp = meta->greatest_refilled_page + 1;
-
-    int64_t supposedly_full_pages = (gap - gdp + grp - 1);
-
-    // visit the gap
-    int64_t found = AtomicDict_CountKeysInPage(gap - 1, meta);
-
-    if (gap - 1 != gdp) {
-        supposedly_full_pages--;
-
-        // visit the gdb
-        found += AtomicDict_CountKeysInPage(gdp, meta);
     }
 
-    if (grp != gap - 1 && grp != gdp) {
-        supposedly_full_pages--;
-
-        // visit the grp
-        found += AtomicDict_CountKeysInPage(grp, meta);
-    }
-    meta = NULL;
-
-    if (supposedly_full_pages < 0) {
-        supposedly_full_pages = 0;
-    }
-
-    int64_t upper = supposedly_full_pages * ATOMIC_DICT_ENTRIES_IN_PAGE;
-
-    Py_ssize_t threads_count = 0;
-    int64_t lower = 0;
-    AtomicDict_AccessorStorage *st;
-    FOR_EACH_ACCESSOR(self, st) {
-        threads_count++;
-
-        AtomicDict_ReservationBuffer *rb = &st->reservation_buffer;
-        if (rb == NULL)
-            goto fail;
-
-        lower += self->reservation_buffer_size - rb->count;
-    }
-    lower +=
-        supposedly_full_pages * ATOMIC_DICT_ENTRIES_IN_PAGE - threads_count * self->reservation_buffer_size;
-
-    if (upper < 0) upper = 0;
-    if (lower < 0) lower = 0;
-
-    return Py_BuildValue("(ll)", lower + found, upper + found);
+    return Py_BuildValue("(OO)", approx_len, approx_len);
 
     fail:
     return NULL;
@@ -609,13 +557,11 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *page_info = NULL;
 
     meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
-    metadata = Py_BuildValue("{sOsOsOsOsOsO}",
+    metadata = Py_BuildValue("{sOsOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
                              "inserting_page\0", Py_BuildValue("L", meta->inserting_page),
-                             "greatest_allocated_page\0", Py_BuildValue("L", meta->greatest_allocated_page),
-                             "greatest_deleted_page\0", Py_BuildValue("L", meta->greatest_deleted_page),
-                             "greatest_refilled_page\0", Py_BuildValue("L", meta->greatest_refilled_page));
+                             "greatest_allocated_page\0", Py_BuildValue("L", meta->greatest_allocated_page));
     if (metadata == NULL)
         goto fail;
 
