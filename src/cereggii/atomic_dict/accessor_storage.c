@@ -141,6 +141,7 @@ reservation_buffer_put(AtomicDictReservationBuffer *rb, uint64_t location, uint8
     assert(rb->size == rb->used);  // don't waste space
     assert(atomic_dict_entry_ix_sanity_check(location, meta));
     assert(atomic_dict_entry_ix_sanity_check(location + size - 1, meta));
+    cereggii_unused_in_release_build(meta);
 
     rb->start = location;
     rb->size = size;
