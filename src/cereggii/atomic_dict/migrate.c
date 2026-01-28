@@ -266,8 +266,6 @@ initialize_in_new_meta(AtomicDictMeta *new_meta, const uint64_t start, const uin
 int64_t
 to_migrate(AtomicDictMeta *current_meta, int64_t start_of_block, uint64_t end_of_block)
 {
-    uint64_t current_size = SIZE_OF(current_meta);
-    uint64_t current_size_mask = current_size - 1;
     uint64_t i = start_of_block;
     int64_t to_migrate = 0;
     AtomicDictNode node = {0};
@@ -293,7 +291,7 @@ to_migrate(AtomicDictMeta *current_meta, int64_t start_of_block, uint64_t end_of
     assert(i == end_of_block);
 
     do {
-        read_node_at(i & current_size_mask, &node, current_meta);
+        read_node_at(i, &node, current_meta);
         if (node.node != 0 && node.index != 0) {
             to_migrate++;
         }
@@ -359,7 +357,7 @@ AtomicDict_BlockWiseMigrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_me
 
     uint64_t j = end_of_block;
     while (1) {
-        read_node_at(j & current_size_mask, &node, current_meta);
+        read_node_at(j, &node, current_meta);
         if (is_empty(&node)) {
             break;
         }
@@ -368,7 +366,7 @@ AtomicDict_BlockWiseMigrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_me
     if (j > end_of_block) {
         initialize_in_new_meta(new_meta, end_of_block, j - 1);
         while (1) {
-            read_node_at(i & current_size_mask, &node, current_meta);
+            read_node_at(i, &node, current_meta);
             if (is_empty(&node)) {
                 break;
             }

@@ -367,7 +367,7 @@ unsafe_insert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
     const uint64_t d0 = distance0_of(hash, meta);
 
     for (uint64_t distance = 0; distance < (uint64_t) SIZE_OF(meta); distance++) {
-        read_node_at((d0 + distance) & (SIZE_OF(meta) - 1), &temp, meta);
+        read_node_at(d0 + distance, &temp, meta);
 
         if (temp.node == 0) {
             write_node_at((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
