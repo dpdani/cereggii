@@ -286,6 +286,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         reservation_buffer_put(&storage->reservation_buffer, 1, self->reservation_buffer_size - 1, meta);
     }
     assert(get_entry_at(0, meta)->flags & ENTRY_FLAGS_RESERVED);
+    // entry 0 must always be reserved: tombstones are pointers
+    // to entry 0, so it must always be empty.
 
     int success = AtomicRef_CompareAndSet(self->metadata, Py_True, (PyObject *) meta);
     if (!success) {
