@@ -205,6 +205,13 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
         meta->greatest_allocated_page++;
     }
+    if (meta->greatest_allocated_page == -1) {
+        page = AtomicDictPage_New();
+        if (page == NULL)
+            goto fail;
+        meta->pages[0] = page;
+        meta->greatest_allocated_page = 0;
+    }
 
     meta->inserting_page = 0;
     uint64_t location;
@@ -218,6 +225,8 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail;
 
     if (initial != NULL && PyDict_Size(initial) > 0) {
+        get_entry_at(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
+
         PyObject *key, *value;
         Py_hash_t hash;
         Py_ssize_t pos = 0;
@@ -276,6 +285,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         get_entry_at(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
         reservation_buffer_put(&storage->reservation_buffer, 1, self->reservation_buffer_size - 1, meta);
     }
+    assert(get_entry_at(0, meta)->flags & ENTRY_FLAGS_RESERVED);
 
     int success = AtomicRef_CompareAndSet(self->metadata, Py_True, (PyObject *) meta);
     if (!success) {
