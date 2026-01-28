@@ -6,6 +6,7 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "_internal_py_core.h"
 
 
 AtomicDictAccessorStorage *
@@ -191,4 +192,18 @@ accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDictAccessorStorage *
     const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_tombstones, memory_order_acquire);
     const int64_t new = current + inc; // TODO: overflow
     atomic_store_explicit((_Atomic (int64_t) *) &storage->local_tombstones, new, memory_order_release);
+}
+
+int
+accessor_storage_lock_or_migrate(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
+{
+    // returns whether a migration happened
+    if (!_PyMutex_TryLock(&storage->self_mutex)) {
+        if (maybe_help_migrate(meta, NULL)) {
+            // migrated
+            return 1;
+        }
+        PyMutex_Lock(&storage->self_mutex);
+    }
+    return maybe_help_migrate(meta, &storage->self_mutex);
 }

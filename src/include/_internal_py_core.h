@@ -215,4 +215,12 @@ _Py_SetWeakrefAndIncref(PyObject *obj)
 }
 
 
+static inline int
+_PyMutex_TryLock(PyMutex *m)
+{
+    uint8_t expected = _Py_UNLOCKED;
+    return _Py_atomic_compare_exchange_uint8(&m->_bits, &expected, _Py_LOCKED);
+}
+
+
 #endif // CEREGGII_PY_CORE_H

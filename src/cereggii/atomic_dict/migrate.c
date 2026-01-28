@@ -40,7 +40,9 @@ maybe_help_migrate(AtomicDictMeta *current_meta, PyMutex *self_mutex)
         return 0;
     }
 
-    PyMutex_Unlock(self_mutex);
+    if (self_mutex != NULL) {
+        PyMutex_Unlock(self_mutex);
+    }
     follower_migrate(current_meta);
     return 1;
 }

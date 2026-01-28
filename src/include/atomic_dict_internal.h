@@ -223,6 +223,8 @@ void accessor_inserted_inc(AtomicDict *self, AtomicDictAccessorStorage *storage,
 
 void accessor_tombstones_inc(AtomicDict *self, AtomicDictAccessorStorage *storage, int32_t inc);
 
+int accessor_storage_lock_or_migrate(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta);
+
 /// migrations
 int grow(AtomicDict *self);
 
