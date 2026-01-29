@@ -26,7 +26,7 @@ lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
         if (is_tombstone(&result->node))
             continue;
 
-        if (result->node.tag == (hash & TAG_MASK(meta))) {
+        if (check_tag(hash, result->node, meta)) {
             result->entry_p = get_entry_at(result->node.index, meta);
             read_entry(result->entry_p, &result->entry);
 
@@ -235,7 +235,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         if (is_tombstone(&node))
             continue;
 
-        if (node.tag == (hash & TAG_MASK(meta))) {
+        if (check_tag(hash, node, meta)) {
             cereggii_prefetch(get_entry_at(node.index, meta));
         }
     }

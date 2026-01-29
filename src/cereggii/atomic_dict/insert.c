@@ -112,7 +112,8 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
             assert(entry_loc != NULL);
 
             to_insert.index = entry_loc->location;
-            to_insert.tag = hash;
+            to_insert.tag = REHASH(hash);
+            to_insert.distance = distance;
             assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
             done = atomic_write_node_at(ix, &node, &to_insert, meta);
@@ -121,7 +122,7 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                 continue;  // don't increase distance
         } else if (is_tombstone(&node)) {
             // pass
-        } else if (node.tag != (hash & TAG_MASK(meta))) {
+        } else if (!check_tag(hash, node, meta)) {
             // pass
         } else if (!skip_entry_check) {
             int updated = expected_update_entry(meta, node.index, key, hash, expected, desired,

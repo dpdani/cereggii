@@ -25,22 +25,31 @@ compute_raw_node(AtomicDictNode *node, AtomicDictMeta *meta)
     }
 #endif
 
+    uint8_t distance;
+    if (node->distance > UINT8_MAX) {
+        distance = UINT8_MAX;
+    } else {
+        distance = (uint8_t) node->distance;
+    }
+
     node->node =
         (node->index << (NODE_SIZE - meta->log_size))
-        | (node->tag & TAG_MASK(meta));
+        | (node->tag & TAG_MASK(meta))
+        | distance;
 
 #ifdef CEREGGII_DEBUG
     AtomicDictNode check_node;
     parse_node_from_raw(node->node, &check_node, meta);
     assert(index == check_node.index);
+    assert(node->distance == check_node.distance || check_node.distance == UINT8_MAX);
 #endif
 }
 
-#define UPPER_SEED 12923598712359872066ull
-#define LOWER_SEED 7467732452331123588ull
-#define REHASH(x) (uint64_t) ( \
-    (uint64_t) cereggii_crc32_u64((uint64_t)(x), LOWER_SEED) \
-    | (((uint64_t) cereggii_crc32_u64((uint64_t)(x), UPPER_SEED)) << 32ull))
+int
+check_tag(Py_hash_t hash, AtomicDictNode node, AtomicDictMeta *meta)
+{
+    return (node.tag & TAG_MASK(meta)) == (REHASH(hash) & TAG_MASK(meta));
+}
 
 PyObject *
 AtomicDict_ReHash(AtomicDict *Py_UNUSED(self), PyObject *ob)
@@ -65,6 +74,7 @@ parse_node_from_raw(uint64_t node_raw, AtomicDictNode *node,
     node->node = node_raw;
     node->index = node_raw >> (NODE_SIZE - meta->log_size);
     node->tag = node_raw & TAG_MASK(meta);
+    node->distance = node_raw & DISTANCE_MASK;
 }
 
 uint64_t

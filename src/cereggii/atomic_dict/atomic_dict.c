@@ -359,7 +359,7 @@ unsafe_insert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
     AtomicDictNode temp;
     AtomicDictNode node = {
         .index = pos,
-        .tag = hash,
+        .tag = REHASH(hash),
     };
     const uint64_t d0 = distance0_of(hash, meta);
 
@@ -367,6 +367,7 @@ unsafe_insert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos)
         read_node_at(d0 + distance, &temp, meta);
 
         if (temp.node == 0) {
+            node.distance = distance;
             write_node_at((d0 + distance) & (SIZE_OF(meta) - 1), &node, meta);
             goto done;
         }

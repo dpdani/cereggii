@@ -36,18 +36,20 @@ typedef struct AtomicDictEntryLoc {
 /*
  * Node layout in memory
  *
- * +--------+--------+
- * | index  |  tag   |
- * +--------+--------+
+ * +--------+--------+----------+
+ * | index  |  tag   | distance |
+ * +--------+--------+----------+
  * */
 #define NODE_SIZE 64
-#define TAG_MASK(meta) ((1ULL << (NODE_SIZE - (meta)->log_size)) - 1)
+#define DISTANCE_MASK ((1ULL << 8) - 1)
+#define TAG_MASK(meta) (((1ULL << (NODE_SIZE - (meta)->log_size)) - 1) - DISTANCE_MASK)
 #define TOMBSTONE(meta) (TAG_MASK(meta))
 
 typedef struct AtomicDictNode {
     uint64_t node;
     uint64_t index;
     uint64_t tag;
+    uint64_t distance;
 } AtomicDictNode;
 
 
@@ -133,7 +135,15 @@ void read_entry(AtomicDictEntry *entry_p, AtomicDictEntry *entry);
 
 
 /// operations on nodes (see ./node_ops.c)
+#define UPPER_SEED 12923598712359872066ull
+#define LOWER_SEED 7467732452331123588ull
+#define REHASH(x) (uint64_t) ( \
+    (uint64_t) cereggii_crc32_u64((uint64_t)(x), LOWER_SEED) \
+    | (((uint64_t) cereggii_crc32_u64((uint64_t)(x), UPPER_SEED)) << 32ull))
+
 void compute_raw_node(AtomicDictNode *node, AtomicDictMeta *meta);
+
+int check_tag(Py_hash_t hash, AtomicDictNode node, AtomicDictMeta *meta);
 
 void parse_node_from_raw(uint64_t node_raw, AtomicDictNode *node,
                                  AtomicDictMeta *meta);
@@ -234,7 +244,9 @@ void follower_resize(AtomicDict* self, AtomicDictMeta *current_meta);
 
 void common_resize(AtomicDict* self, AtomicDictMeta *current_meta, AtomicDictMeta *new_meta);
 
-void migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, uint64_t trailing_cluster_start, uint64_t trailing_cluster_size);
+void migrate_node(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta* current_meta, AtomicDictMeta *new_meta, uint64_t trailing_cluster_start, uint64_t trailing_cluster_size);
+
+uint64_t migrate_node_d0(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta* current_meta, AtomicDictMeta *new_meta);
 
 int64_t migrate_nodes(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta);
 

@@ -35,6 +35,7 @@ delete_(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash, AtomicDictSearchRes
     AtomicDictNode tombstone = {
         .index = 0,
         .tag = TOMBSTONE(meta),
+        .distance = 0,
     };
 
     int ok = atomic_write_node_at(result->position, &result->node, &tombstone, meta);
