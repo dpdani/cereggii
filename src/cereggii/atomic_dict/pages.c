@@ -94,7 +94,7 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
         int64_t inserting_page;
 
         reserve_in_inserting_page:
-        inserting_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->inserting_page, memory_order_acquire);
+        inserting_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
         for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_PAGE; offset += self->reservation_buffer_size) {
             AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[inserting_page], memory_order_acquire);
             entry_loc->entry = &(page
@@ -114,15 +114,10 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
             }
         }
 
-        if (atomic_load_explicit((_Atomic (int64_t) *) &meta->inserting_page, memory_order_acquire) != inserting_page)
+        if (atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire) != inserting_page)
             goto reserve_in_inserting_page;
 
         int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
-        if (greatest_allocated_page > inserting_page) {
-            int64_t expected = inserting_page;
-            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_page, &expected, inserting_page + 1, memory_order_acq_rel, memory_order_acquire);
-            goto reserve_in_inserting_page; // even if the above CAS fails
-        }
         assert(greatest_allocated_page >= 0);
         if ((uint64_t) greatest_allocated_page + 1u >= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) {
             return 0; // must grow
@@ -148,8 +143,6 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
             assert(ok);
             cereggii_unused_in_release_build(ok);
             expected2 = greatest_allocated_page;
-            atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->inserting_page,
-                                                    &expected2, new_page, memory_order_acq_rel, memory_order_acquire);
             // this cas may fail because another thread helped increasing this counter
             entry_loc->entry = &(page->entries[0].entry);
             entry_loc->location = new_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;

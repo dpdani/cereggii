@@ -92,7 +92,6 @@ struct AtomicDictMeta {
     uint64_t *index;
 
     AtomicDict_Page **pages;
-    int64_t inserting_page;
     int64_t greatest_allocated_page;
 
     // migration

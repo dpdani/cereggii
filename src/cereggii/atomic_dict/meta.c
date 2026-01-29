@@ -32,7 +32,6 @@ AtomicDictMeta_New(uint8_t log_size)
 
     meta->pages = NULL;
     meta->greatest_allocated_page = -1;
-    meta->inserting_page = -1;
 
     meta->log_size = log_size;
     meta->generation = generation;
@@ -85,7 +84,6 @@ meta_init_pages(AtomicDictMeta *meta)
 
     pages[0] = NULL;
     meta->pages = pages;
-    meta->inserting_page = -1;
     meta->greatest_allocated_page = -1;
 
     return 0;
@@ -102,7 +100,6 @@ meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
     assert(from_meta->log_size <= to_meta->log_size);
 
     AtomicDict_Page **previous_pages = from_meta->pages;
-    int64_t inserting_page = from_meta->inserting_page;
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_page, memory_order_acquire);
 
 
@@ -127,7 +124,6 @@ meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
 
     to_meta->pages = pages;
 
-    to_meta->inserting_page = inserting_page;
     atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_page, greatest_allocated_page, memory_order_release);
 
     return 1;

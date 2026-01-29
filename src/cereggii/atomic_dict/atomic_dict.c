@@ -213,7 +213,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         meta->greatest_allocated_page = 0;
     }
 
-    meta->inserting_page = 0;
     uint64_t location;
     self->sync_op = (PyMutex) {0};
     self->accessors_lock = (PyMutex) {0};
@@ -256,8 +255,6 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         }
 
         Py_END_CRITICAL_SECTION();
-
-        meta->inserting_page = self->len >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
 
         if (self->len > 0) {
             // handle possibly misaligned reservations on last page
@@ -519,10 +516,9 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *page_info = NULL;
 
     meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
-    metadata = Py_BuildValue("{sOsOsOsO}",
+    metadata = Py_BuildValue("{sOsOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
                              "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
-                             "inserting_page\0", Py_BuildValue("L", meta->inserting_page),
                              "greatest_allocated_page\0", Py_BuildValue("L", meta->greatest_allocated_page));
     if (metadata == NULL)
         goto fail;
