@@ -19,7 +19,7 @@ AtomicDictPage_New(void)
         return NULL;
 
     cereggii_tsan_ignore_writes_begin();
-    memset(new->entries, 0, sizeof(AtomicDict_PaddedEntry) * ATOMIC_DICT_ENTRIES_IN_PAGE);
+    memset(new->entries, 0, sizeof(AtomicDictPaddedEntry) * ATOMIC_DICT_ENTRIES_IN_PAGE);
     cereggii_tsan_ignore_writes_end();
 
     PyObject_GC_Track(new);

@@ -56,17 +56,17 @@ typedef struct AtomicDictNode {
 #define ATOMIC_DICT_ENTRIES_IN_PAGE (1 << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE)
 
 CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
-typedef struct AtomicDict_PaddedEntry {
+typedef struct AtomicDictPaddedEntry {
     AtomicDictEntry entry;
     int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(AtomicDictEntry)];
-} AtomicDict_PaddedEntry;
+} AtomicDictPaddedEntry;
 
 typedef struct AtomicDictPage {
     PyObject_HEAD
 
     // PyObject *iteration;
 
-    AtomicDict_PaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_PAGE];
+    AtomicDictPaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_PAGE];
 } AtomicDictPage;
 
 extern PyTypeObject AtomicDictPage_Type;
@@ -257,11 +257,11 @@ struct AtomicDictFastIterator {
 
 extern PyTypeObject AtomicDictFastIterator_Type;
 
-void AtomicDictFastIterator_dealloc(AtomicDict_FastIterator *self);
+void AtomicDictFastIterator_dealloc(AtomicDictFastIterator *self);
 
-PyObject *AtomicDictFastIterator_Next(AtomicDict_FastIterator *self);
+PyObject *AtomicDictFastIterator_Next(AtomicDictFastIterator *self);
 
-PyObject *AtomicDictFastIterator_GetIter(AtomicDict_FastIterator *self);
+PyObject *AtomicDictFastIterator_GetIter(AtomicDictFastIterator *self);
 
 
 /// semi-internal

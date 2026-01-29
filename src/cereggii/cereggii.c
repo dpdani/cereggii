@@ -207,7 +207,7 @@ PyTypeObject AtomicDictPage_Type = {
 PyTypeObject AtomicDictFastIterator_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictFastIterator",
-    .tp_basicsize = sizeof(AtomicDict_FastIterator),
+    .tp_basicsize = sizeof(AtomicDictFastIterator),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,

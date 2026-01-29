@@ -33,7 +33,7 @@ typedef struct AtomicDict {
 extern PyTypeObject AtomicDict_Type;
 
 struct AtomicDictFastIterator;
-typedef struct AtomicDictFastIterator AtomicDict_FastIterator;
+typedef struct AtomicDictFastIterator AtomicDictFastIterator;
 
 
 PyObject *AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value);

@@ -32,10 +32,10 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto fail_parse;
     }
 
-    AtomicDict_FastIterator *iter = NULL;
+    AtomicDictFastIterator *iter = NULL;
     Py_INCREF(self);
 
-    iter = PyObject_New(AtomicDict_FastIterator, &AtomicDictFastIterator_Type);
+    iter = PyObject_New(AtomicDictFastIterator, &AtomicDictFastIterator_Type);
     if (iter == NULL)
         goto fail;
 
@@ -58,7 +58,7 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
 }
 
 void
-AtomicDictFastIterator_dealloc(AtomicDict_FastIterator *self)
+AtomicDictFastIterator_dealloc(AtomicDictFastIterator *self)
 {
     Py_CLEAR(self->dict);
     Py_CLEAR(self->meta);
@@ -66,14 +66,14 @@ AtomicDictFastIterator_dealloc(AtomicDict_FastIterator *self)
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
-PyObject *AtomicDictFastIterator_GetIter(AtomicDict_FastIterator *self)
+PyObject *AtomicDictFastIterator_GetIter(AtomicDictFastIterator *self)
 {
     Py_INCREF(self);
     return (PyObject *) self;
 }
 
 PyObject *
-AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
+AtomicDictFastIterator_Next(AtomicDictFastIterator *self)
 {
     AtomicDictEntry *entry_p, entry = {
         .value = NULL,
@@ -97,10 +97,10 @@ AtomicDictFastIterator_Next(AtomicDict_FastIterator *self)
 
         // it doesn't seem to be worth it
 //        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0
-//            && AtomicDict_PageOf(self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2) <= self->meta->greatest_allocated_block)
+//            && page_of(self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2) <= self->meta->greatest_allocated_block)
 //        {
 //            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2; ++i) {
-//                cereggii_prefetch(AtomicDict_GetEntryAt(i, self->meta), 0, 1);
+//                cereggii_prefetch(get_entry_at(i, self->meta), 0, 1);
 //                // 0: the prefetch is for a read
 //                // 1: the prefetched address is unlikely to be read again soon
 //            }

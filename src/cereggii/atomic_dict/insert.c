@@ -11,7 +11,7 @@
 
 
 int
-AtomicDict_ExpectedUpdateEntry(AtomicDictMeta *meta, uint64_t entry_ix,
+expected_update_entry(AtomicDictMeta *meta, uint64_t entry_ix,
                                PyObject *key, Py_hash_t hash,
                                PyObject *expected, PyObject *desired, PyObject **current,
                                int *done, int *expectation)
@@ -129,7 +129,7 @@ expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
         } else if (!skip_entry_check) {
-            int updated = AtomicDict_ExpectedUpdateEntry(meta, node.index, key, hash, expected, desired,
+            int updated = expected_update_entry(meta, node.index, key, hash, expected, desired,
                                                          &current, &done, &expectation);
             if (updated < 0)
                 goto fail;
@@ -182,27 +182,22 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         PyErr_SetString(PyExc_ValueError, "key == NULL");
         return NULL;
     }
-
     if (expected == NULL) {
         PyErr_SetString(PyExc_ValueError, "expected == NULL");
         return NULL;
     }
-
     if (desired == NULL) {
         PyErr_SetString(PyExc_ValueError, "desired == NULL");
         return NULL;
     }
-
     if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         return NULL;
     }
-
     if (expected == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "expected == EXPECTATION_FAILED");
         return NULL;
     }
-
     if (desired == NOT_FOUND || desired == ANY || desired == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "desired in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         return NULL;
