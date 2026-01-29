@@ -67,15 +67,15 @@ typedef struct AtomicDictPage {
     // PyObject *iteration;
 
     AtomicDict_PaddedEntry entries[ATOMIC_DICT_ENTRIES_IN_PAGE];
-} AtomicDict_Page;
+} AtomicDictPage;
 
 extern PyTypeObject AtomicDictPage_Type;
 
-int AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg);
+int AtomicDictPage_traverse(AtomicDictPage *self, visitproc visit, void *arg);
 
-int AtomicDictPage_clear(AtomicDict_Page *self);
+int AtomicDictPage_clear(AtomicDictPage *self);
 
-void AtomicDictPage_dealloc(AtomicDict_Page *self);
+void AtomicDictPage_dealloc(AtomicDictPage *self);
 
 
 /// meta
@@ -91,7 +91,7 @@ struct AtomicDictMeta {
 
     uint64_t *index;
 
-    AtomicDict_Page **pages;
+    AtomicDictPage **pages;
     int64_t greatest_allocated_page;
 
     // migration
@@ -124,7 +124,7 @@ int meta_init_pages(AtomicDictMeta *meta);
 
 int meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta);
 
-AtomicDict_Page *AtomicDictPage_New(void);
+AtomicDictPage *AtomicDictPage_New(void);
 
 uint64_t page_of(uint64_t entry_ix);
 

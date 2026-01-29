@@ -9,11 +9,11 @@
 #include <stdatomic.h>
 
 
-AtomicDict_Page *
+AtomicDictPage *
 AtomicDictPage_New(void)
 {
-    AtomicDict_Page *new = NULL;
-    new = PyObject_GC_New(AtomicDict_Page, &AtomicDictPage_Type);
+    AtomicDictPage *new = NULL;
+    new = PyObject_GC_New(AtomicDictPage, &AtomicDictPage_Type);
 
     if (new == NULL)
         return NULL;
@@ -28,7 +28,7 @@ AtomicDictPage_New(void)
 }
 
 int
-AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg)
+AtomicDictPage_traverse(AtomicDictPage *self, visitproc visit, void *arg)
 {
     AtomicDictEntry entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
@@ -45,7 +45,7 @@ AtomicDictPage_traverse(AtomicDict_Page *self, visitproc visit, void *arg)
 }
 
 int
-AtomicDictPage_clear(AtomicDict_Page *self)
+AtomicDictPage_clear(AtomicDictPage *self)
 {
     AtomicDictEntry *entry;
     for (int i = 0; i < ATOMIC_DICT_ENTRIES_IN_PAGE; ++i) {
@@ -63,7 +63,7 @@ AtomicDictPage_clear(AtomicDict_Page *self)
 }
 
 void
-AtomicDictPage_dealloc(AtomicDict_Page *self)
+AtomicDictPage_dealloc(AtomicDictPage *self)
 {
     PyObject_GC_UnTrack(self);
     AtomicDictPage_clear(self);
@@ -84,78 +84,104 @@ atomic_dict_entry_ix_sanity_check(uint64_t entry_ix, AtomicDictMeta *meta)
 
 
 int
-get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
-                         AtomicDictEntryLoc *entry_loc, Py_hash_t hash)
-{
-    reservation_buffer_pop(rb, entry_loc, meta);
+reserve_entry_in_inserting_page(AtomicDict* self, AtomicDictMeta* meta, AtomicDictReservationBuffer* rb, AtomicDictEntryLoc* entry_loc, Py_hash_t hash, int64_t inserting_page) {
+    Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1) & ~(self->reservation_buffer_size - 1);
 
-    if (entry_loc->entry == NULL) {
-        Py_ssize_t insert_position = hash & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1) & ~(self->reservation_buffer_size - 1);
-        int64_t inserting_page;
-
-        reserve_in_inserting_page:
-        inserting_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
-        for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_PAGE; offset += self->reservation_buffer_size) {
-            AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[inserting_page], memory_order_acquire);
-            entry_loc->entry = &(page
-                ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE]
-                .entry);
-            if (atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc->entry->flags, memory_order_acquire) == 0) {
-                uint8_t expected = 0;
-                if (atomic_compare_exchange_strong_explicit((_Atomic(uint8_t) *) &entry_loc->entry->flags, &expected, ENTRY_FLAGS_RESERVED, memory_order_acq_rel, memory_order_acquire)) {
-                    entry_loc->location =
-                        (inserting_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) +
-                        ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE);
-                    assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-                    reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
-                    reservation_buffer_pop(rb, entry_loc, meta);
-                    goto done;
-                }
+    for (int offset = 0; offset < ATOMIC_DICT_ENTRIES_IN_PAGE; offset += self->reservation_buffer_size) {
+        AtomicDictPage *page = atomic_load_explicit((_Atomic (AtomicDictPage *) *) &meta->pages[inserting_page], memory_order_acquire);
+        entry_loc->entry = &(page
+            ->entries[(insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE]
+            .entry);
+        if (atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc->entry->flags, memory_order_acquire) == 0) {
+            uint8_t expected = 0;
+            if (atomic_compare_exchange_strong_explicit((_Atomic(uint8_t) *) &entry_loc->entry->flags, &expected, ENTRY_FLAGS_RESERVED, memory_order_acq_rel, memory_order_acquire)) {
+                entry_loc->location =
+                    (inserting_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) +
+                    ((insert_position + offset) % ATOMIC_DICT_ENTRIES_IN_PAGE);
+                assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
+                reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
+                reservation_buffer_pop(rb, entry_loc, meta);
+                return 1;
             }
         }
+    }
+    // the page is full
+    return 0;
+}
 
-        if (atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire) != inserting_page)
-            goto reserve_in_inserting_page;
+
+void
+handle_page_allocated(AtomicDict* self, AtomicDictMeta* meta, AtomicDictReservationBuffer* rb, AtomicDictEntryLoc* entry_loc, int64_t greatest_allocated_page, AtomicDictPage* page, int64_t new_page) {
+    if ((uint64_t) greatest_allocated_page + 2u < (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) {
+        atomic_store_explicit((_Atomic(AtomicDictPage *) *) &meta->pages[new_page + 1], NULL, memory_order_release);
+    }
+    int64_t expected2 = greatest_allocated_page;
+    int ok = atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_page,
+                                                     &expected2, new_page, memory_order_acq_rel, memory_order_acquire);
+    assert(ok);
+    cereggii_unused_in_release_build(ok);
+    // this cas may fail because another thread helped increasing this counter
+    entry_loc->entry = &(page->entries[0].entry);
+    entry_loc->location = new_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
+    assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
+    reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
+    reservation_buffer_pop(rb, entry_loc, meta);
+}
+
+int
+reserve_entry(AtomicDict* self, AtomicDictMeta* meta, AtomicDictReservationBuffer* rb, AtomicDictEntryLoc* entry_loc, Py_hash_t hash) {
+    int64_t inserting_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
+
+    while (1) {
+        if (reserve_entry_in_inserting_page(self, meta, rb, entry_loc, hash, inserting_page)) {
+            return 1;
+        }
 
         int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &meta->greatest_allocated_page, memory_order_acquire);
+        if (greatest_allocated_page != inserting_page) {
+            inserting_page = greatest_allocated_page;
+            continue;
+        }
+
         assert(greatest_allocated_page >= 0);
         if ((uint64_t) greatest_allocated_page + 1u >= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) {
             return 0; // must grow
         }
         assert((uint64_t) greatest_allocated_page + 1u <= (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE);
 
-        AtomicDict_Page *page = NULL;
+        AtomicDictPage *page = NULL;
         page = AtomicDictPage_New();
-        if (page == NULL)
-            goto fail;
+        if (page == NULL) {
+            return -1;
+        }
 
         page->entries[0].entry.flags = ENTRY_FLAGS_RESERVED;
 
-        AtomicDict_Page *expected = NULL;
+        AtomicDictPage *expected = NULL;
         int64_t new_page = greatest_allocated_page + 1;
-        if (atomic_compare_exchange_strong_explicit((_Atomic(AtomicDict_Page *) *) &meta->pages[new_page], &expected, page, memory_order_acq_rel, memory_order_acquire)) {
-            if ((uint64_t) greatest_allocated_page + 2u < (uint64_t) SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) {
-                atomic_store_explicit((_Atomic(AtomicDict_Page *) *) &meta->pages[new_page + 1], NULL, memory_order_release);
-            }
-            int64_t expected2 = greatest_allocated_page;
-            int ok = atomic_compare_exchange_strong_explicit((_Atomic(int64_t) *) &meta->greatest_allocated_page,
-                                                    &expected2, new_page, memory_order_acq_rel, memory_order_acquire);
-            assert(ok);
-            cereggii_unused_in_release_build(ok);
-            expected2 = greatest_allocated_page;
-            // this cas may fail because another thread helped increasing this counter
-            entry_loc->entry = &(page->entries[0].entry);
-            entry_loc->location = new_page << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE;
-            assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
-            reservation_buffer_put(rb, entry_loc->location, self->reservation_buffer_size, meta);
-            reservation_buffer_pop(rb, entry_loc, meta);
-        } else {
-            Py_DECREF(page);
-            goto reserve_in_inserting_page;
+        if (atomic_compare_exchange_strong_explicit((_Atomic(AtomicDictPage *) *) &meta->pages[new_page], &expected, page, memory_order_acq_rel, memory_order_acquire)) {
+            handle_page_allocated(self, meta, rb, entry_loc, greatest_allocated_page, page, new_page);
+            return 1;
+        }
+        Py_DECREF(page);
+    }
+}
+
+
+int
+get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuffer *rb,
+                         AtomicDictEntryLoc *entry_loc, Py_hash_t hash)
+{
+    reservation_buffer_pop(rb, entry_loc, meta);
+
+    if (entry_loc->entry == NULL) {
+        int reserved = reserve_entry(self, meta, rb, entry_loc, hash);
+        if (reserved < 1) {
+            entry_loc->entry = NULL;
+            return reserved;
         }
     }
 
-    done:
     assert(entry_loc->entry != NULL);
     assert(entry_loc->entry->key == NULL);
     assert(entry_loc->entry->value == NULL);
@@ -164,9 +190,6 @@ get_empty_entry(AtomicDict *self, AtomicDictMeta *meta, AtomicDictReservationBuf
     assert(entry_loc->location < (uint64_t) SIZE_OF(meta));
     assert(atomic_dict_entry_ix_sanity_check(entry_loc->location, meta));
     return 1;
-    fail:
-    entry_loc->entry = NULL;
-    return -1;
 }
 
 uint64_t
@@ -185,7 +208,7 @@ AtomicDictEntry *
 get_entry_at(uint64_t ix, AtomicDictMeta *meta)
 {
     assert(atomic_dict_entry_ix_sanity_check(ix, meta));
-    AtomicDict_Page *page = atomic_load_explicit((_Atomic (AtomicDict_Page *) *) &meta->pages[page_of(ix)], memory_order_acquire);
+    AtomicDictPage *page = atomic_load_explicit((_Atomic (AtomicDictPage *) *) &meta->pages[page_of(ix)], memory_order_acquire);
     assert(page != NULL);
     return &(
         page

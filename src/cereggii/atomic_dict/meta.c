@@ -75,10 +75,10 @@ meta_clear_index(AtomicDictMeta *meta)
 int
 meta_init_pages(AtomicDictMeta *meta)
 {
-    AtomicDict_Page **pages = NULL;
+    AtomicDictPage **pages = NULL;
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    pages = PyMem_RawMalloc(sizeof(AtomicDict_Page *) * (SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE));
+    pages = PyMem_RawMalloc(sizeof(AtomicDictPage *) * (SIZE_OF(meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE));
     if (pages == NULL)
         goto fail;
 
@@ -99,13 +99,13 @@ meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
     assert(to_meta != NULL);
     assert(from_meta->log_size <= to_meta->log_size);
 
-    AtomicDict_Page **previous_pages = from_meta->pages;
+    AtomicDictPage **previous_pages = from_meta->pages;
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_page, memory_order_acquire);
 
 
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
-    AtomicDict_Page **pages = PyMem_RawMalloc(sizeof(AtomicDict_Page *) *
+    AtomicDictPage **pages = PyMem_RawMalloc(sizeof(AtomicDictPage *) *
                                                 (SIZE_OF(to_meta) >> ATOMIC_DICT_LOG_ENTRIES_IN_PAGE));
     if (pages == NULL)
         goto fail;

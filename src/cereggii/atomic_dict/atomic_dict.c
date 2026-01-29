@@ -181,7 +181,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     if (meta_init_pages(meta) < 0)
         goto fail;
 
-    AtomicDict_Page *page;
+    AtomicDictPage *page;
     int64_t i;
     for (i = 0; i < init_dict_size / ATOMIC_DICT_ENTRIES_IN_PAGE; i++) {
         // allocate pages
@@ -541,7 +541,7 @@ AtomicDict_Debug(AtomicDict *self)
     if (pages == NULL)
         goto fail;
 
-    AtomicDict_Page *page;
+    AtomicDictPage *page;
     entries = NULL;
     entry_tuple = NULL;
     page_info = NULL;
