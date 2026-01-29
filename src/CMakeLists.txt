@@ -108,14 +108,14 @@ include_directories("include/")
 Python3_add_library(_cereggii MODULE
         "cereggii/atomic_dict/accessor_storage.c"
         "cereggii/atomic_dict/atomic_dict.c"
-        "cereggii/atomic_dict/blocks.c"
+        "cereggii/atomic_dict/pages.c"
         "cereggii/atomic_dict/delete.c"
         "cereggii/atomic_dict/insert.c"
         "cereggii/atomic_dict/iter.c"
         "cereggii/atomic_dict/lookup.c"
         "cereggii/atomic_dict/meta.c"
-        "cereggii/atomic_dict/migrate.c"
         "cereggii/atomic_dict/node_ops.c"
+        "cereggii/atomic_dict/resize.c"
         "cereggii/atomic_event.c"
         "cereggii/atomic_int.c"
         "cereggii/atomic_ref.c"
@@ -123,6 +123,13 @@ Python3_add_library(_cereggii MODULE
         "cereggii/constants.c"
         "cereggii/thread_handle.c"
 )
+
+if (CMAKE_BUILD_TYPE MATCHES "^(Release|RelWithDebInfo|MinSizeRel)$")
+    message(STATUS "IPO / LTO enabled")
+    set_property(TARGET _cereggii PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else ()
+    message(STATUS "IPO / LTO disabled")
+endif ()
 
 # Install the module
 install(TARGETS _cereggii

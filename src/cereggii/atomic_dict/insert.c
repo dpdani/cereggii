@@ -11,24 +11,22 @@
 
 
 int
-AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
+expected_update_entry(AtomicDictMeta *meta, uint64_t entry_ix,
                                PyObject *key, Py_hash_t hash,
                                PyObject *expected, PyObject *desired, PyObject **current,
                                int *done, int *expectation)
 {
-    AtomicDict_Entry *entry_p, entry;
-    entry_p = AtomicDict_GetEntryAt(entry_ix, meta);
-    AtomicDict_ReadEntry(entry_p, &entry);
+    AtomicDictEntry *entry_p, entry;
+    entry_p = get_entry_at(entry_ix, meta);
+    read_entry(entry_p, &entry);
 
     if (entry.value == NULL || hash != entry.hash)
         return 0;
 
     if (entry.key != key) {
         const int eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
-
         if (eq < 0)  // exception raised during compare
             goto fail;
-
         if (!eq)
             return 0;
     }
@@ -49,20 +47,17 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
             *expectation = 0;
             return 1;
         }
-
         if (entry.value == NULL) {
             *current = NULL;
             return 0;
         }
-
         *current = entry.value;
         PyObject *exp = *current;
         assert(exp != NULL);
         *done = atomic_compare_exchange_strong_explicit((_Atomic(PyObject *) *) &entry_p->value, &exp, desired,
                                                         memory_order_acq_rel, memory_order_acquire);
-
         if (!*done) {
-            AtomicDict_ReadEntry(entry_p, &entry);
+            read_entry(entry_p, &entry);
         }
     } while (!*done);
 
@@ -73,9 +68,9 @@ AtomicDict_ExpectedUpdateEntry(AtomicDict_Meta *meta, uint64_t entry_ix,
 
 
 PyObject *
-AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
+expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                                   PyObject *expected, PyObject *desired,
-                                  AtomicDict_EntryLoc *entry_loc, int *must_grow,
+                                  AtomicDictEntryLoc *entry_loc, int *must_grow,
                                   int skip_entry_check)
 {
     assert(meta != NULL);
@@ -96,20 +91,20 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
     int done, expectation;
     *must_grow = 0;
 
-    uint64_t distance_0 = AtomicDict_Distance0Of(hash, meta);
-    AtomicDict_Node node;
+    uint64_t distance_0 = distance0_of(hash, meta);
+    AtomicDictNode node;
 
     done = 0;
     expectation = 1;
     uint64_t distance = 0;
     PyObject *current = NULL;
-    AtomicDict_Node to_insert;
+    AtomicDictNode to_insert;
 
     while (!done) {
         uint64_t ix = (distance_0 + distance) & ((1 << meta->log_size) - 1);
-        AtomicDict_ReadNodeAt(ix, &node, meta);
+        read_node_at(ix, &node, meta);
 
-        if (AtomicDict_IsEmpty(&node)) {
+        if (is_empty(&node)) {
             if (expected != NOT_FOUND && expected != ANY) {
                 expectation = 0;
                 break;
@@ -120,16 +115,16 @@ AtomicDict_ExpectedInsertOrUpdate(AtomicDict_Meta *meta, PyObject *key, Py_hash_
             to_insert.tag = hash;
             assert(atomic_dict_entry_ix_sanity_check(to_insert.index, meta));
 
-            done = AtomicDict_AtomicWriteNodeAt(ix, &node, &to_insert, meta);
+            done = atomic_write_node_at(ix, &node, &to_insert, meta);
 
             if (!done)
                 continue;  // don't increase distance
-        } else if (AtomicDict_IsTombstone(&node)) {
+        } else if (is_tombstone(&node)) {
             // pass
         } else if (node.tag != (hash & TAG_MASK(meta))) {
             // pass
         } else if (!skip_entry_check) {
-            int updated = AtomicDict_ExpectedUpdateEntry(meta, node.index, key, hash, expected, desired,
+            int updated = expected_update_entry(meta, node.index, key, hash, expected, desired,
                                                          &current, &done, &expectation);
             if (updated < 0)
                 goto fail;
@@ -182,27 +177,22 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         PyErr_SetString(PyExc_ValueError, "key == NULL");
         return NULL;
     }
-
     if (expected == NULL) {
         PyErr_SetString(PyExc_ValueError, "expected == NULL");
         return NULL;
     }
-
     if (desired == NULL) {
         PyErr_SetString(PyExc_ValueError, "desired == NULL");
         return NULL;
     }
-
     if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         return NULL;
     }
-
     if (expected == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "expected == EXPECTATION_FAILED");
         return NULL;
     }
-
     if (desired == NOT_FOUND || desired == ANY || desired == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "desired in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         return NULL;
@@ -211,45 +201,40 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     _Py_SetWeakrefAndIncref(key);
     _Py_SetWeakrefAndIncref(desired);
 
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
-
-    AtomicDict_AccessorStorage *storage = NULL;
-    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    AtomicDictAccessorStorage *storage = NULL;
+    storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
 
     beginning:
-    meta = AtomicDict_GetMeta(self, storage);
+    meta = get_meta(self, storage);
     if (meta == NULL)
         goto fail;
-
-    PyMutex_Lock(&storage->self_mutex);  // todo: maybe help migrate
-    int migrated = AtomicDict_MaybeHelpMigrate(meta, &storage->self_mutex);
-    if (migrated) {
-        // self_mutex was unlocked during the operation
+    int resized = lock_accessor_storage_or_help_resize(self, storage, meta);
+    if (resized) {
         goto beginning;
     }
 
-    AtomicDict_EntryLoc entry_loc = {
+    AtomicDictEntryLoc entry_loc = {
         .entry = NULL,
         .location = 0,
     };
     if (expected == NOT_FOUND || expected == ANY) {
-        int got_entry = AtomicDict_GetEmptyEntry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
-        if (entry_loc.entry == NULL || got_entry == -1) {
+        int got_entry = get_empty_entry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
+        if (got_entry == -1) {
             PyMutex_Unlock(&storage->self_mutex);
             goto fail;
         }
-
         if (got_entry == 0) {  // => must grow
             PyMutex_Unlock(&storage->self_mutex);
-            migrated = AtomicDict_Grow(self);
+            resized = grow(self);
 
-            if (migrated < 0)
+            if (resized < 0)
                 goto fail;
 
             goto beginning;
@@ -262,13 +247,14 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         assert(key != NULL);
         assert(hash != -1);
         assert(desired != NULL);
+
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->key, key, memory_order_release);
         atomic_store_explicit((_Atomic(Py_hash_t) *) &entry_loc.entry->hash, hash, memory_order_release);
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->value, desired, memory_order_release);
     }
 
     int must_grow;
-    PyObject *result = AtomicDict_ExpectedInsertOrUpdate(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
+    PyObject *result = expected_insert_or_update(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
     if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
         // keep entry_loc.entry->flags reserved, or set to 0
@@ -277,25 +263,23 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->key, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
-        AtomicDict_ReservationBufferPut(&storage->reservation_buffer, &entry_loc, 1, meta);
+        reservation_buffer_put_back_one(&storage->reservation_buffer);
         Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
     if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
-        atomic_dict_accessor_len_inc(self, storage, 1);
-        atomic_dict_accessor_inserted_inc(self, storage, 1);
+        accessor_len_inc(self, storage, 1);
+        accessor_inserted_inc(self, storage, 1);
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || atomic_dict_approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
-        migrated = AtomicDict_Grow(self);
-
-        if (migrated < 0)
+    if (must_grow || approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
+        resized = grow(self);
+        if (resized < 0)
             goto fail;
-
         if (must_grow) {  // insertion didn't happen
             goto beginning;
         }
@@ -316,21 +300,17 @@ AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kw
     PyObject *desired = NULL;
 
     char *kw_list[] = {"key", "expected", "desired", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", kw_list, &key, &expected, &desired))
         goto fail;
 
     PyObject *ret = AtomicDict_CompareAndSet(self, key, expected, desired);
-
     if (ret == NULL)
         goto fail;
-
     if (ret == EXPECTATION_FAILED) {
         PyObject *error = PyUnicode_FromFormat("self[%R] != %R", key, expected);
         PyErr_SetObject(Cereggii_ExpectationFailed, error);
         goto fail;
     }
-
     Py_RETURN_NONE;
 
     fail:
@@ -343,29 +323,24 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (value == NULL) {
         return AtomicDict_DelItem(self, key);
     }
-
     if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         goto fail;
     }
-
     if (value == NOT_FOUND || value == ANY || value == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "value in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         goto fail;
     }
 
     PyObject *result = AtomicDict_CompareAndSet(self, key, ANY, value);
-
     if (result == NULL)
         goto fail;
-
     assert(result != EXPECTATION_FAILED);
-
     if (result != NOT_FOUND && result != ANY && result != EXPECTATION_FAILED) {
         Py_DECREF(result);
     }
-
     return 0;
+
     fail:
     return -1;
 }
@@ -390,10 +365,8 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
 
     while (1) {
         previous = AtomicDict_CompareAndSet(self, key, expected, desired);
-
         if (previous == NULL)
             goto fail;
-
         if (previous != EXPECTATION_FAILED) {
             break;
         }
@@ -609,7 +582,6 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     PyObject *aggregate = NULL;
 
     char *kw_list[] = {"iterable", "aggregate", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kw_list, &iterable, &aggregate))
         goto fail;
 
@@ -647,7 +619,6 @@ AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -727,7 +698,6 @@ AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -772,7 +742,6 @@ AtomicDict_ReduceMax_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -817,7 +786,6 @@ AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -893,7 +861,6 @@ AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwarg
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -1003,7 +970,6 @@ AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwar
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 

@@ -21,19 +21,19 @@ typedef struct AtomicDict {
 
     PyMutex sync_op;
 
-    Py_ssize_t len;
     uint8_t len_dirty;
+    Py_ssize_t len;
 
+    struct AtomicDictAccessorStorage *accessors;
     Py_tss_t *accessor_key;
-    PyMutex accessors_lock;
     int32_t accessors_len;
-    struct AtomicDict_AccessorStorage *accessors;
+    PyMutex accessors_lock;
 } AtomicDict;
 
 extern PyTypeObject AtomicDict_Type;
 
-struct AtomicDict_FastIterator;
-typedef struct AtomicDict_FastIterator AtomicDict_FastIterator;
+struct AtomicDictFastIterator;
+typedef struct AtomicDictFastIterator AtomicDictFastIterator;
 
 
 PyObject *AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value);

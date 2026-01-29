@@ -11,36 +11,31 @@
 
 
 void
-AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
-                  AtomicDict_SearchResult *result)
+lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
+                  AtomicDictSearchResult *result)
 {
     // caller must ensure PyObject_Hash(.) didn't raise an error
-    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
+    const uint64_t d0 = distance0_of(hash, meta);
     uint64_t distance = 0;
 
     for (; distance < (1ull << meta->log_size); distance++) {
-        AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
+        read_node_at(d0 + distance, &result->node, meta);
 
-        if (AtomicDict_IsEmpty(&result->node)) {
+        if (is_empty(&result->node))
             goto not_found;
-        }
-
-        if (AtomicDict_IsTombstone(&result->node))
+        if (is_tombstone(&result->node))
             continue;
 
         if (result->node.tag == (hash & TAG_MASK(meta))) {
-            result->entry_p = AtomicDict_GetEntryAt(result->node.index, meta);
-            AtomicDict_ReadEntry(result->entry_p, &result->entry);
+            result->entry_p = get_entry_at(result->node.index, meta);
+            read_entry(result->entry_p, &result->entry);
 
-            if (result->entry.value == NULL) {
+            if (result->entry.value == NULL)
                 continue;
-            }
-            if (result->entry.key == key) {
+            if (result->entry.key == key)
                 goto found;
-            }
-            if (result->entry.hash != hash) {
+            if (result->entry.hash != hash)
                 continue;
-            }
 
             int cmp = PyObject_RichCompareBool(result->entry.key, key, Py_EQ);
             if (cmp < 0) {
@@ -71,23 +66,21 @@ AtomicDict_Lookup(AtomicDict_Meta *meta, PyObject *key, Py_hash_t hash,
 }
 
 void
-AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
-                       AtomicDict_SearchResult *result)
+lookup_entry(AtomicDictMeta *meta, uint64_t entry_ix, Py_hash_t hash,
+                       AtomicDictSearchResult *result)
 {
     // index-only search
 
-    const uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
+    const uint64_t d0 = distance0_of(hash, meta);
     uint64_t distance = 0;
 
     for (; distance < 1ull << meta->log_size; distance++) {
-        AtomicDict_ReadNodeAt(d0 + distance, &result->node, meta);
+        read_node_at(d0 + distance, &result->node, meta);
 
-        if (AtomicDict_IsEmpty(&result->node)) {
+        if (is_empty(&result->node))
             goto not_found;
-        }
-        if (result->node.index == entry_ix) {
+        if (result->node.index == entry_ix)
             goto found;
-        }
     }  // probes exhausted
 
     not_found:
@@ -104,36 +97,29 @@ AtomicDict_LookupEntry(AtomicDict_Meta *meta, uint64_t entry_ix, Py_hash_t hash,
 PyObject *
 AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_value)
 {
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
 
-    AtomicDict_SearchResult result;
-    AtomicDict_AccessorStorage *storage = NULL;
-    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    AtomicDictSearchResult result;
+    AtomicDictAccessorStorage *storage = NULL;
+    storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
 
     retry:
-    meta = AtomicDict_GetMeta(self, storage);
+    meta = get_meta(self, storage);
 
     result.entry.value = NULL;
-    AtomicDict_Lookup(meta, key, hash, &result);
+    lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
-
-    if (AtomicDict_GetMeta(self, storage) != meta)
-        goto retry;
-
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
     }
-
-    if (result.entry.value == NULL) {
+    if (result.entry.value == NULL)
         return NULL;
-    }
-
     if (!_Py_TryIncref(result.entry.value))
         goto retry;
 
@@ -162,7 +148,6 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
 {
     PyObject *key = NULL, *default_value = NULL;
     static char *keywords[] = {"key", "default", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", keywords, &key, &default_value))
         return NULL;
 
@@ -186,7 +171,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyErr_SetString(PyExc_TypeError, "type(batch) != dict");
         return NULL;
     }
-
     if (chunk_size <= 0) {
         PyErr_SetString(PyExc_ValueError, "chunk_size <= 0");
         return NULL;
@@ -196,25 +180,23 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     Py_hash_t hash;
     Py_hash_t *hashes = NULL;
     PyObject **keys = NULL;
-    AtomicDict_Meta *meta = NULL;
+    AtomicDictMeta *meta = NULL;
 
     hashes = PyMem_RawMalloc(chunk_size * sizeof(Py_hash_t));
     if (hashes == NULL)
         goto fail;
-
     keys = PyMem_RawMalloc(chunk_size * sizeof(PyObject *));
     if (keys == NULL)
         goto fail;
 
-    AtomicDict_SearchResult result;
-    AtomicDict_AccessorStorage *storage = NULL;
-    storage = AtomicDict_GetOrCreateAccessorStorage(self);
+    AtomicDictSearchResult result;
+    AtomicDictAccessorStorage *storage = NULL;
+    storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
 
     retry:
-    meta = AtomicDict_GetMeta(self, storage);
-
+    meta = get_meta(self, storage);
     if (meta == NULL)
         goto fail;
 
@@ -233,7 +215,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         hashes[(chunk_end - 1) % chunk_size] = hash;
         keys[(chunk_end - 1) % chunk_size] = key;
 
-        cereggii_prefetch(&meta->index[AtomicDict_Distance0Of(hash, meta)]);
+        cereggii_prefetch(&meta->index[distance0_of(hash, meta)]);
 
         if (chunk_end % chunk_size == 0)
             break;
@@ -243,19 +225,18 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         hash = hashes[i % chunk_size];
         key = keys[i % chunk_size];
 
-        uint64_t d0 = AtomicDict_Distance0Of(hash, meta);
-        AtomicDict_Node node;
+        uint64_t d0 = distance0_of(hash, meta);
+        AtomicDictNode node;
 
-        AtomicDict_ReadNodeAt(d0, &node, meta);
+        read_node_at(d0, &node, meta);
 
-        if (AtomicDict_IsEmpty(&node))
+        if (is_empty(&node))
             continue;
-
-        if (AtomicDict_IsTombstone(&node))
+        if (is_tombstone(&node))
             continue;
 
         if (node.tag == (hash & TAG_MASK(meta))) {
-            cereggii_prefetch(AtomicDict_GetEntryAt(node.index, meta));
+            cereggii_prefetch(get_entry_at(node.index, meta));
         }
     }
 
@@ -264,7 +245,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         key = keys[i % chunk_size];
 
         result.found = 0;
-        AtomicDict_Lookup(meta, key, hash, &result);
+        lookup(meta, key, hash, &result);
         if (result.error)
             goto fail;
 
@@ -285,7 +266,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_END_CRITICAL_SECTION();
 
-    if (AtomicDict_GetMeta(self, storage) != meta)
+    if (get_meta(self, storage) != meta)
         goto retry;
 
     PyMem_RawFree(hashes);

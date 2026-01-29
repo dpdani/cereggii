@@ -183,7 +183,7 @@ PyTypeObject AtomicDict_Type = {
 PyTypeObject AtomicDictMeta_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictMeta",
-    .tp_basicsize = sizeof(AtomicDict_Meta),
+    .tp_basicsize = sizeof(AtomicDictMeta),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
@@ -192,22 +192,22 @@ PyTypeObject AtomicDictMeta_Type = {
     .tp_dealloc = (destructor) AtomicDictMeta_dealloc,
 };
 
-PyTypeObject AtomicDictBlock_Type = {
+PyTypeObject AtomicDictPage_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "cereggii._AtomicDictBlock",
-    .tp_basicsize = sizeof(AtomicDict_Block),
+    .tp_name = "cereggii._AtomicDictPage",
+    .tp_basicsize = sizeof(AtomicDictPage),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     .tp_new = PyType_GenericNew,
-    .tp_traverse = (traverseproc) AtomicDictBlock_traverse,
-    .tp_clear = (inquiry) AtomicDictBlock_clear,
-    .tp_dealloc = (destructor) AtomicDictBlock_dealloc,
+    .tp_traverse = (traverseproc) AtomicDictPage_traverse,
+    .tp_clear = (inquiry) AtomicDictPage_clear,
+    .tp_dealloc = (destructor) AtomicDictPage_dealloc,
 };
 
 PyTypeObject AtomicDictFastIterator_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii._AtomicDictFastIterator",
-    .tp_basicsize = sizeof(AtomicDict_FastIterator),
+    .tp_basicsize = sizeof(AtomicDictFastIterator),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
@@ -376,7 +376,7 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicDictMeta_Type) < 0)
         return NULL;
-    if (PyType_Ready(&AtomicDictBlock_Type) < 0)
+    if (PyType_Ready(&AtomicDictPage_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicDictFastIterator_Type) < 0)
         return NULL;

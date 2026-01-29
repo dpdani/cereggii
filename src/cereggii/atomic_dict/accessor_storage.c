@@ -6,29 +6,26 @@
 
 #include "atomic_dict.h"
 #include "atomic_dict_internal.h"
+#include "_internal_py_core.h"
 
 
-AtomicDict_AccessorStorage *
-AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
+AtomicDictAccessorStorage *
+get_or_create_accessor_storage(AtomicDict *self)
 {
     assert(self->accessor_key != NULL);
-    AtomicDict_AccessorStorage *storage = PyThread_tss_get(self->accessor_key);
+    AtomicDictAccessorStorage *storage = PyThread_tss_get(self->accessor_key);
 
     if (storage == NULL) {
-        storage = PyMem_RawMalloc(sizeof(AtomicDict_AccessorStorage));
-        if (storage == NULL)
+        storage = PyMem_RawMalloc(sizeof(AtomicDictAccessorStorage));
+        if (storage == NULL) {
+            PyErr_NoMemory();
             return NULL;
+        }
 
-        storage->next_accessor = NULL;
-        storage->self_mutex = (PyMutex) {0};
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_len, 0, memory_order_release);
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, 0, memory_order_release);
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_tombstones, 0, memory_order_release);
-        storage->reservation_buffer.head = 0;
-        storage->reservation_buffer.tail = 0;
-        storage->reservation_buffer.count = 0;
-        memset(storage->reservation_buffer.reservations, 0, sizeof(AtomicDict_EntryLoc) * RESERVATION_BUFFER_SIZE);
-        storage->meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+        *storage = (AtomicDictAccessorStorage) {0};
+        // don't need to initialize with atomics because the PyMutex_Lock
+        // below is already a seq-cst memory barrier
+        storage->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
 
         int set = PyThread_tss_set(self->accessor_key, storage);
         if (set != 0)
@@ -40,10 +37,10 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
             self->accessors = storage;
             self->accessors_len = 1;
         } else {
-            AtomicDict_AccessorStorage *s = NULL;
+            AtomicDictAccessorStorage *s = NULL;
             for (s = self->accessors; s->next_accessor != NULL; s = s->next_accessor) {}
             assert(s != NULL);
-            atomic_store_explicit((_Atomic (AtomicDict_AccessorStorage *) *) &s->next_accessor, storage, memory_order_release);
+            atomic_store_explicit((_Atomic (AtomicDictAccessorStorage *) *) &s->next_accessor, storage, memory_order_release);
             self->accessors_len++;
         }
         PyMutex_Unlock(&self->accessors_lock);
@@ -57,42 +54,42 @@ AtomicDict_GetOrCreateAccessorStorage(AtomicDict *self)
     return NULL;
 }
 
-AtomicDict_AccessorStorage *
-AtomicDict_GetAccessorStorage(Py_tss_t *accessor_key)
+AtomicDictAccessorStorage *
+get_accessor_storage(Py_tss_t *accessor_key)
 {
     assert(accessor_key != NULL);
-    AtomicDict_AccessorStorage *storage = PyThread_tss_get(accessor_key);
+    AtomicDictAccessorStorage *storage = PyThread_tss_get(accessor_key);
     assert(storage != NULL);
     return storage;
 }
 
 void
-AtomicDict_FreeAccessorStorage(AtomicDict_AccessorStorage *self)
+free_accessor_storage(AtomicDictAccessorStorage *self)
 {
     Py_CLEAR(self->meta);
     PyMem_RawFree(self);
 }
 
 void
-AtomicDict_FreeAccessorStorageList(AtomicDict_AccessorStorage *head)
+free_accessor_storage_list(AtomicDictAccessorStorage *head)
 {
     if (head == NULL)
         return;
 
-    AtomicDict_AccessorStorage *prev = head;
-    AtomicDict_AccessorStorage *next = head->next_accessor;
+    AtomicDictAccessorStorage *prev = head;
+    AtomicDictAccessorStorage *next = head->next_accessor;
 
     while (next) {
-        AtomicDict_FreeAccessorStorage(prev);
+        free_accessor_storage(prev);
         prev = next;
         next = next->next_accessor;
     }
 
-    AtomicDict_FreeAccessorStorage(prev);
+    free_accessor_storage(prev);
 }
 
-AtomicDict_Meta *
-AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage)
+AtomicDictMeta *
+get_meta(AtomicDict *self, AtomicDictAccessorStorage *storage)
 {
     assert(storage != NULL);
     PyObject *shared = self->metadata->reference;
@@ -101,27 +98,27 @@ AtomicDict_GetMeta(AtomicDict *self, AtomicDict_AccessorStorage *storage)
         return storage->meta;
 
     Py_CLEAR(storage->meta);
-    storage->meta = (AtomicDict_Meta *) AtomicRef_Get(self->metadata);
+    storage->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
     assert(storage->meta != NULL);
     return storage->meta;
 }
 
 void
-AtomicDict_BeginSynchronousOperation(AtomicDict *self)
+begin_synchronous_operation(AtomicDict *self)
 {
     PyMutex_Lock(&self->sync_op);
     PyMutex_Lock(&self->accessors_lock);
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Lock(&storage->self_mutex);
     }
 }
 
 void
-AtomicDict_EndSynchronousOperation(AtomicDict *self)
+end_synchronous_operation(AtomicDict *self)
 {
     PyMutex_Unlock(&self->sync_op);
-    AtomicDict_AccessorStorage *storage;
+    AtomicDictAccessorStorage *storage;
     FOR_EACH_ACCESSOR(self, storage) {
         PyMutex_Unlock(&storage->self_mutex);
     }
@@ -133,72 +130,44 @@ AtomicDict_EndSynchronousOperation(AtomicDict *self)
  * caller must ensure no segfaults, et similia.
  * */
 void
-AtomicDict_ReservationBufferPut(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc, int n, AtomicDict_Meta *meta)
+reservation_buffer_put(AtomicDictReservationBuffer *rb, uint64_t location, uint8_t size, AtomicDictMeta *meta)
 {
-    // use asserts to check for circular buffer correctness (don't return and check for error)
+    // use asserts to check for correctness (don't return and check for error)
 
-    assert(n > 0);
-    assert(n <= 64);
+    assert(size > 0);
+    assert(size <= 64);
+    assert(rb->size == rb->used);  // don't waste space
+    assert(atomic_dict_entry_ix_sanity_check(location, meta));
+    assert(atomic_dict_entry_ix_sanity_check(location + size - 1, meta));
+    cereggii_unused_in_release_build(meta);
 
-    for (int i = 0; i < n; ++i) {
-        if (entry_loc->location + i == 0) {
-            // entry 0 is reserved for correctness of tombstones
-            continue;
-        }
-        assert(rb->count < 64);
-        AtomicDict_EntryLoc *head = &rb->reservations[rb->head];
-        head->entry = AtomicDict_GetEntryAt(entry_loc->location + i, meta);
-        head->location = entry_loc->location + i;
-        assert(atomic_dict_entry_ix_sanity_check(head->location, meta));
-        rb->head++;
-        if (rb->head == 64) {
-            rb->head = 0;
-        }
-        rb->count++;
-    }
-    assert(rb->count <= 64);
+    rb->start = location;
+    rb->size = size;
+    rb->used = 0;
 }
 
 void
-AtomicDict_ReservationBufferPop(AtomicDict_ReservationBuffer *rb, AtomicDict_EntryLoc *entry_loc)
+reservation_buffer_put_back_one(AtomicDictReservationBuffer *rb)
 {
-    if (rb->count == 0) {
+    assert(rb->used > 0);
+    rb->used--;
+}
+
+void
+reservation_buffer_pop(AtomicDictReservationBuffer *rb, AtomicDictEntryLoc *entry_loc, AtomicDictMeta *meta)
+{
+    if (rb->used == rb->size) {
         entry_loc->entry = NULL;
         return;
     }
 
-    AtomicDict_EntryLoc *tail = &rb->reservations[rb->tail];
-    entry_loc->entry = tail->entry;
-    entry_loc->location = tail->location;
-    memset(&rb->reservations[rb->tail], 0, sizeof(AtomicDict_EntryLoc));
-    rb->tail++;
-    if (rb->tail == 64) {
-        rb->tail = 0;
-    }
-    rb->count--;
-
-    assert(rb->count >= 0);
+    entry_loc->location = rb->start + rb->used;
+    entry_loc->entry = get_entry_at(entry_loc->location, meta);
+    rb->used++;
 }
 
 void
-AtomicDict_UpdateBlocksInReservationBuffer(AtomicDict_ReservationBuffer *rb, uint64_t from_block, uint64_t to_block)
-{
-    for (int i = 0; i < rb->count; ++i) {
-        AtomicDict_EntryLoc *entry = &rb->reservations[(rb->tail + i) % RESERVATION_BUFFER_SIZE];
-
-        if (entry == NULL)
-            continue;
-
-        if (AtomicDict_BlockOf(entry->location) == from_block) {
-            entry->location =
-                AtomicDict_PositionInBlockOf(entry->location) +
-                (to_block << ATOMIC_DICT_LOG_ENTRIES_IN_BLOCK);
-        }
-    }
-}
-
-void
-atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *storage, const int32_t inc)
+accessor_len_inc(AtomicDict *self, AtomicDictAccessorStorage *storage, const int32_t inc)
 {
     const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_len, memory_order_acquire);
     const int64_t new = current + inc; // TODO: overflow
@@ -207,7 +176,7 @@ atomic_dict_accessor_len_inc(AtomicDict *self, AtomicDict_AccessorStorage *stora
 }
 
 void
-atomic_dict_accessor_inserted_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+accessor_inserted_inc(AtomicDict *Py_UNUSED(self), AtomicDictAccessorStorage *storage, const int32_t inc)
 {
     const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_inserted, memory_order_acquire);
     const int64_t new = current + inc; // TODO: overflow
@@ -215,9 +184,23 @@ atomic_dict_accessor_inserted_inc(AtomicDict *Py_UNUSED(self), AtomicDict_Access
 }
 
 void
-atomic_dict_accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDict_AccessorStorage *storage, const int32_t inc)
+accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDictAccessorStorage *storage, const int32_t inc)
 {
     const int64_t current = atomic_load_explicit((_Atomic (int64_t) *) &storage->local_tombstones, memory_order_acquire);
     const int64_t new = current + inc; // TODO: overflow
     atomic_store_explicit((_Atomic (int64_t) *) &storage->local_tombstones, new, memory_order_release);
+}
+
+int
+lock_accessor_storage_or_help_resize(AtomicDict *self, AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
+{
+    // returns whether a resize happened
+    if (!_PyMutex_TryLock(&storage->self_mutex)) {
+        if (maybe_help_resize(self, meta, NULL)) {
+            // resized
+            return 1;
+        }
+        PyMutex_Lock(&storage->self_mutex);
+    }
+    return maybe_help_resize(self, meta, &storage->self_mutex);
 }
