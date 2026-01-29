@@ -21,10 +21,8 @@ lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
     for (; distance < (1ull << meta->log_size); distance++) {
         read_node_at(d0 + distance, &result->node, meta);
 
-        if (is_empty(&result->node)) {
+        if (is_empty(&result->node))
             goto not_found;
-        }
-
         if (is_tombstone(&result->node))
             continue;
 
@@ -32,15 +30,12 @@ lookup(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
             result->entry_p = get_entry_at(result->node.index, meta);
             read_entry(result->entry_p, &result->entry);
 
-            if (result->entry.value == NULL) {
+            if (result->entry.value == NULL)
                 continue;
-            }
-            if (result->entry.key == key) {
+            if (result->entry.key == key)
                 goto found;
-            }
-            if (result->entry.hash != hash) {
+            if (result->entry.hash != hash)
                 continue;
-            }
 
             int cmp = PyObject_RichCompareBool(result->entry.key, key, Py_EQ);
             if (cmp < 0) {
@@ -82,12 +77,10 @@ lookup_entry(AtomicDictMeta *meta, uint64_t entry_ix, Py_hash_t hash,
     for (; distance < 1ull << meta->log_size; distance++) {
         read_node_at(d0 + distance, &result->node, meta);
 
-        if (is_empty(&result->node)) {
+        if (is_empty(&result->node))
             goto not_found;
-        }
-        if (result->node.index == entry_ix) {
+        if (result->node.index == entry_ix)
             goto found;
-        }
     }  // probes exhausted
 
     not_found:
@@ -122,18 +115,11 @@ AtomicDict_GetItemOrDefault(AtomicDict *self, PyObject *key, PyObject *default_v
     lookup(meta, key, hash, &result);
     if (result.error)
         goto fail;
-
-    if (get_meta(self, storage) != meta)
-        goto retry;
-
     if (result.entry_p == NULL) {
         result.entry.value = default_value;
     }
-
-    if (result.entry.value == NULL) {
+    if (result.entry.value == NULL)
         return NULL;
-    }
-
     if (!_Py_TryIncref(result.entry.value))
         goto retry;
 
@@ -162,7 +148,6 @@ AtomicDict_GetItemOrDefaultVarargs(AtomicDict *self, PyObject *args, PyObject *k
 {
     PyObject *key = NULL, *default_value = NULL;
     static char *keywords[] = {"key", "default", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|O", keywords, &key, &default_value))
         return NULL;
 
@@ -186,7 +171,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyErr_SetString(PyExc_TypeError, "type(batch) != dict");
         return NULL;
     }
-
     if (chunk_size <= 0) {
         PyErr_SetString(PyExc_ValueError, "chunk_size <= 0");
         return NULL;
@@ -201,7 +185,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     hashes = PyMem_RawMalloc(chunk_size * sizeof(Py_hash_t));
     if (hashes == NULL)
         goto fail;
-
     keys = PyMem_RawMalloc(chunk_size * sizeof(PyObject *));
     if (keys == NULL)
         goto fail;
@@ -214,7 +197,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     retry:
     meta = get_meta(self, storage);
-
     if (meta == NULL)
         goto fail;
 
@@ -250,7 +232,6 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         if (is_empty(&node))
             continue;
-
         if (is_tombstone(&node))
             continue;
 

@@ -219,7 +219,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     self->accessors_len = 0;
     self->len = 0;
     self->len_dirty = 0;
-    AtomicDictAccessorStorage* storage = get_or_create_accessor_storage(self);
+    AtomicDictAccessorStorage *storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
 
@@ -516,9 +516,8 @@ AtomicDict_Debug(AtomicDict *self)
     PyObject *page_info = NULL;
 
     meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
-    metadata = Py_BuildValue("{sOsOsO}",
+    metadata = Py_BuildValue("{sOsO}",
                              "log_size\0", Py_BuildValue("B", meta->log_size),
-                             "generation\0", Py_BuildValue("n", (Py_ssize_t) meta->generation),
                              "greatest_allocated_page\0", Py_BuildValue("L", meta->greatest_allocated_page));
     if (metadata == NULL)
         goto fail;

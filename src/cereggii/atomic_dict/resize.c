@@ -34,7 +34,7 @@ grow(AtomicDict *self)
 }
 
 int
-maybe_help_resize(AtomicDictMeta *current_meta, PyMutex *self_mutex)
+maybe_help_resize(AtomicDict *self, AtomicDictMeta *current_meta, PyMutex *self_mutex)
 {
     if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->resize_leader, memory_order_acquire) == 0) {
         return 0;
@@ -43,7 +43,7 @@ maybe_help_resize(AtomicDictMeta *current_meta, PyMutex *self_mutex)
     if (self_mutex != NULL) {
         PyMutex_Unlock(self_mutex);
     }
-    follower_resize(current_meta);
+    follower_resize(self, current_meta);
     return 1;
 }
 
@@ -61,7 +61,7 @@ resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
         }
     }
 
-    follower_resize(current_meta);
+    follower_resize(self, current_meta);
 
     return 1;
 }
@@ -70,39 +70,28 @@ int
 leader_resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 {
     int holding_sync_lock = 0;
-    AtomicDictMeta *new_meta;
+    AtomicDictMeta *new_meta = NULL;
     uint8_t to_log_size = current_meta->log_size + 1;
-
-    beginning:
-    new_meta = NULL;
-    new_meta = AtomicDictMeta_New(to_log_size);
-    if (new_meta == NULL)
-        goto fail;
 
     if (to_log_size > ATOMIC_DICT_MAX_LOG_SIZE) {
         PyErr_SetString(PyExc_ValueError, "can hold at most 2^56 items.");
         goto fail;
     }
 
-    if (to_log_size < self->min_log_size) {
-        to_log_size = self->min_log_size;
-        Py_DECREF(new_meta);
-        new_meta = NULL;
-        goto beginning;
-    }
+    new_meta = AtomicDictMeta_New(to_log_size);
+    if (new_meta == NULL)
+        goto fail;
 
     // pages
     begin_synchronous_operation(self);
     holding_sync_lock = 1;
     int ok = meta_copy_pages(current_meta, new_meta);
-
     if (ok < 0)
         goto fail;
 
     for (int64_t page_i = 0; page_i <= new_meta->greatest_allocated_page; ++page_i) {
         Py_INCREF(new_meta->pages[page_i]);
     }
-
 
     int32_t accessors_len = atomic_load_explicit((_Atomic (int32_t) *) &self->accessors_len, memory_order_acquire);
     assert(accessors_len > 0);
@@ -131,15 +120,13 @@ leader_resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
     }
 #endif
 
-    atomic_store_explicit((_Atomic (Py_tss_t *) *) &current_meta->accessor_key, self->accessor_key, memory_order_release);
-
     // 👀
     Py_INCREF(new_meta);
     atomic_store_explicit((_Atomic (AtomicDictMeta *) *) &current_meta->new_gen_metadata, new_meta, memory_order_release);
     AtomicEvent_Set(current_meta->new_metadata_ready);
 
     // birds flying
-    common_resize(current_meta, new_meta);
+    common_resize(self, current_meta, new_meta);
 
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
@@ -179,23 +166,23 @@ leader_resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 }
 
 void
-follower_resize(AtomicDictMeta *current_meta)
+follower_resize(AtomicDict *self, AtomicDictMeta *current_meta)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
     AtomicDictMeta *new_meta = atomic_load_explicit((_Atomic (AtomicDictMeta *) *) &current_meta->new_gen_metadata, memory_order_acquire);
 
-    common_resize(current_meta, new_meta);
+    common_resize(self, current_meta, new_meta);
 
     AtomicEvent_Wait(current_meta->resize_done);
 }
 
 void
-common_resize(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
+common_resize(AtomicDict *self, AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
 {
     if (AtomicEvent_IsSet(current_meta->node_migration_done))
         return;
 
-    Py_tss_t *ak = atomic_load_explicit((_Atomic(Py_tss_t *) *) &current_meta->accessor_key, memory_order_acquire);
+    Py_tss_t *ak = self->accessor_key;
     AtomicDictAccessorStorage *storage = get_accessor_storage(ak);
     assert(storage != NULL);
 

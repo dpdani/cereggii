@@ -192,15 +192,15 @@ accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDictAccessorStorage *
 }
 
 int
-lock_accessor_storage_or_help_resize(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
+lock_accessor_storage_or_help_resize(AtomicDict *self, AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
 {
     // returns whether a resize happened
     if (!_PyMutex_TryLock(&storage->self_mutex)) {
-        if (maybe_help_resize(meta, NULL)) {
+        if (maybe_help_resize(self, meta, NULL)) {
             // resized
             return 1;
         }
         PyMutex_Lock(&storage->self_mutex);
     }
-    return maybe_help_resize(meta, &storage->self_mutex);
+    return maybe_help_resize(self, meta, &storage->self_mutex);
 }

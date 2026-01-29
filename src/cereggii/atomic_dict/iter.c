@@ -18,7 +18,6 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
     int partitions = 1, this_partition = 0;
 
     char *kw_list[] = {"partitions", "this_partition", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|ii", kw_list, &partitions, &this_partition))
         goto fail_parse;
 
@@ -26,7 +25,6 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyErr_SetString(PyExc_ValueError, "partitions <= 0");
         goto fail_parse;
     }
-
     if (this_partition > partitions) {
         PyErr_SetString(PyExc_ValueError, "this_partition > partitions");
         goto fail_parse;
@@ -38,12 +36,10 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
     iter = PyObject_New(AtomicDictFastIterator, &AtomicDictFastIterator_Type);
     if (iter == NULL)
         goto fail;
-
     iter->meta = NULL;
     iter->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
     if (iter->meta == NULL)
         goto fail;
-
     iter->dict = self;
     iter->position = this_partition * ATOMIC_DICT_ENTRIES_IN_PAGE;
     iter->partitions = partitions;
@@ -95,19 +91,9 @@ AtomicDictFastIterator_Next(AtomicDictFastIterator *self)
         entry_p = get_entry_at(self->position, self->meta);
         read_entry(entry_p, &entry);
 
-        // it doesn't seem to be worth it
-//        if ((self->position & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0
-//            && page_of(self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2) <= self->meta->greatest_allocated_block)
-//        {
-//            for (uint64_t i = self->position; i < self->position + ATOMIC_DICT_ENTRIES_IN_PAGE * 2; ++i) {
-//                cereggii_prefetch(get_entry_at(i, self->meta), 0, 1);
-//                // 0: the prefetch is for a read
-//                // 1: the prefetched address is unlikely to be read again soon
-//            }
-//        }
-
         if (((self->position + 1) & (ATOMIC_DICT_ENTRIES_IN_PAGE - 1)) == 0) {
-            self->position = (self->position & ~(ATOMIC_DICT_ENTRIES_IN_PAGE - 1))
+            self->position =
+                (self->position & ~(ATOMIC_DICT_ENTRIES_IN_PAGE - 1))
                 + self->partitions * ATOMIC_DICT_ENTRIES_IN_PAGE;
         }
         else {

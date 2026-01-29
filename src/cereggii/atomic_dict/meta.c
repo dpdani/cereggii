@@ -14,13 +14,8 @@
 AtomicDictMeta *
 AtomicDictMeta_New(uint8_t log_size)
 {
-    void *generation = NULL;
     uint64_t *index = NULL;
     AtomicDictMeta *meta = NULL;
-
-    generation = PyMem_RawMalloc(1);
-    if (generation == NULL)
-        goto fail;
 
     index = PyMem_RawMalloc(sizeof(uint64_t) * (1ull << log_size));
     if (index == NULL)
@@ -34,13 +29,11 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->greatest_allocated_page = -1;
 
     meta->log_size = log_size;
-    meta->generation = generation;
     meta->index = index;
 
     meta->new_gen_metadata = NULL;
     meta->resize_leader = 0;
     meta->node_to_migrate = 0;
-    meta->accessor_key = NULL;
     meta->participants = NULL;
 
     meta->new_metadata_ready = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
@@ -56,9 +49,6 @@ AtomicDictMeta_New(uint8_t log_size)
     PyObject_GC_Track(meta);
     return meta;
     fail:
-    if (generation != NULL) {
-        PyMem_RawFree(generation);
-    }
     Py_XDECREF(meta);
     if (index != NULL) {
         PyMem_RawFree(index);
@@ -102,7 +92,6 @@ meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
     AtomicDictPage **previous_pages = from_meta->pages;
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &from_meta->greatest_allocated_page, memory_order_acquire);
 
-
     // here we're abusing virtual memory:
     // the entire array will not necessarily be allocated to physical memory.
     AtomicDictPage **pages = PyMem_RawMalloc(sizeof(AtomicDictPage *) *
@@ -123,7 +112,6 @@ meta_copy_pages(AtomicDictMeta *from_meta, AtomicDictMeta *to_meta)
     }
 
     to_meta->pages = pages;
-
     atomic_store_explicit((_Atomic (int64_t) *) &to_meta->greatest_allocated_page, greatest_allocated_page, memory_order_release);
 
     return 1;
@@ -178,15 +166,12 @@ AtomicDictMeta_dealloc(AtomicDictMeta *self)
         self->index = NULL;
         PyMem_RawFree(index);
     }
-
     if (self->pages != NULL) {
         PyMem_RawFree(self->pages);
     }
-
     if (self->participants != NULL) {
         PyMem_RawFree(self->participants);
     }
 
-    PyMem_RawFree(self->generation);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }

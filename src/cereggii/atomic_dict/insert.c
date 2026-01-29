@@ -25,10 +25,8 @@ expected_update_entry(AtomicDictMeta *meta, uint64_t entry_ix,
 
     if (entry.key != key) {
         const int eq = PyObject_RichCompareBool(entry.key, key, Py_EQ);
-
         if (eq < 0)  // exception raised during compare
             goto fail;
-
         if (!eq)
             return 0;
     }
@@ -49,18 +47,15 @@ expected_update_entry(AtomicDictMeta *meta, uint64_t entry_ix,
             *expectation = 0;
             return 1;
         }
-
         if (entry.value == NULL) {
             *current = NULL;
             return 0;
         }
-
         *current = entry.value;
         PyObject *exp = *current;
         assert(exp != NULL);
         *done = atomic_compare_exchange_strong_explicit((_Atomic(PyObject *) *) &entry_p->value, &exp, desired,
                                                         memory_order_acq_rel, memory_order_acquire);
-
         if (!*done) {
             read_entry(entry_p, &entry);
         }
@@ -211,7 +206,6 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     Py_hash_t hash = PyObject_Hash(key);
     if (hash == -1)
         goto fail;
-
     AtomicDictAccessorStorage *storage = NULL;
     storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
@@ -221,8 +215,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     meta = get_meta(self, storage);
     if (meta == NULL)
         goto fail;
-
-    int resized = lock_accessor_storage_or_help_resize(storage, meta);
+    int resized = lock_accessor_storage_or_help_resize(self, storage, meta);
     if (resized) {
         goto beginning;
     }
@@ -237,7 +230,6 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
             PyMutex_Unlock(&storage->self_mutex);
             goto fail;
         }
-
         if (got_entry == 0) {  // => must grow
             PyMutex_Unlock(&storage->self_mutex);
             resized = grow(self);
@@ -255,6 +247,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         assert(key != NULL);
         assert(hash != -1);
         assert(desired != NULL);
+
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->key, key, memory_order_release);
         atomic_store_explicit((_Atomic(Py_hash_t) *) &entry_loc.entry->hash, hash, memory_order_release);
         atomic_store_explicit((_Atomic(PyObject *) *) &entry_loc.entry->value, desired, memory_order_release);
@@ -285,10 +278,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
     if (must_grow || approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
         resized = grow(self);
-
         if (resized < 0)
             goto fail;
-
         if (must_grow) {  // insertion didn't happen
             goto beginning;
         }
@@ -309,21 +300,17 @@ AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kw
     PyObject *desired = NULL;
 
     char *kw_list[] = {"key", "expected", "desired", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOO", kw_list, &key, &expected, &desired))
         goto fail;
 
     PyObject *ret = AtomicDict_CompareAndSet(self, key, expected, desired);
-
     if (ret == NULL)
         goto fail;
-
     if (ret == EXPECTATION_FAILED) {
         PyObject *error = PyUnicode_FromFormat("self[%R] != %R", key, expected);
         PyErr_SetObject(Cereggii_ExpectationFailed, error);
         goto fail;
     }
-
     Py_RETURN_NONE;
 
     fail:
@@ -336,29 +323,24 @@ AtomicDict_SetItem(AtomicDict *self, PyObject *key, PyObject *value)
     if (value == NULL) {
         return AtomicDict_DelItem(self, key);
     }
-
     if (key == NOT_FOUND || key == ANY || key == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "key in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         goto fail;
     }
-
     if (value == NOT_FOUND || value == ANY || value == EXPECTATION_FAILED) {
         PyErr_SetString(PyExc_ValueError, "value in (NOT_FOUND, ANY, EXPECTATION_FAILED)");
         goto fail;
     }
 
     PyObject *result = AtomicDict_CompareAndSet(self, key, ANY, value);
-
     if (result == NULL)
         goto fail;
-
     assert(result != EXPECTATION_FAILED);
-
     if (result != NOT_FOUND && result != ANY && result != EXPECTATION_FAILED) {
         Py_DECREF(result);
     }
-
     return 0;
+
     fail:
     return -1;
 }
@@ -383,10 +365,8 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
 
     while (1) {
         previous = AtomicDict_CompareAndSet(self, key, expected, desired);
-
         if (previous == NULL)
             goto fail;
-
         if (previous != EXPECTATION_FAILED) {
             break;
         }
@@ -602,7 +582,6 @@ AtomicDict_Reduce_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     PyObject *aggregate = NULL;
 
     char *kw_list[] = {"iterable", "aggregate", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO", kw_list, &iterable, &aggregate))
         goto fail;
 
@@ -640,7 +619,6 @@ AtomicDict_ReduceSum_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -720,7 +698,6 @@ AtomicDict_ReduceOr_callable(AtomicDict *self, PyObject *args, PyObject *kwargs)
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -765,7 +742,6 @@ AtomicDict_ReduceMax_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -810,7 +786,6 @@ AtomicDict_ReduceMin_callable(AtomicDict *self, PyObject *args, PyObject *kwargs
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -886,7 +861,6 @@ AtomicDict_ReduceList_callable(AtomicDict *self, PyObject *args, PyObject *kwarg
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 
@@ -996,7 +970,6 @@ AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwar
     PyObject *iterable = NULL;
 
     char *kw_list[] = {"iterable", NULL};
-
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O", kw_list, &iterable))
         goto fail;
 

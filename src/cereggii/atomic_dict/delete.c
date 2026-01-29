@@ -49,6 +49,9 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
 
     AtomicDictMeta *meta = NULL;
     AtomicDictAccessorStorage *storage = NULL;
+    Py_hash_t hash = PyObject_Hash(key);
+    if (hash == -1)
+        goto fail;
     storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
@@ -57,12 +60,7 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     meta = get_meta(self, storage);
     if (meta == NULL)
         goto fail;
-
-    Py_hash_t hash = PyObject_Hash(key);
-    if (hash == -1)
-        goto fail;
-
-    int resized = lock_accessor_storage_or_help_resize(storage, meta);
+    int resized = lock_accessor_storage_or_help_resize(self, storage, meta);
     if (resized) {
         goto beginning;
     }
@@ -74,18 +72,14 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
         PyMutex_Unlock(&storage->self_mutex);
         goto fail;
     }
-
     if (!result.found) {
         PyMutex_Unlock(&storage->self_mutex);
         PyErr_SetObject(PyExc_KeyError, key);
         goto fail;
     }
-
     accessor_len_inc(self, storage, -1);
     accessor_tombstones_inc(self, storage, 1);
-
     PyMutex_Unlock(&storage->self_mutex);
-
     Py_DECREF(result.entry.key);
     Py_DECREF(result.entry.value);
 
