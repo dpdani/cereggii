@@ -238,6 +238,7 @@ migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, const uint64_t trai
         position = (d0 + distance) & (SIZE_OF(new_meta) - 1);
 
         if (read_raw_node_at(position, new_meta) == 0) {
+#ifdef CEREGGII_DEBUG
             uint64_t range_start = (trailing_cluster_start * 2) & (SIZE_OF(new_meta) - 1);
             uint64_t range_end = (2 * (trailing_cluster_start + trailing_cluster_size + 1)) & (SIZE_OF(new_meta) - 1);
             if (range_start < range_end) {
@@ -245,6 +246,9 @@ migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, const uint64_t trai
             } else {
                 assert(position >= range_start || position < range_end);
             }
+#endif
+            cereggii_unused_in_release_build(trailing_cluster_start);
+            cereggii_unused_in_release_build(trailing_cluster_size);
             write_node_at(position, node, new_meta);
             break;
         }
