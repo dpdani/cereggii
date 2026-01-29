@@ -17,17 +17,14 @@ get_or_create_accessor_storage(AtomicDict *self)
 
     if (storage == NULL) {
         storage = PyMem_RawMalloc(sizeof(AtomicDictAccessorStorage));
-        if (storage == NULL)
+        if (storage == NULL) {
+            PyErr_NoMemory();
             return NULL;
+        }
 
-        storage->next_accessor = NULL;
-        storage->self_mutex = (PyMutex) {0};
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_len, 0, memory_order_release);
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_inserted, 0, memory_order_release);
-        atomic_store_explicit((_Atomic(int64_t) *) &storage->local_tombstones, 0, memory_order_release);
-        storage->reservation_buffer.start = 0;
-        storage->reservation_buffer.size = 0;
-        storage->reservation_buffer.used = 0;
+        *storage = (AtomicDictAccessorStorage) {0};
+        // don't need to initialize with atomics because the PyMutex_Lock
+        // below is already a seq-cst memory barrier
         storage->meta = (AtomicDictMeta *) AtomicRef_Get(self->metadata);
 
         int set = PyThread_tss_set(self->accessor_key, storage);
