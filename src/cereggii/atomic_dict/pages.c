@@ -152,6 +152,7 @@ reserve_entry(AtomicDict* self, AtomicDictMeta* meta, AtomicDictReservationBuffe
         AtomicDictPage *page = NULL;
         page = AtomicDictPage_New();
         if (page == NULL) {
+            PyErr_NoMemory();
             return -1;
         }
 

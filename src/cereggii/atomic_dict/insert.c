@@ -233,7 +233,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     };
     if (expected == NOT_FOUND || expected == ANY) {
         int got_entry = get_empty_entry(self, meta, &storage->reservation_buffer, &entry_loc, hash);
-        if (entry_loc.entry == NULL || got_entry == -1) {
+        if (got_entry == -1) {
             PyMutex_Unlock(&storage->self_mutex);
             goto fail;
         }
