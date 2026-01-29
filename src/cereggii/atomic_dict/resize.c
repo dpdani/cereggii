@@ -213,12 +213,10 @@ common_resize(AtomicDict *self, AtomicDictMeta *current_meta, AtomicDictMeta *ne
 }
 
 inline void
-migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, const uint64_t trailing_cluster_start, const uint64_t trailing_cluster_size)
+migrate_node(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta* current_meta, AtomicDictMeta *new_meta, const uint64_t trailing_cluster_start, const uint64_t trailing_cluster_size)
 {
     assert(node->index != 0);
-    Py_hash_t hash = get_entry_at(node->index, new_meta)->hash;
-    uint64_t d0 = distance0_of(hash, new_meta);
-    node->tag = hash;
+    uint64_t d0 = migrate_node_d0(node, current_pos, current_meta, new_meta);
     uint64_t position;
 
     for (int64_t distance = 0; distance < SIZE_OF(new_meta); distance++) {
@@ -236,19 +234,49 @@ migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, const uint64_t trai
 #endif
             cereggii_unused_in_release_build(trailing_cluster_start);
             cereggii_unused_in_release_build(trailing_cluster_size);
+            node->distance = distance;
             write_node_at(position, node, new_meta);
             break;
         }
     }
 }
 
+inline uint64_t
+migrate_node_d0(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
+{
+    // compute the d0 position of a node, trying to avoid reading the entry.
+    // when we know the d0 position in the current index, we can apply a
+    // significant optimization whereby we avoid looking at the page entry
+    // to retrieve the hash.
+    //   - we know the most significant bits of the hash: it is d0;
+    //   - we know the next most significant bit: it's stored in the node's
+    //     tag; and
+    //   - the d0 position in the new index is given by the most significant
+    //     bits of the hash; therefore
+    //   - we know the d0 position in the new index.
+    if (node->distance < UINT8_MAX) {
+        uint64_t tag_displacement = node->tag >> (NODE_SIZE - current_meta->log_size - 1);
+        assert(tag_displacement == 0 || tag_displacement == 1);
+        return ((current_pos - node->distance) << 1) + tag_displacement;
+    }
+
+    // fallback to reading the page
+    // in practice, this only happens for degenerate hash collisions.
+    // that is, at least UINT8_MAX collisions, supposedly never.
+    Py_hash_t hash = get_entry_at(node->index, new_meta)->hash;
+    uint64_t d0 = distance0_of(hash, new_meta);
+    return d0;
+}
+
 void
 initialize_in_new_meta(AtomicDictMeta *new_meta, const uint64_t start, const uint64_t end)
 {
     // initialize slots in range [start, end)
+    cereggii_tsan_ignore_writes_begin();
     for (uint64_t j = 2 * start; j < 2 * (end + 1); ++j) {
-        write_raw_node_at(j & (SIZE_OF(new_meta) - 1), 0, new_meta);
+        new_meta->index[j & (SIZE_OF(new_meta) - 1)] = 0;
     }
+    cereggii_tsan_ignore_writes_end();
 }
 
 #define ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE 4096
@@ -336,7 +364,7 @@ block_wise_migrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta, int64
         if (is_tombstone(&node))
             continue;
 
-        migrate_node(&node, new_meta, start_of_cluster, cluster_size);
+        migrate_node(&node, i, current_meta, new_meta, start_of_cluster, cluster_size);
         migrated_count++;
     }
 
@@ -363,7 +391,7 @@ block_wise_migrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta, int64
             }
             cluster_size++;
             if (!is_tombstone(&node)) {
-                migrate_node(&node, new_meta, start_of_cluster, cluster_size);
+                migrate_node(&node, i, current_meta, new_meta, start_of_cluster, cluster_size);
                 migrated_count++;
             }
             i++;
