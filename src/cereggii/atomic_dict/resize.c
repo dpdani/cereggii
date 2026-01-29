@@ -248,9 +248,9 @@ migrate_node_d0(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta *curr
     // when we know the d0 position in the current index, we can apply a
     // significant optimization whereby we avoid looking at the page entry
     // to retrieve the hash.
-    //   - we know the most significant bits of the hash it is d0;
-    //   - we know the next most significant bit because it's stored in the
-    //     node's tag; and
+    //   - we know the most significant bits of the hash: it is d0;
+    //   - we know the next most significant bit: it's stored in the node's
+    //     tag; and
     //   - the d0 position in the new index is given by the most significant
     //     bits of the hash; therefore
     //   - we know the d0 position in the new index.
@@ -262,7 +262,7 @@ migrate_node_d0(AtomicDictNode *node, uint64_t current_pos, AtomicDictMeta *curr
 
     // fallback to reading the page
     // in practice, this only happens for degenerate hash collisions.
-    // that is, supposedly never.
+    // that is, at least UINT8_MAX collisions, supposedly never.
     Py_hash_t hash = get_entry_at(node->index, new_meta)->hash;
     uint64_t d0 = distance0_of(hash, new_meta);
     return d0;
@@ -274,7 +274,6 @@ initialize_in_new_meta(AtomicDictMeta *new_meta, const uint64_t start, const uin
     // initialize slots in range [start, end)
     cereggii_tsan_ignore_writes_begin();
     for (uint64_t j = 2 * start; j < 2 * (end + 1); ++j) {
-        // write_raw_node_at(j & (SIZE_OF(new_meta) - 1), 0, new_meta);
         new_meta->index[j & (SIZE_OF(new_meta) - 1)] = 0;
     }
     cereggii_tsan_ignore_writes_end();
