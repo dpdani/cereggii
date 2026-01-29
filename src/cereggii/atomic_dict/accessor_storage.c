@@ -195,15 +195,15 @@ accessor_tombstones_inc(AtomicDict *Py_UNUSED(self), AtomicDictAccessorStorage *
 }
 
 int
-accessor_storage_lock_or_migrate(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
+lock_accessor_storage_or_help_resize(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta)
 {
-    // returns whether a migration happened
+    // returns whether a resize happened
     if (!_PyMutex_TryLock(&storage->self_mutex)) {
-        if (maybe_help_migrate(meta, NULL)) {
-            // migrated
+        if (maybe_help_resize(meta, NULL)) {
+            // resized
             return 1;
         }
         PyMutex_Lock(&storage->self_mutex);
     }
-    return maybe_help_migrate(meta, &storage->self_mutex);
+    return maybe_help_resize(meta, &storage->self_mutex);
 }

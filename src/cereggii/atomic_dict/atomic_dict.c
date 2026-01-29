@@ -351,7 +351,7 @@ AtomicDict_dealloc(AtomicDict *self)
  * This is not thread-safe!
  *
  * Used at initialization time, when there can be no concurrent access.
- * Doesn't allocate pages, nor check for migrations, nor update dk->metadata refcount.
+ * Doesn't allocate pages, nor check for resizes, nor update dk->metadata refcount.
  * Doesn't do updates: repeated keys will be repeated, so make sure successive
  * calls to this function don't try to insert the same key into the same AtomicDict.
  **/

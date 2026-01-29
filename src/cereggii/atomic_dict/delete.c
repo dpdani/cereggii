@@ -62,8 +62,8 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     if (hash == -1)
         goto fail;
 
-    int migrated = accessor_storage_lock_or_migrate(storage, meta);
-    if (migrated) {
+    int resized = lock_accessor_storage_or_help_resize(storage, meta);
+    if (resized) {
         goto beginning;
     }
 

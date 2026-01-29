@@ -23,51 +23,51 @@ grow(AtomicDict *self)
 
     meta = get_meta(self, storage);
 
-    int migrated = migrate(self, meta);
-    if (migrated < 0)
+    int resized = resize(self, meta);
+    if (resized < 0)
         goto fail;
 
-    return migrated;
+    return resized;
 
     fail:
     return -1;
 }
 
 int
-maybe_help_migrate(AtomicDictMeta *current_meta, PyMutex *self_mutex)
+maybe_help_resize(AtomicDictMeta *current_meta, PyMutex *self_mutex)
 {
-    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->migration_leader, memory_order_acquire) == 0) {
+    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->resize_leader, memory_order_acquire) == 0) {
         return 0;
     }
 
     if (self_mutex != NULL) {
         PyMutex_Unlock(self_mutex);
     }
-    follower_migrate(current_meta);
+    follower_resize(current_meta);
     return 1;
 }
 
 
 int
-migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
+resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 {
-    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->migration_leader, memory_order_acquire) == 0) {
+    if (atomic_load_explicit((_Atomic(uintptr_t) *) &current_meta->resize_leader, memory_order_acquire) == 0) {
         uintptr_t expected = 0;
         int i_am_leader = atomic_compare_exchange_strong_explicit((_Atomic(uintptr_t) *)
-            &current_meta->migration_leader,
+            &current_meta->resize_leader,
             &expected, _Py_ThreadId(), memory_order_acq_rel, memory_order_acquire);
         if (i_am_leader) {
-            return leader_migrate(self, current_meta);
+            return leader_resize(self, current_meta);
         }
     }
 
-    follower_migrate(current_meta);
+    follower_resize(current_meta);
 
     return 1;
 }
 
 int
-leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
+leader_resize(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 {
     int holding_sync_lock = 0;
     AtomicDictMeta *new_meta;
@@ -118,14 +118,14 @@ leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
     atomic_store_explicit((_Atomic (int32_t) *) &current_meta->participants_count, accessors_len, memory_order_release);
 
 #ifdef CEREGGII_DEBUG
-    int64_t inserted_before_migration = 0;
-    int64_t tombstones_before_migration = 0;
+    int64_t inserted_before_resize = 0;
+    int64_t tombstones_before_resize = 0;
     AtomicDictAccessorStorage *accessor;
     FOR_EACH_ACCESSOR(self, accessor) {
         int64_t local_inserted = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
         int64_t local_tombstones = atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, memory_order_acquire);
-        inserted_before_migration += local_inserted;
-        tombstones_before_migration += local_tombstones;
+        inserted_before_resize += local_inserted;
+        tombstones_before_resize += local_tombstones;
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_inserted, 0, memory_order_release);
         atomic_store_explicit((_Atomic (int64_t) *) &accessor->local_tombstones, 0, memory_order_release);
     }
@@ -139,7 +139,7 @@ leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
     AtomicEvent_Set(current_meta->new_metadata_ready);
 
     // birds flying
-    common_migrate(current_meta, new_meta);
+    common_resize(current_meta, new_meta);
 
     // 🎉
     int set = AtomicRef_CompareAndSet(self->metadata, (PyObject *) current_meta, (PyObject *) new_meta);
@@ -148,14 +148,14 @@ leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
 
 #ifdef CEREGGII_DEBUG
     assert(holding_sync_lock);
-    int64_t inserted_after_migration = 0;
+    int64_t inserted_after_resize = 0;
     FOR_EACH_ACCESSOR(self, accessor) {
-        inserted_after_migration += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
+        inserted_after_resize += atomic_load_explicit((_Atomic (int64_t) *) &accessor->local_inserted, memory_order_acquire);
     }
-    assert(inserted_after_migration == inserted_before_migration - tombstones_before_migration);
+    assert(inserted_after_resize == inserted_before_resize - tombstones_before_resize);
 #endif
 
-    AtomicEvent_Set(current_meta->migration_done);
+    AtomicEvent_Set(current_meta->resize_done);
     Py_DECREF(new_meta);  // this may seem strange: why decref the new meta?
     // the reason is that AtomicRef_CompareAndSet also increases new_meta's refcount,
     // which is exactly what we want. but the reference count was already 1, as it
@@ -172,25 +172,25 @@ leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta /* borrowed */)
         end_synchronous_operation(self);
     }
     // don't block other threads indefinitely
-    AtomicEvent_Set(current_meta->migration_done);
+    AtomicEvent_Set(current_meta->resize_done);
     AtomicEvent_Set(current_meta->node_migration_done);
     AtomicEvent_Set(current_meta->new_metadata_ready);
     return -1;
 }
 
 void
-follower_migrate(AtomicDictMeta *current_meta)
+follower_resize(AtomicDictMeta *current_meta)
 {
     AtomicEvent_Wait(current_meta->new_metadata_ready);
     AtomicDictMeta *new_meta = atomic_load_explicit((_Atomic (AtomicDictMeta *) *) &current_meta->new_gen_metadata, memory_order_acquire);
 
-    common_migrate(current_meta, new_meta);
+    common_resize(current_meta, new_meta);
 
-    AtomicEvent_Wait(current_meta->migration_done);
+    AtomicEvent_Wait(current_meta->resize_done);
 }
 
 void
-common_migrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
+common_resize(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
 {
     if (AtomicEvent_IsSet(current_meta->node_migration_done))
         return;
@@ -302,7 +302,7 @@ to_migrate(AtomicDictMeta *current_meta, int64_t start_of_block, uint64_t end_of
 }
 
 int64_t
-AtomicDict_BlockWiseMigrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta, int64_t start_of_block)
+block_wise_migrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta, int64_t start_of_block)
 {
     int64_t migrated_count = 0;
     uint64_t current_size = SIZE_OF(current_meta);
@@ -392,7 +392,7 @@ migrate_nodes(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta)
     int64_t migrated_count = 0;
 
     while ((uint64_t) node_to_migrate < current_size) {
-        migrated_count += AtomicDict_BlockWiseMigrate(current_meta, new_meta, node_to_migrate);
+        migrated_count += block_wise_migrate(current_meta, new_meta, node_to_migrate);
         node_to_migrate = atomic_fetch_add_explicit((_Atomic(int64_t) *) &current_meta->node_to_migrate, ATOMIC_DICT_BLOCKWISE_MIGRATE_SIZE, memory_order_acq_rel);
     }
 

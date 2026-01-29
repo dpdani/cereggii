@@ -97,14 +97,14 @@ struct AtomicDictMeta {
 
     // migration
     AtomicDictMeta *new_gen_metadata;
-    uintptr_t migration_leader;
+    uintptr_t resize_leader;
     int64_t node_to_migrate;
     Py_tss_t *accessor_key;
     int64_t *participants;
     int32_t participants_count;
     AtomicEvent *new_metadata_ready;
     AtomicEvent *node_migration_done;
-    AtomicEvent *migration_done;
+    AtomicEvent *resize_done;
 };
 
 #define SIZE_OF(meta) (1ll << (meta)->log_size)
@@ -223,20 +223,20 @@ void accessor_inserted_inc(AtomicDict *self, AtomicDictAccessorStorage *storage,
 
 void accessor_tombstones_inc(AtomicDict *self, AtomicDictAccessorStorage *storage, int32_t inc);
 
-int accessor_storage_lock_or_migrate(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta);
+int lock_accessor_storage_or_help_resize(AtomicDictAccessorStorage *storage, AtomicDictMeta *meta);
 
 /// migrations
 int grow(AtomicDict *self);
 
-int maybe_help_migrate(AtomicDictMeta *meta, PyMutex *self_mutex);
+int maybe_help_resize(AtomicDictMeta *meta, PyMutex *self_mutex);
 
-int migrate(AtomicDict *self, AtomicDictMeta *current_meta);
+int resize(AtomicDict *self, AtomicDictMeta *current_meta);
 
-int leader_migrate(AtomicDict *self, AtomicDictMeta *current_meta);
+int leader_resize(AtomicDict *self, AtomicDictMeta *current_meta);
 
-void follower_migrate(AtomicDictMeta *current_meta);
+void follower_resize(AtomicDictMeta *current_meta);
 
-void common_migrate(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta);
+void common_resize(AtomicDictMeta *current_meta, AtomicDictMeta *new_meta);
 
 void migrate_node(AtomicDictNode *node, AtomicDictMeta *new_meta, uint64_t trailing_cluster_start, uint64_t trailing_cluster_size);
 

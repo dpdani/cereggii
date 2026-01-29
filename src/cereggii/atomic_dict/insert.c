@@ -227,8 +227,8 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     if (meta == NULL)
         goto fail;
 
-    int migrated = accessor_storage_lock_or_migrate(storage, meta);
-    if (migrated) {
+    int resized = lock_accessor_storage_or_help_resize(storage, meta);
+    if (resized) {
         goto beginning;
     }
 
@@ -245,9 +245,9 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
 
         if (got_entry == 0) {  // => must grow
             PyMutex_Unlock(&storage->self_mutex);
-            migrated = grow(self);
+            resized = grow(self);
 
-            if (migrated < 0)
+            if (resized < 0)
                 goto fail;
 
             goto beginning;
@@ -289,9 +289,9 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         goto fail;
 
     if (must_grow || approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
-        migrated = grow(self);
+        resized = grow(self);
 
-        if (migrated < 0)
+        if (resized < 0)
             goto fail;
 
         if (must_grow) {  // insertion didn't happen

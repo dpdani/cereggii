@@ -39,7 +39,7 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->index = index;
 
     meta->new_gen_metadata = NULL;
-    meta->migration_leader = 0;
+    meta->resize_leader = 0;
     meta->node_to_migrate = 0;
     meta->accessor_key = NULL;
     meta->participants = NULL;
@@ -50,8 +50,8 @@ AtomicDictMeta_New(uint8_t log_size)
     meta->node_migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
     if (meta->node_migration_done == NULL)
         goto fail;
-    meta->migration_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
-    if (meta->migration_done == NULL)
+    meta->resize_done = (AtomicEvent *) PyObject_CallObject((PyObject *) &AtomicEvent_Type, NULL);
+    if (meta->resize_done == NULL)
         goto fail;
 
     PyObject_GC_Track(meta);
@@ -142,7 +142,7 @@ AtomicDictMeta_traverse(AtomicDictMeta *self, visitproc visit, void *arg)
     Py_VISIT(self->new_gen_metadata);
     Py_VISIT(self->new_metadata_ready);
     Py_VISIT(self->node_migration_done);
-    Py_VISIT(self->migration_done);
+    Py_VISIT(self->resize_done);
 
     if (self->pages == NULL)
         return 0;
@@ -165,7 +165,7 @@ AtomicDictMeta_clear(AtomicDictMeta *self)
     Py_CLEAR(self->new_gen_metadata);
     Py_CLEAR(self->new_metadata_ready);
     Py_CLEAR(self->node_migration_done);
-    Py_CLEAR(self->migration_done);
+    Py_CLEAR(self->resize_done);
 
     return 0;
 }
