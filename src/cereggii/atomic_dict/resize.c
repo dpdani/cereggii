@@ -272,8 +272,18 @@ void
 initialize_in_new_meta(AtomicDictMeta *new_meta, const uint64_t start, const uint64_t end)
 {
     // initialize slots in range [start, end)
+    uint64_t mapped_start = 2 * start;
+    uint64_t mapped_end = 2 * (end + 1);
+
+    if (mapped_start == (mapped_start & (SIZE_OF(new_meta) - 1)) && mapped_end == (mapped_end & (SIZE_OF(new_meta) - 1))) {
+        cereggii_tsan_ignore_writes_begin();
+        memset(&new_meta->index[mapped_start], 0, (mapped_end - mapped_start) * sizeof(uint64_t));
+        cereggii_tsan_ignore_writes_end();
+        return;
+    }
+
     cereggii_tsan_ignore_writes_begin();
-    for (uint64_t j = 2 * start; j < 2 * (end + 1); ++j) {
+    for (uint64_t j = mapped_start; j < mapped_end; ++j) {
         new_meta->index[j & (SIZE_OF(new_meta) - 1)] = 0;
     }
     cereggii_tsan_ignore_writes_end();
