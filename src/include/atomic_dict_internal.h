@@ -11,6 +11,9 @@
 #include "internal/misc.h"
 
 
+#define ATOMIC_DICT_MIN_LOG_SIZE 7
+#define ATOMIC_DICT_MAX_LOG_SIZE 56
+
 /// basic structs
 typedef struct AtomicDictEntry {
     uint8_t flags;
@@ -54,7 +57,7 @@ typedef struct AtomicDictNode {
 
 
 /// pages
-#define ATOMIC_DICT_LOG_ENTRIES_IN_PAGE 6
+#define ATOMIC_DICT_LOG_ENTRIES_IN_PAGE (ATOMIC_DICT_MIN_LOG_SIZE)
 #define ATOMIC_DICT_ENTRIES_IN_PAGE (1 << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE)
 
 CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
@@ -296,9 +299,5 @@ int unsafe_insert(AtomicDictMeta *meta, Py_hash_t hash, uint64_t pos);
 PyObject* expected_insert_or_update(AtomicDictMeta *meta, PyObject *key, Py_hash_t hash,
                                     PyObject *expected, PyObject *desired,
                                     AtomicDictEntryLoc *entry_loc, int *must_grow, int skip_entry_check);
-
-
-#define ATOMIC_DICT_MIN_LOG_SIZE 6
-#define ATOMIC_DICT_MAX_LOG_SIZE 56
 
 #endif //CEREGGII_DEV_ATOMIC_DICT_INTERNAL_H

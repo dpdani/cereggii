@@ -85,7 +85,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     int64_t init_dict_size = 0;
     int64_t min_size = 0;
-    int64_t buffer_size = 4;
+    int64_t buffer_size = 16;
     PyObject *initial = NULL;
     PyObject *min_size_arg = NULL;
     PyObject *buffer_size_arg = NULL;
