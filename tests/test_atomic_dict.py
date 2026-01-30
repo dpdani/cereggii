@@ -375,7 +375,7 @@ def test_delete_concurrent():
 def test_grow():
     keys = keys_for_hash_for_log_size[6]
     d = AtomicDict({keys[0][0]: None, keys[1][0]: None, keys[0][1]: None, keys[1][1]: None})
-    assert d._debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 7
     assert len(list(filter(lambda _: _ != 0, Counter(d._debug()["index"]).keys()))) == len({0, 1, 64, 65})
     d[keys[0][2]] = None
     # assert d._debug()["meta"]["log_size"] == 7
@@ -397,7 +397,7 @@ def test_grow():
 
 def test_grow_then_shrink():
     d = AtomicDict()
-    assert d._debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 7
 
     for _ in range(2**10):
         debug = d._debug()
@@ -458,7 +458,7 @@ def test_dont_implode():
     del d[1]
     d[2] = None
     assert d[2] is None
-    assert d._debug()["meta"]["log_size"] == 6
+    assert d._debug()["meta"]["log_size"] == 7
 
 
 def test_len_bounds():
@@ -516,18 +516,19 @@ def test_issue_75():
 
 
 def test_fast_iter():
-    d = AtomicDict(min_size=2 * 4 * 64 * 2)  # = 1024
+    min_log_size = 128
+    d = AtomicDict(min_size=2 * 4 * min_log_size * 2)  # = 1024
 
-    for _ in range(1, 64):  # must offset for entry number 0
+    for _ in range(1, min_log_size):  # must offset for entry number 0
         d[_] = 1
-    for _ in range(64):
-        d[_ + 64] = 2
+    for _ in range(min_log_size):
+        d[_ + min_log_size] = 2
 
     for p in range(1, 4):
-        for _ in range(p * 128, p * 128 + 64):
+        for _ in range(p * 2 * min_log_size, p * 2 * min_log_size + min_log_size):
             d[_] = 1
-        for _ in range(p * 128, p * 128 + 64):
-            d[_ + 64] = 2
+        for _ in range(p * 2 * min_log_size, p * 2 * min_log_size + min_log_size):
+            d[_ + min_log_size] = 2
 
     @TestingThreadSet.repeat(1)
     def partition_1():
@@ -535,7 +536,7 @@ def test_fast_iter():
         for _, v in d.fast_iter(partitions=2, this_partition=0):
             assert v == 1
             n += 1
-        assert n == 4 * 64 - 1
+        assert n == 4 * min_log_size - 1
 
     @TestingThreadSet.repeat(1)
     def partition_2():
@@ -543,7 +544,7 @@ def test_fast_iter():
         for _, v in d.fast_iter(partitions=2, this_partition=1):
             assert v == 2
             n += 1
-        assert n == 4 * 64
+        assert n == 4 * min_log_size
 
     (partition_1 | partition_2).start_and_join()
 
