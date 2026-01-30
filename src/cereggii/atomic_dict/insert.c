@@ -268,16 +268,26 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
     }
 
+    int inserted_increased_significantly = 0;
     if (result == NOT_FOUND && entry_loc.location != 0) {  // it was an insert
         accessor_len_inc(self, storage, 1);
         accessor_inserted_inc(self, storage, 1);
+        if (storage->local_inserted % meta->log_size == 0) {
+            inserted_increased_significantly = 1;
+        }
     }
     PyMutex_Unlock(&storage->self_mutex);
 
     if (result == NULL && !must_grow)
         goto fail;
 
-    if (must_grow || approx_inserted(self) >= SIZE_OF(meta) * 2 / 3) {
+    int max_fill_ratio_approx_reached = 0;
+    if (inserted_increased_significantly) {
+        // calling approx_inserted frequently creates contention,
+        // even if it doesn't use atomic operations.
+        max_fill_ratio_approx_reached = approx_inserted(self) >= SIZE_OF(meta) * 2 / 3;
+    }
+    if (must_grow || max_fill_ratio_approx_reached) {
         resized = grow(self);
         if (resized < 0)
             goto fail;
