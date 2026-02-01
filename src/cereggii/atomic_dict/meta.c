@@ -133,7 +133,7 @@ AtomicDictMeta_traverse(AtomicDictMeta *self, visitproc visit, void *arg)
 
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
     for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
-        Py_VISIT(self->pages[page_i]);
+        AtomicDictPage_traverse(self->pages[page_i], visit, arg);
     }
     return 0;
 }
