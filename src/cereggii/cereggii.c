@@ -197,9 +197,8 @@ PyTypeObject AtomicDictPage_Type = {
     .tp_name = "cereggii._AtomicDictPage",
     .tp_basicsize = sizeof(AtomicDictPage),
     .tp_itemsize = 0,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_traverse = (traverseproc) AtomicDictPage_traverse,
     .tp_clear = (inquiry) AtomicDictPage_clear,
     .tp_dealloc = (destructor) AtomicDictPage_dealloc,
 };

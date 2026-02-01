@@ -13,7 +13,7 @@ AtomicDictPage *
 AtomicDictPage_New(void)
 {
     AtomicDictPage *new = NULL;
-    new = PyObject_GC_New(AtomicDictPage, &AtomicDictPage_Type);
+    new = PyObject_New(AtomicDictPage, &AtomicDictPage_Type);
 
     if (new == NULL)
         return NULL;
@@ -21,8 +21,6 @@ AtomicDictPage_New(void)
     cereggii_tsan_ignore_writes_begin();
     memset(new->entries, 0, sizeof(AtomicDictPaddedEntry) * ATOMIC_DICT_ENTRIES_IN_PAGE);
     cereggii_tsan_ignore_writes_end();
-
-    PyObject_GC_Track(new);
 
     return new;
 }
@@ -65,7 +63,6 @@ AtomicDictPage_clear(AtomicDictPage *self)
 void
 AtomicDictPage_dealloc(AtomicDictPage *self)
 {
-    PyObject_GC_UnTrack(self);
     AtomicDictPage_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
