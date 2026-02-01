@@ -36,7 +36,7 @@ typedef struct ReduceTable {
 static inline uint64_t
 reduce_table_hash_to_index(Py_hash_t hash, ReduceTable *table)
 {
-    return REHASH(hash) >> (SIZEOF_PY_HASH_T * CHAR_BIT - table->log_size);
+    return hash & REDUCE_TABLE_MASK(table);
 }
 
 static inline ReduceTable *
