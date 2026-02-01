@@ -8,6 +8,7 @@
 #include "atomic_dict_internal.h"
 #include <stdatomic.h>
 #include "_internal_py_core.h"
+#include "reduce_table.h"
 
 
 int
@@ -418,41 +419,16 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
 
 
 static inline int
-reduce_flush(AtomicDict *self, PyObject *local_buffer, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
+reduce_flush(AtomicDict *self, ReduceTable *local_buffer, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
 {
-    Py_ssize_t pos = 0;
-    PyObject *key = NULL;
-    PyObject *tuple = NULL;
-    PyObject *expected = NULL;
-    PyObject *current = NULL;
-    PyObject *desired = NULL;
-    PyObject *new = NULL;
-    PyObject *previous = NULL;
-    // local_buffer is thread-local: it's created in the reduce function,
-    // and its reference never leaves the scope of Reduce() or reduce_flush().
-    // so there's no need for Py_BEGIN_CRITICAL_SECTION here.
-    while (PyDict_Next(local_buffer, &pos, &key, &tuple)) {
-        assert(key != NULL);
-        assert(tuple != NULL);
-        assert(PyTuple_Size(tuple) == 2);
-        expected = PyTuple_GetItem(tuple, 0);
-        new = PyTuple_GetItem(tuple, 1);
-        // don't Py_DECREF(tuple) because PyDict_Next returns borrowed references
-
-        int error = flush_one(self, key, expected, new, aggregate, specialized, is_specialized);
-        if (error) {
-            goto fail;
+    for (uint64_t i = 0; i < local_buffer->used; i++) {
+        ReduceTableEntry *entry = &local_buffer->entries[i];
+        int result = flush_one(self, entry->key, entry->expected, entry->desired, aggregate, specialized, is_specialized);
+        if (result < 0) {
+            return -1;
         }
     }
     return 0;
-    fail:
-    Py_XDECREF(key);
-    Py_XDECREF(expected);
-    Py_XDECREF(current);
-    Py_XDECREF(desired);
-    Py_XDECREF(new);
-    Py_XDECREF(previous);
-    return -1;
 }
 
 static int
@@ -470,10 +446,9 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
     PyObject *current = NULL;
     PyObject *expected = NULL;
     PyObject *desired = NULL;
-    PyObject *tuple_get = NULL;
-    PyObject *tuple_set = NULL;
-    PyObject *local_buffer = NULL;
+    ReduceTable *local_buffer = NULL;
     PyObject *iterator = NULL;
+    Py_hash_t hash = -1;
 
     if (!is_specialized) {
         if (!PyCallable_Check(aggregate)) {
@@ -482,7 +457,7 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         }
     }
 
-    local_buffer = PyDict_New();
+    local_buffer = reduce_table_new(REDUCE_TABLE_INITIAL_LOG_SIZE);
     if (local_buffer == NULL)
         goto fail;
 
@@ -514,20 +489,18 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         Py_INCREF(key);
         value = PyTuple_GetItem(item, 1);
         Py_INCREF(value);
-        if (PyDict_Contains(local_buffer, key)) {
-            if (PyDict_GetItemRef(local_buffer, key, &tuple_get) < 0)
-                goto fail;
 
-            expected = PyTuple_GetItem(tuple_get, 0);
-            Py_INCREF(expected);
-            current = PyTuple_GetItem(tuple_get, 1);
-            Py_INCREF(current);
-            Py_CLEAR(tuple_get);
-        } else {
+        hash = PyObject_Hash(key);
+        if (hash == -1)
+            goto fail;
+
+        int found = reduce_table_get(local_buffer, key, hash, &expected, &current);
+        if (found < 0)
+            goto fail;
+
+        if (!found) {
             expected = NOT_FOUND;
-            Py_INCREF(expected);
             current = NOT_FOUND;
-            Py_INCREF(current);
         }
 
         if (is_specialized) {
@@ -537,22 +510,18 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         }
         if (desired == NULL)
             goto fail;
-        Py_INCREF(desired);
 
-        tuple_set = PyTuple_Pack(2, expected, desired);
-        if (tuple_set == NULL)
+        if (reduce_table_set(local_buffer, key, hash, expected, desired) < 0) {
+            Py_DECREF(desired);
             goto fail;
-
-        if (PyDict_SetItem(local_buffer, key, tuple_set) < 0)
-            goto fail;
+        }
 
         Py_CLEAR(item);
         Py_CLEAR(key);
         Py_CLEAR(value);
-        Py_CLEAR(current);
-        Py_CLEAR(expected);
         Py_CLEAR(desired);
-        Py_CLEAR(tuple_set);
+        expected = NULL;
+        current = NULL;
     }
 
     if (PyErr_Occurred())
@@ -563,20 +532,17 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         goto fail;
     }
     Py_DECREF(iterator);
-    Py_DECREF(local_buffer);
+    reduce_table_free(local_buffer);
     return 0;
 
     fail:
-    Py_XDECREF(local_buffer);
+    if (local_buffer != NULL)
+        reduce_table_free(local_buffer);
     Py_XDECREF(iterator);
     Py_XDECREF(item);
     Py_XDECREF(key);
     Py_XDECREF(value);
-    Py_XDECREF(current);
-    Py_XDECREF(expected);
     Py_XDECREF(desired);
-    Py_XDECREF(tuple_get);
-    Py_XDECREF(tuple_set);
     return -1;
 }
 

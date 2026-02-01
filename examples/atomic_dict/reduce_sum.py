@@ -15,7 +15,7 @@ def make_keys():
 
 def make_data(data_size):
     keys = make_keys()
-    return [(keys[_ % len(keys)], 5) for _ in range(data_size)]
+    return ((keys[_ % len(keys)], 5) for _ in range(data_size))
 
 
 def builtin_dict_sum():
