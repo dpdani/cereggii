@@ -457,7 +457,7 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         }
     }
 
-    local_buffer = reduce_table_new(7);
+    local_buffer = reduce_table_new(REDUCE_TABLE_INITIAL_LOG_SIZE);
     if (local_buffer == NULL)
         goto fail;
 
