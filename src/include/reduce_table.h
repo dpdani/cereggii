@@ -85,12 +85,6 @@ reduce_table_free(ReduceTable *table)
     if (table == NULL)
         return;
 
-    for (uint64_t i = 0; i < table->used; i++) {
-        Py_XDECREF(table->entries[i].key);
-        Py_XDECREF(table->entries[i].expected);
-        Py_XDECREF(table->entries[i].desired);
-    }
-
     PyMem_Free(table->entries);
     PyMem_Free(table->index);
     PyMem_Free(table);
@@ -205,6 +199,7 @@ reduce_table_lookup(ReduceTable *table, PyObject *key, Py_hash_t hash, uint64_t 
 }
 
 // Insert or update entry in table.
+// Steals references to key, expected, and desired.
 // Returns 0 on success, -1 on error.
 static inline int
 reduce_table_set(ReduceTable *table, PyObject *key, Py_hash_t hash,
@@ -226,17 +221,16 @@ reduce_table_set(ReduceTable *table, PyObject *key, Py_hash_t hash,
     ReduceTableEntry *existing = reduce_table_lookup(table, key, hash, &existing_entry_ix);
 
     if (existing != NULL) {
-        // Update existing entry
+        // Update existing entry - steal new refs, decref old ones
         PyObject *old_expected = existing->expected;
         PyObject *old_desired = existing->desired;
 
-        Py_INCREF(expected);
-        Py_INCREF(desired);
-        existing->expected = expected;
-        existing->desired = desired;
+        existing->expected = expected;  // steal reference
+        existing->desired = desired;    // steal reference
 
         Py_DECREF(old_expected);
         Py_DECREF(old_desired);
+        Py_DECREF(key);  // we don't need the key since entry already exists
 
         return 0;
     }
@@ -255,12 +249,9 @@ reduce_table_set(ReduceTable *table, PyObject *key, Py_hash_t hash,
 
     ReduceTableEntry *entry = &table->entries[entry_ix];
     entry->hash = hash;
-    Py_INCREF(key);
-    entry->key = key;
-    Py_INCREF(expected);
-    entry->expected = expected;
-    Py_INCREF(desired);
-    entry->desired = desired;
+    entry->key = key;            // steal reference
+    entry->expected = expected;  // steal reference
+    entry->desired = desired;    // steal reference
 
     return 0;
 }
