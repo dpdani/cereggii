@@ -9,6 +9,7 @@
 #include <stdatomic.h>
 #include "_internal_py_core.h"
 #include "reduce_table.h"
+#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 int
@@ -474,7 +475,7 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
         Py_INCREF(iterable);
     }
 
-    while ((item = PyIter_Next(iterator))) {
+    while (PyIter_NextItem(iterator, &item) == 1) {
         if (!PyTuple_CheckExact(item)) {
             PyErr_Format(PyExc_TypeError, "type(%R) != tuple", item);
             goto fail;
@@ -512,16 +513,9 @@ AtomicDict_Reduce_impl(AtomicDict *self, PyObject *iterable, PyObject *aggregate
             goto fail;
 
         if (reduce_table_set(local_buffer, key, hash, expected, desired) < 0) {
-            Py_DECREF(desired);
             goto fail;
         }
-
-        Py_CLEAR(item);
-        Py_CLEAR(key);
-        Py_CLEAR(value);
-        Py_CLEAR(desired);
-        expected = NULL;
-        current = NULL;
+        Py_DECREF(item);
     }
 
     if (PyErr_Occurred())
@@ -578,6 +572,7 @@ reduce_specialized_sum(PyObject *Py_UNUSED(key), PyObject *current, PyObject *ne
     assert(current != NULL);
     assert(new != NULL);
     if (current == NOT_FOUND) {
+        Py_INCREF(new);
         return new;
     }
     return PyNumber_Add(current, new);
@@ -615,12 +610,15 @@ reduce_specialized_and(PyObject *Py_UNUSED(key), PyObject *current, PyObject *ne
     assert(current != NULL);
     assert(new != NULL);
     if (current == NOT_FOUND) {
+        Py_INCREF(new);
         return new;
     }
     if (PyObject_IsTrue(current) && PyObject_IsTrue(new)) {
-        return Py_True;  // Py_INCREF() called externally
+        Py_INCREF(Py_True);
+        return Py_True;
     }
-    return Py_False;  // Py_INCREF() called externally
+    Py_INCREF(Py_False);
+    return Py_False;
 }
 
 int
@@ -655,12 +653,13 @@ reduce_specialized_or(PyObject *Py_UNUSED(key), PyObject *current, PyObject *new
     assert(current != NULL);
     assert(new != NULL);
     if (current == NOT_FOUND) {
+        Py_INCREF(new);
         return new;
     }
     if (PyObject_IsTrue(current) || PyObject_IsTrue(new)) {
-        return Py_True;  // Py_INCREF() called externally
+        Py_RETURN_TRUE;
     }
-    return Py_False;  // Py_INCREF() called externally
+    Py_RETURN_FALSE;
 }
 
 int
@@ -694,16 +693,22 @@ reduce_specialized_max(PyObject *Py_UNUSED(key), PyObject *current, PyObject *ne
     assert(current != NULL);
     assert(new != NULL);
     if (current == NOT_FOUND) {
+        Py_INCREF(new);
         return new;
     }
     Py_INCREF(current);
     Py_INCREF(new);
     const int cmp = PyObject_RichCompareBool(current, new, Py_GE);
-    if (cmp < 0)
+    if (cmp < 0) {
+        Py_DECREF(current);
+        Py_DECREF(new);
         return NULL;
+    }
     if (cmp) {
+        Py_DECREF(new);
         return current;
     }
+    Py_DECREF(current);
     return new;
 }
 
@@ -738,16 +743,22 @@ reduce_specialized_min(PyObject *Py_UNUSED(key), PyObject *current, PyObject *ne
     assert(current != NULL);
     assert(new != NULL);
     if (current == NOT_FOUND) {
+        Py_INCREF(new);
         return new;
     }
     Py_INCREF(current);
     Py_INCREF(new);
     const int cmp = PyObject_RichCompareBool(current, new, Py_LE);
-    if (cmp < 0)
+    if (cmp < 0) {
+        Py_DECREF(current);
+        Py_DECREF(new);
         return NULL;
+    }
     if (cmp) {
+        Py_DECREF(new);
         return current;
     }
+    Py_DECREF(current);
     return new;
 }
 
@@ -780,8 +791,10 @@ static inline PyObject *
 to_list(PyObject *maybe_list)
 {
     assert(maybe_list != NULL);
-    if (PyList_CheckExact(maybe_list))
+    if (PyList_CheckExact(maybe_list)) {
+        Py_INCREF(maybe_list);
         return maybe_list;
+    }
 
     PyObject *list = NULL;
     list = PyList_New(1);
@@ -808,19 +821,13 @@ reduce_specialized_list(PyObject *Py_UNUSED(key), PyObject *current, PyObject *n
         return NULL;
     PyObject *new_list = to_list(new);
     if (new_list == NULL) {
-        if (current != current_list) {
-            Py_DECREF(current_list);
-        }
+        Py_DECREF(current_list);
         return NULL;
     }
     PyObject *concat = PyNumber_Add(current_list, new_list);
+    Py_DECREF(current_list);
+    Py_DECREF(new_list);
     if (concat == NULL) {
-        if (current_list != current) {
-            Py_DECREF(current_list);
-        }
-        if (new_list != new) {
-            Py_DECREF(new_list);
-        }
         return NULL;
     }
     return concat;
