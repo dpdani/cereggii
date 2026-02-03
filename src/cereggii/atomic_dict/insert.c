@@ -377,14 +377,16 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
     PyObject *new_desired = NULL;
 
     while (1) {
-        previous = AtomicDict_CompareAndSet(self, key, expected, desired);
-        if (previous == NULL)
-            goto fail;
-        if (previous != EXPECTATION_FAILED) {
-            break;
-        }
-
         current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
+
+        if (current == expected) {
+            previous = AtomicDict_CompareAndSet(self, key, expected, desired);
+            if (previous == NULL)
+                goto fail;
+            if (previous != EXPECTATION_FAILED) {
+                break;
+            }
+        }
 
         // the aggregate function must always be called with `new`, not `desired`
         new_desired = NULL;
@@ -422,8 +424,13 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
 static inline int
 reduce_flush(AtomicDict *self, ReduceTable *local_buffer, PyObject *aggregate, PyObject *(*specialized)(PyObject *, PyObject *, PyObject *), int is_specialized)
 {
+    if (local_buffer->used == 0)
+        return 0;
+
+    uint64_t start = REHASH(_Py_ThreadId()) % local_buffer->used;
     for (uint64_t i = 0; i < local_buffer->used; i++) {
-        ReduceTableEntry *entry = &local_buffer->entries[i];
+        uint64_t index = (start + i) % local_buffer->used;
+        ReduceTableEntry *entry = &local_buffer->entries[index];
         int result = flush_one(self, entry->key, entry->expected, entry->desired, aggregate, specialized, is_specialized);
         if (result < 0) {
             return -1;
