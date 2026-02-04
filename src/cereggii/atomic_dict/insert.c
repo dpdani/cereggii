@@ -428,6 +428,9 @@ reduce_flush(AtomicDict *self, ReduceTable *local_buffer, PyObject *aggregate, P
         return 0;
 
     uint64_t start = REHASH(_Py_ThreadId()) % local_buffer->used;
+    // start is a pseudo random number, distinct per thread.
+    // this can help reduce contention when multiple threads
+    // are flushing a large-enough set of distinct keys.
     for (uint64_t i = 0; i < local_buffer->used; i++) {
         uint64_t index = (start + i) % local_buffer->used;
         ReduceTableEntry *entry = &local_buffer->entries[index];
