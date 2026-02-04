@@ -8,7 +8,7 @@ class ThreadSet:
     """
     A container for sets of threads.
     It provides boilerplate-removing utilities for handling standard library threads.
-    See Python's `threading.Thread <https://docs.python.org/3/library/threading.html#thread-objects>`_
+    See Python's [`threading.Thread`](https://docs.python.org/3/library/threading.html#thread-objects)
     documentation for general information on Python threads.
     """
 
@@ -16,61 +16,58 @@ class ThreadSet:
 
     def __init__(self, *threads: Thread):
         """
-        You can initialize a ``ThreadSet`` with any threads you already defined:
+        You can initialize a `ThreadSet` with any threads you already defined:
 
-        .. code-block:: python
+        ```python
+        class MyCustomThreadSubclass(threading.Thread):
+            ...
 
-            class MyCustomThreadSubclass(threading.Thread):
-                ...
+        threads = ThreadSet(
+            MyCustomThreadSubclass(...),
+            threading.Thread(...),
+        )
+        threads.start_and_join()
+        ```
 
-            threads = ThreadSet(
-                MyCustomThreadSubclass(...),
-                threading.Thread(...),
-            )
-            threads.start_and_join()
+        You can create unions of `ThreadSet`s:
+        ```python
+        readers = ThreadSet(...)
+        readers.start()
 
-        You can create unions of ``ThreadSet``s:
+        writers = ThreadSet(...)
+        writers.start()
 
-        .. code-block:: python
+        (readers | writers).join()
+        ```
 
-            readers = ThreadSet(...)
-            readers.start()
+        You can create a `ThreadSet` in a function definition, using [`with_args()`][cereggii.ThreadSet.with_args],
+        [`repeat()`][cereggii.ThreadSet.repeat], or [`target`][cereggii.ThreadSet.target]:
+        ```python
+        @ThreadSet.repeat(10)  # will create 10 threads
+        def workers():
+            ...
 
-            writers = ThreadSet(...)
-            writers.start()
+        workers.start_and_join()
+        ```
 
-            (readers | writers).join()
-
-        You can create a ``ThreadSet`` in a function definition, using :meth:`with_args`,
-        :meth:`repeat`, or :meth:`target`:
-
-        .. code-block:: python
-
-            @ThreadSet.repeat(10)  # will create 10 threads
-            def workers():
-                ...
-
-            workers.start_and_join()
-
-        With :meth:`target`, function typing
+        With [`ThreadSet.target`][cereggii.ThreadSet.target], function typing
         information is kept:
+        ```python
+        @ThreadSet.target
+        def reader(thread_id: int, color: str):
+            ...
 
-        .. code-block:: python
+        @ThreadSet.target
+        def writer(thread_id: int, color: str):
+            ...
 
-            @ThreadSet.target
-            def reader(thread_id: int, color: str):
-                ...
-
-            @ThreadSet.target
-            def writer(thread_id: int, color: str):
-                ...
-
-            threads = ThreadSet(
-                reader(0, "red"),  # your IDE will show the correct types here
-                reader(1, "green"),
-                writer(2, "blue")
-            )
-            threads.start_and_join()
+        threads = ThreadSet(
+            reader(0, "red"),  # your IDE will show the correct types here
+            reader(1, "green"),
+            writer(2, "blue")
+        )
+        threads.start_and_join()
+        ```
         """
         self._threads: set[Thread] = set(threads)
 
@@ -84,13 +81,13 @@ class ThreadSet:
     @classmethod
     def with_args(cls, *args: Args) -> Callable[[Callable], "ThreadSet"]:
         """
-        .. code-block:: python
+        ```python
+        @ThreadSet.with_args(ThreadSet.Args(1, color="red"), ThreadSet.Args(2, "blue"))
+        def spam(thread_id, color):
+            ...
 
-            @ThreadSet.with_args(ThreadSet.Args(1, color="red"), ThreadSet.Args(2, "blue"))
-            def spam(thread_id, color):
-                ...
-
-            spam.start_and_join()
+        spam.start_and_join()
+        ```
         """
 
         def decorator(target: Callable) -> ThreadSet:
@@ -106,13 +103,13 @@ class ThreadSet:
     @classmethod
     def repeat(cls, times: int) -> Callable[[Callable], "ThreadSet"]:
         """
-        .. code-block:: python
+        ```python
+        @ThreadSet.repeat(5)
+        def workers():
+            ...
 
-            @ThreadSet.repeat(5)
-            def workers():
-                ...
-
-            workers.start_and_join()
+        workers.start_and_join()
+        ```
         """
         return cls.with_args(*itertools.repeat(cls.Args(), times))
 
@@ -125,19 +122,18 @@ class ThreadSet:
     @classmethod
     def range(cls, start: int, stop: int | None = None, step: int = 1) -> Callable[[Callable], "ThreadSet"]:
         """
-        .. code-block:: python
+        ```python
+        identifiers = set()
 
-            identifiers = set()
+        @ThreadSet.range(5)
+        def workers(thread_id):
+            identifiers.add(thread_id)
 
-            @ThreadSet.range(5)
-            def workers(thread_id):
-                identifiers.add(thread_id)
-
-            workers.start_and_join()
-            for i in range(5):
-                assert i in identifiers
-
-        The meaning of the parameters follows Python's `range() <https://docs.python.org/3.13/library/stdtypes.html#range>`_.
+        workers.start_and_join()
+        for i in range(5):
+            assert i in identifiers
+        ```
+        The meaning of the parameters follows Python's [`range()`](https://docs.python.org/3.13/library/stdtypes.html#range).
         """
         if stop is None:
             start, stop = 0, start
@@ -146,17 +142,17 @@ class ThreadSet:
     @classmethod
     def target[**P](cls, target: Callable[P, None]) -> Callable[P, Thread]:
         """
-        .. code-block:: python
+        ```python
+        @ThreadSet.target
+        def spam(thread_id: int, color: str):
+            ...
 
-            @ThreadSet.target
-            def spam(thread_id: int, color: str):
-                ...
-
-            threads = ThreadSet(
-                spam(1, color="red"),
-                spam(2, "blue"),
-            )
-            threads.start_and_join()
+        threads = ThreadSet(
+            spam(1, color="red"),
+            spam(2, "blue"),
+        )
+        threads.start_and_join()
+        ```
         """
 
         def inner(*args: P.args, **kwargs: P.kwargs) -> Thread:
@@ -165,17 +161,17 @@ class ThreadSet:
         return inner
 
     def start(self):
-        """Start the threads in this ``ThreadSet``.
+        """Start the threads in this `ThreadSet`.
 
-        Also see `Thread.start() <https://docs.python.org/3/library/threading.html#threading.Thread.start>`_.
+        Also see [`Thread.start()`](https://docs.python.org/3/library/threading.html#threading.Thread.start).
         """
         for t in self._threads:
             t.start()
 
     def join(self, timeout: float | None = None):
-        """Join the threads in this ``ThreadSet``.
+        """Join the threads in this `ThreadSet`.
 
-        Also see `Thread.join() <https://docs.python.org/3/library/threading.html#threading.Thread.join>`_.
+        Also see [`Thread.join()`](https://docs.python.org/3/library/threading.html#threading.Thread.join).
 
         :param timeout: The timeout for each individual join to complete.
         """
@@ -183,59 +179,59 @@ class ThreadSet:
             t.join(timeout)
 
     def start_and_join(self, join_timeout: float | None = None):
-        """Start the threads in this ``ThreadSet``, then join them."""
+        """Start the threads in this `ThreadSet`, then join them."""
         self.start()
         self.join(join_timeout)
 
     def is_alive(self) -> Iterable[bool]:
-        """Call `Thread.is_alive() <https://docs.python.org/3/library/threading.html#threading.Thread.is_alive>`_
-        for each thread in this ``ThreadSet``."""
+        """Call [`Thread.is_alive()`](https://docs.python.org/3/library/threading.html#threading.Thread.is_alive)
+        for each thread in this `ThreadSet`."""
         return (t.is_alive() for t in self._threads)
 
     def any_is_alive(self) -> bool:
         """
-        .. code-block:: python
-
-            any(self.is_alive())
+        ```python
+        any(self.is_alive())
+        ```
         """
         return any(self.is_alive())
 
     def all_are_alive(self) -> bool:
         """
-        .. code-block:: python
-
-            all(self.is_alive())
+        ```python
+        all(self.is_alive())
+        ```
         """
         return all(self.is_alive())
 
     def all_are_not_alive(self) -> bool:
         """
-        .. code-block:: python
-
-            not self.any_is_alive()
+        ```python
+        not self.any_is_alive()
+        ```
         """
         return not self.any_is_alive()
 
     def __or__(self, other):
-        """Returns a new ``ThreadSet`` containing all the threads in the operands,
-        which must be ``ThreadSet`` instances.
+        """Returns a new `ThreadSet` containing all the threads in the operands,
+        which must be `ThreadSet` instances.
 
-        .. code-block:: python
-
-            threads = ThreadSet(...) | ThreadSet(...)
+        ```python
+        threads = ThreadSet(...) | ThreadSet(...)
+        ```
         """
         if not isinstance(other, self.__class__):
             raise TypeError(f"cannot make union of {self.__class__} and {other!r}")
         return self.__class__(*(set(self._threads) | set(other._threads)))
 
     def __ior__(self, other):
-        """Adds the threads in the right operand into this ``ThreadSet``.
-        The right operand must be a ``ThreadSet``.
+        """Adds the threads in the right operand into this `ThreadSet`.
+        The right operand must be a `ThreadSet`.
 
-        .. code-block:: python
-
-            threads = ThreadSet(...)
-            threads |= ThreadSet(...)
+        ```python
+        threads = ThreadSet(...)
+        threads |= ThreadSet(...)
+        ```
         """
         if not isinstance(other, self.__class__):
             raise TypeError(f"cannot make union of {self.__class__} and {other!r}")
@@ -243,11 +239,11 @@ class ThreadSet:
         return self
 
     def __len__(self) -> int:
-        """Returns the number of threads contained in this ``ThreadSet``.
+        """Returns the number of threads contained in this `ThreadSet`.
 
-        .. code-block:: python
-
-            len(ThreadSet(...))
+        ```python
+        len(ThreadSet(...))
+        ```
         """
         return len(self._threads)
 

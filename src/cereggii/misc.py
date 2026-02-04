@@ -18,33 +18,33 @@ def call_once(func):
     If the function raises an exception, the same exception will be re-raised
     in all threads.
 
-    .. rubric:: Example
+    !!! example
 
-    The ``expensive_initialization_function`` below will be called only once,
-    even if it is called from multiple threads concurrently.
+        The `expensive_initialization_function` below will be called only once,
+        even if it is called from multiple threads concurrently.
 
-    .. code-block:: python
-
+        ```python
         from cereggii import call_once
 
         @call_once
         def expensive_initialization_function():
             pass
+        ```
 
-    Since you may want the function to be unit-tested and wrapping it in a
-    decorator may make things awkward, you can wrap it after the definition:
+        Since you may want the function to be unit-tested and wrapping it in a
+        decorator may make things awkward, you can wrap it after the definition:
 
-    .. code-block:: python
-
+        ```python
         from cereggii import call_once
 
         def _expensive_initialization_function():
             pass
 
         expensive_initialization_function = call_once(_expensive_initialization_function)
+        ```
 
     :param func: The function to be called once.
-    :return: A wrapper function that ensures ``func`` is executed only once.
+    :return: A wrapper function that ensures `func` is executed only once.
     """
     result = _not_set
     exception = _not_set
