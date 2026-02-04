@@ -6,10 +6,9 @@ copyright: |
   &copy; 2023- Daniele Parmeggiani
 
 nav:
-  - Home:
-    - 'index.md'
-    - 'compatibility.md'
+  - Home: 'index.md'
   - 'API Reference':
+      - 'Index': 'api/index.md'
       - 'api/AtomicDict.md'
       - 'api/AtomicCache.md'
       - 'api/AtomicInt64.md'
@@ -24,6 +23,7 @@ nav:
 #      - 'c-api/AtomicInt64.md'
 #      - 'c-api/AtomicRef.md'
   - 'Examples':
+      - 'examples/index.md'
       - 'AtomicDict':
           - 'Reduce': 'examples/AtomicDict/reduce.md'
           - 'Advanced Reduce': 'examples/AtomicDict/reduce-average.md'
@@ -112,13 +112,12 @@ extra:
       link: https://github.com/dpdani/cereggii/blob/main/LICENSE
   version:
     provider: mike
-    default: stable
+    default: latest
     alias: true
 
 plugins:
   - search
-  - tags:
-      tags_file: tags.md
+  - tags
   - blog:
       blog_dir: blog
       post_url_format: "{slug}"
@@ -158,13 +157,13 @@ plugins:
             show_symbol_type_heading: true
             show_symbol_type_toc: true
             line_length: 88
-            merge_init_into_class: true
+            merge_init_into_class: false
             separate_signature: true
             show_signature_annotations: true
             show_bases: true
+            allow_inspection: true
 
 extra_javascript:
-  - js/mathjax.js
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 watch:

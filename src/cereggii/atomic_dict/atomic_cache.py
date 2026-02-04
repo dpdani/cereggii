@@ -42,7 +42,7 @@ class AtomicCache[K, V]:
     time-to-live (TTL) expiration and explicit invalidation.
 
     When multiple threads access the same key concurrently, only one thread will execute
-    the fill function, while others wait for the result to be ready. This ensures that
+    the `fill` function, while others wait for the result to be ready. This ensures that
     expensive computations are only performed once per key, even under high concurrency.
     Threads waiting for a result will be blocked until the result is ready.
 
@@ -67,7 +67,9 @@ class AtomicCache[K, V]:
         value = cache["spam"]  # recomputes the result
         ```
 
-    !!! example
+    !!! example "Memoization"
+
+        You can use `AtomicCache` to implement a simple memoization decorator:
 
         ```python
         from cereggii import AtomicCache
@@ -78,16 +80,17 @@ class AtomicCache[K, V]:
                 return n
             return fib(n - 1) + fib(n - 2)
         ```
-
-    :param fill: A callable that takes a key and returns the value to cache.
-        This function is called once per key to populate the cache, even if
-        multiple threads access the same key concurrently.
-    :param ttl: Optional time-to-live in seconds. If specified, cached entries will
-        expire after this duration and be refilled on the next access. Expired
-        keys are removed lazily. Do not rely on this TTL for memory management.
     """
 
     def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
+        """
+        :param fill: A callable that takes a key and returns the value to cache.
+            This function is called once per key to populate the cache, even if
+            multiple threads access the same key concurrently.
+        :param ttl: Optional time-to-live in seconds. If specified, cached entries will
+            expire after this duration and be refilled on the next access. Expired
+            keys are removed lazily. Do not rely on this TTL for memory management.
+        """
         _tombstone.ready.set()
         self._fill = fill
         self._ttl = ttl
