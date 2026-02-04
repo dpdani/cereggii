@@ -10,6 +10,7 @@
 #include "_internal_py_core.h"
 #include "reduce_table.h"
 #include <vendor/pythoncapi_compat/pythoncapi_compat.h>
+#include <thread_id.h>
 
 
 int
