@@ -5,12 +5,12 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <cereggii/atomic_dict.h>
-#include <../include/cereggii/internal/atomic_dict.h>
 #include <cereggii/atomic_event.h>
 #include <cereggii/atomic_int.h>
 #include <cereggii/atomic_ref.h>
 #include <cereggii/constants.h>
 #include <cereggii/thread_handle.h>
+#include <cereggii/internal/atomic_dict.h>
 
 
 PyObject *

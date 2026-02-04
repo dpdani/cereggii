@@ -4,9 +4,9 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include <stdatomic.h>
 #include <cereggii/atomic_dict.h>
 #include <cereggii/internal/atomic_dict.h>
-#include <stdatomic.h>
 
 
 AtomicDictPage *

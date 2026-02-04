@@ -4,11 +4,11 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include <stdatomic.h>
 #include <cereggii/atomic_dict.h>
-#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/atomic_ref.h>
 #include <cereggii/constants.h>
-#include <stdatomic.h>
+#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/internal/thread_id.h>
 
 

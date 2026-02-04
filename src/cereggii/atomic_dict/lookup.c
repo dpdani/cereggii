@@ -5,8 +5,8 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <cereggii/atomic_dict.h>
-#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/constants.h>
+#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/internal/py_core.h>
 
 

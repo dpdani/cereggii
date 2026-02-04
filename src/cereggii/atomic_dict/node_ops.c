@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <cereggii/internal/atomic_dict.h>
 #include <stdatomic.h>
 #include <stdint.h>
+#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/internal/thread_id.h>
 #include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 

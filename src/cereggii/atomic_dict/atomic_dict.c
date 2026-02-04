@@ -4,14 +4,14 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
-#include <pythread.h>
 #include <stdatomic.h>
 #include <cereggii/atomic_dict.h>
-#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/atomic_ref.h>
 #include <cereggii/thread_handle.h>
+#include <cereggii/internal/atomic_dict.h>
 #include <cereggii/internal/py_core.h>
+#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
+#include <pythread.h>  // must be after pythoncapi_compat.h
 
 
 PyObject *

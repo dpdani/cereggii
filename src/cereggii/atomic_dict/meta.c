@@ -4,8 +4,8 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include <cereggii/internal/atomic_dict.h>
 #include <stdatomic.h>
+#include <cereggii/internal/atomic_dict.h>
 
 
 AtomicDictMeta *

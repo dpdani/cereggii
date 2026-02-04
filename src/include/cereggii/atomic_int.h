@@ -8,7 +8,6 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-#include "internal/misc.h"
 
 
 typedef struct atomic_int {

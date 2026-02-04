@@ -5,7 +5,7 @@
 #ifndef CEREGGII_CONSTANTS_H
 #define CEREGGII_CONSTANTS_H
 
-#include "Python.h"
+#include <Python.h>
 
 extern PyObject *NOT_FOUND;
 extern PyObject *ANY;
