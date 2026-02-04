@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <cereggii/atomic_int.h>
-#include <cereggii/atomic_int_internal.h>
+#include <cereggii/internal/atomic_int.h>
 #include <stdatomic.h>
 #include <cereggii/thread_handle.h>
 #include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>

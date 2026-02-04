@@ -9,7 +9,7 @@
 #include <cereggii/atomic_ref.h>
 #include <cereggii/constants.h>
 #include <stdatomic.h>
-#include <cereggii/thread_id.h>
+#include <cereggii/internal/thread_id.h>
 
 
 int

@@ -5,7 +5,7 @@
 #include <cereggii/internal/atomic_dict.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include <cereggii/thread_id.h>
+#include <cereggii/internal/thread_id.h>
 #include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 // these functions take a pointer to meta, but to avoid multiple reads

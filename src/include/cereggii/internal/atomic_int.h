@@ -7,7 +7,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "atomic_int.h"
+#include "../atomic_int.h"
 
 
 int AtomicInt64_ConvertToCLongOrSetException(PyObject *py_integer, int64_t *integer);
