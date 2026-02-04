@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <thread_handle.h>
+#include <cereggii/thread_handle.h>
 
 
 PyObject *

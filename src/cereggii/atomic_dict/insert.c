@@ -4,13 +4,13 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include <atomic_dict_internal.h>
-#include <constants.h>
-#include <reduce_table.h>
+#include <cereggii/atomic_dict_internal.h>
+#include <cereggii/constants.h>
+#include <cereggii/reduce_table.h>
 #include <stdatomic.h>
-#include <thread_id.h>
-#include <_internal_py_core.h>
-#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
+#include <cereggii/thread_id.h>
+#include <cereggii/_internal_py_core.h>
+#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 int
