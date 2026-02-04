@@ -5,13 +5,13 @@ Number = SupportsInt | SupportsFloat | SupportsComplex
 
 NOT_FOUND: object
 """ A singleton object.
-Used in `AtomicDict` to signal that a key was not found. """
+Used in ``AtomicDict`` to signal that a key was not found. """
 ANY: object
 """ A singleton object.
-Used in `AtomicDict` as input for an unconditional update (upsert). """
+Used in ``AtomicDict`` as input for an unconditional update (upsert). """
 EXPECTATION_FAILED: object
 """ A singleton object.
-Used in `AtomicDict` to return that an operation was aborted due to a
+Used in ``AtomicDict`` to return that an operation was aborted due to a
 failed expectation. """
 ExpectationFailed: Exception
 ConcurrentUsageDetected: Exception
@@ -23,16 +23,16 @@ class ThreadHandle[T](T):
     It behaves exactly like the object it handles, and provides some performance
     benefits.
 
-    !!! tip
+    .. tip::
         Make sure the thread that created an instance of ThreadHandle
         is the only thread that uses the handle.
 
-    !!! note
+    .. note::
         ThreadHandle is immutable: once instantiated, you cannot change the
         handled object. If you need a mutable shared reference to an object,
-        take a look at [AtomicRef][cereggii._cereggii.AtomicRef].
+        take a look at :class:`AtomicRef`.
 
-    !!! warning
+    .. warning::
         ThreadHandle does not enforce thread locality.
         You may be able to share one handle among several threads, but this is
         not the intended usage.
@@ -58,8 +58,8 @@ class ThreadHandle[T](T):
     thread-local reference counter, which was already present in previous
     versions of Python.
     This is a very simplified explanation of these changes, to learn more about
-    them, please refer to [PEP 703 – Making the Global Interpreter Lock Optional
-    in CPython](https://peps.python.org/pep-0703/).
+    them, please refer to `PEP 703 – Making the Global Interpreter Lock Optional
+    in CPython <https://peps.python.org/pep-0703/>`_.
 
     Since ThreadHandle is also an object, it also has its own shared and local
     reference counters.
@@ -83,13 +83,14 @@ class AtomicDict[Key, Value]:
     """
     A lock-free, thread-safe dictionary with atomic operations.
 
-    `AtomicDict` provides a high-performance, concurrent hash map implementation.
+    ``AtomicDict`` provides a high-performance, concurrent hash map implementation.
     It enables safe concurrent access from multiple threads without traditional
     locking mechanisms, offering true parallel scalability.
 
-    !!! example "Basic Usage"
+    .. rubric:: Example: Basic Usage
 
-        ```python
+    .. code-block:: python
+
         from cereggii import AtomicDict
 
         # Create an atomic dictionary
@@ -103,35 +104,34 @@ class AtomicDict[Key, Value]:
 
         # Aggregate data from multiple threads
         d.reduce_sum([('a', 10), ('b', 20), ('c', 30)])
-        ```
 
-    !!! note "Thread-safety"
+    .. note:: Thread-safety
 
         While basic operations like
-        [`__getitem__`][cereggii._cereggii.AtomicDict.__getitem__] and
-        [`get`][cereggii._cereggii.AtomicDict.get] are always safe to call
+        :meth:`__getitem__` and
+        :meth:`get` are always safe to call
         from multiple threads, mutations should use the
-        [`compare_and_set`][cereggii._cereggii.AtomicDict.compare_and_set] family of
+        :meth:`compare_and_set` family of
         methods to ensure correctness in concurrent scenarios. The
-        [`reduce`][cereggii._cereggii.AtomicDict.reduce] family of methods provides
+        :meth:`reduce` family of methods provides
         high-level abstractions for common concurrent aggregation patterns.
 
-    !!! note
+    .. note::
 
         The special
-        [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND],
-        [`cereggii.ANY`][cereggii.ANY], and
-        [`cereggii.EXPECTATION_FAILED`][cereggii.EXPECTATION_FAILED]
+        ``cereggii.NOT_FOUND``,
+        ``cereggii.ANY``, and
+        ``cereggii.EXPECTATION_FAILED``
         objects cannot be used as keys nor values.
     """
 
     def __init__(self, initial: dict = {}, *, min_size: int | None = None, buffer_size: int = 4):
         """
-        Correctly configuring the `min_size` parameter avoids resizing the `AtomicDict`.
+        Correctly configuring the ``min_size`` parameter avoids resizing the ``AtomicDict``.
         Inserts that spill over this size will not fail, but may require resizing.
         Resizing prevents concurrent mutations until completed.
 
-        :param initial: A `dict` to initialize this `AtomicDict` with.
+        :param initial: A ``dict`` to initialize this ``AtomicDict`` with.
 
         :param min_size: The size initially allocated.
 
@@ -142,36 +142,33 @@ class AtomicDict[Key, Value]:
     # def __contains__(self, item: Key) -> bool: ...
     def __delitem__(self, key: Key) -> None:
         """
-        Atomically delete an item:
-        ```python
-        del my_atomic_dict[key]
-        ```
+        Atomically delete an item::
+
+            del my_atomic_dict[key]
         """
 
     def __getitem__(self, key: Key) -> Value:
         """
-        Atomically read the value associated with `key`:
-        ```python
-        my_atomic_dict[key]
-        ```
+        Atomically read the value associated with ``key``::
 
-        Also see [`get`][cereggii._cereggii.AtomicDict.get].
+            my_atomic_dict[key]
+
+        Also see :meth:`get`.
         """
     # def __ior__(self, other) -> None: ...
     # def __iter__(self) -> Iterable[Key, Value]: ...
     def __len__(self) -> int:
         """
-        Get the number of items in this `AtomicDict`:
-        ```python
-        len(my_atomic_dict)
-        ```
+        Get the number of items in this ``AtomicDict``::
+
+            len(my_atomic_dict)
 
         This method is sequentially consistent.
-        When invoked, it temporarily locks the `AtomicDict` instance to compute
+        When invoked, it temporarily locks the ``AtomicDict`` instance to compute
         the result.
         If you need to invoke this method frequently while the dictionary is
         being mutated, consider using
-        [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len] instead.
+        :meth:`approx_len` instead.
         """
     # def __eq__(self, other) -> bool: ...
     # def __or__(self, other) -> AtomicDict: ...
@@ -180,21 +177,20 @@ class AtomicDict[Key, Value]:
     # def __reversed__(self) -> AtomicDict: ...
     def __setitem__(self, key: Key, value: Value) -> None:
         """
-        Unconditionally set the value associated with `key` to `value`:
-        ```python
-        my_atomic_dict[key] = value
-        ```
+        Unconditionally set the value associated with ``key`` to ``value``::
 
-        !!! warning
+            my_atomic_dict[key] = value
 
-            Use [`compare_and_set`][cereggii._cereggii.AtomicDict.compare_and_set]
+        .. warning::
+
+            Use :meth:`compare_and_set`
             instead.
 
             When an item is inserted or updated with this usual Python idiom, it is
-            not possible to know that the value currently associated with `key` is the
+            not possible to know that the value currently associated with ``key`` is the
             one being expected -- it may be mutated by another thread before this
             mutation is applied.
-            Use this method only when no other thread may be writing to `key`.
+            Use this method only when no other thread may be writing to ``key``.
         """
     # def __sizeof__(self) -> int: ...
     # def __str__(self) -> str: ...
@@ -205,22 +201,21 @@ class AtomicDict[Key, Value]:
     # def fromkeys(cls, iterable: Iterable[Key], value=None) -> AtomicDict: ...
     def get(self, key: Key, default: Value | None = None) -> Value:
         """
-        Just like Python's [`dict.get`](https://docs.python.org/3/library/stdtypes.html#dict.get):
-        ```python
-        my_atomic_dict.get(key, default=cereggii.NOT_FOUND)
-        ```
+        Just like Python's `dict.get <https://docs.python.org/3/library/stdtypes.html#dict.get>`_::
 
-        !!! tip
+            my_atomic_dict.get(key, default=cereggii.NOT_FOUND)
 
-            The special [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND] object
-            can never be inserted into an `AtomicDict`, so when it is returned,
+        .. tip::
+
+            The special ``cereggii.NOT_FOUND`` object
+            can never be inserted into an ``AtomicDict``, so when it is returned,
             you are ensured that the key was not in the dictionary.
 
-            Conversely, `None` can both be a key and a value.
+            Conversely, ``None`` can both be a key and a value.
 
         :param key: The key to be looked up.
         :param default: The value to return when the key is not found.
-        :return: The value associated with `key`, or `default`.
+        :return: The value associated with ``key``, or ``default``.
         """
     # def items(self) -> Iterable[Key, Value]: ...
     # def keys(self) -> Iterable[Key]: ...
@@ -270,36 +265,37 @@ class AtomicDict[Key, Value]:
     # def values(self) -> Iterable[Value]: ...
     def compare_and_set(self, key: Key, expected: Value, desired: Value) -> None:
         """
-        Atomically read the value associated with `key`:
+        Atomically read the value associated with ``key``:
 
-         - if it is `expected`, then replace it with `desired`
-         - else, don't change it and raise `ExpectationFailed`.
+         - if it is ``expected``, then replace it with ``desired``
+         - else, don't change it and raise ``ExpectationFailed``.
 
-        !!! tip
+        .. tip::
 
-            This family of methods is the recommended way to mutate an `AtomicDict`.
-            Though, you should probably want to use a higher-level method than `compare_and_set`, like
-            [`reduce`][cereggii._cereggii.AtomicDict.reduce].
+            This family of methods is the recommended way to mutate an ``AtomicDict``.
+            Though, you should probably want to use a higher-level method than ``compare_and_set``, like
+            :meth:`reduce`.
 
-        !!! example "Insert only"
+        .. rubric:: Example: Insert only
 
-            The expected value can be [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND], in
-            which case the call will succeed only when the item is inserted, and
-            not updated:
+        The expected value can be ``cereggii.NOT_FOUND``, in
+        which case the call will succeed only when the item is inserted, and
+        not updated:
 
-            ```python
+        .. code-block:: python
+
             my_atomic_dict.compare_and_set(
                 key="spam",
                 expected=cereggii.NOT_FOUND,
                 desired=42,
             )
-            ```
 
-        !!! example "Counter"
+        .. rubric:: Example: Counter
 
-            Correctly incrementing the value associated with `key`, coping with concurrent mutations:
+        Correctly incrementing the value associated with ``key``, coping with concurrent mutations:
 
-            ```python
+        .. code-block:: python
+
             done = False
             while not done:
                 expected = my_atomic_dict.get(key, default=0)
@@ -310,44 +306,43 @@ class AtomicDict[Key, Value]:
                     pass
                 else:
                     done = True
-            ```
 
-            The [`reduce_count`][cereggii._cereggii.AtomicDict.reduce_count] method removes a lot of boilerplate.
+        The :meth:`reduce_count` method removes a lot of boilerplate.
 
 
-        :raises ExpectationFailed: If the found value was not `expected`.
+        :raises ExpectationFailed: If the found value was not ``expected``.
         """
 
     def len_bounds(self) -> tuple[int, int]:
         """
-        Get a lower and an upper-bound for the number of items stored in this `AtomicDict`.
+        Get a lower and an upper-bound for the number of items stored in this ``AtomicDict``.
 
-        !!! warning "Deprecated"
-            Use [`AtomicDict.approx_len`][cereggii._cereggii.AtomicDict.approx_len]
+        .. warning:: Deprecated
+            Use :meth:`approx_len`
             instead.
         """
 
     def approx_len(self) -> int:
         """
-        Retrieve the approximate length of this `AtomicDict`.
+        Retrieve the approximate length of this ``AtomicDict``.
 
         Calling this method does not prevent other threads from mutating the
         dictionary.
 
-        !!! note
+        .. note::
 
-            Differently from [`AtomicDict.__len__`][cereggii._cereggii.AtomicDict.__len__],
+            Differently from :meth:`__len__`,
             this method does not return a sequentially consistent result.
 
             This is not so bad!
 
-            Suppose you call [`AtomicDict.__len__`][cereggii._cereggii.AtomicDict.__len__]
+            Suppose you call :meth:`__len__`
             instead. You would get a result that was correct in between the invocation of
-            `len()`. But, at the very next line, the result might get invalidated by another
+            ``len()``. But, at the very next line, the result might get invalidated by another
             thread inserting or deleting an item.
 
-            If you need to know the size of an `AtomicDict` while other threads are
-            mutating it, calling `approx_len` should be more performant and still
+            If you need to know the size of an ``AtomicDict`` while other threads are
+            mutating it, calling ``approx_len`` should be more performant and still
             return a fairly good approximation.
         """
 
@@ -356,14 +351,14 @@ class AtomicDict[Key, Value]:
         A fast, not sequentially consistent iterator.
 
         Calling this method does not prevent other threads from mutating this
-        `AtomicDict`.
+        ``AtomicDict``.
 
-        !!! danger
+        .. danger::
 
             This method can return sequentially-inconsistent results.
 
-            Only use `fast_iter` when you know that no other thread is mutating
-            this `AtomicDict`.
+            Only use ``fast_iter`` when you know that no other thread is mutating
+            this ``AtomicDict``.
 
             Depending on the execution, the following may happen:
 
@@ -371,16 +366,17 @@ class AtomicDict[Key, Value]:
             - an update 1, that happened strictly before another update 2, is not seen,
               but update 2 is seen.
 
-        !!! tip
+        .. tip::
 
-            If no other thread is mutating this `AtomicDict` while a thread is calling this method, then this
+            If no other thread is mutating this ``AtomicDict`` while a thread is calling this method, then this
             method is safe to use.
 
-        !!! example
+        .. rubric:: Example
 
-            **Summing an array with partitioning**
+        **Summing an array with partitioning**
 
-            ```python
+        .. code-block:: python
+
             n = 3
             partials = [0 for _ in range(n)]
 
@@ -401,18 +397,17 @@ class AtomicDict[Key, Value]:
                 t.join()
 
             print(sum(partials))
-            ```
 
-            Also see the [partitioned iterations
-            example](https://github.com/dpdani/cereggii/blob/dev/examples/atomic_dict/partitioned_iter.py).
+        Also see the `partitioned iterations
+        example <https://github.com/dpdani/cereggii/blob/dev/examples/atomic_dict/partitioned_iter.py>`_.
 
         :param partitions: The number of partitions to split this iterator with.
             It should be equal to the number of threads that participate in the
             iteration.
         :param this_partition: This thread's assigned partition.
-            Valid values are from 0 to `partitions`-1.
+            Valid values are from 0 to ``partitions``-1.
         :raises ConcurrentUsageDetected: This method is not safe to call when
-            multiple threads are mutating this `AtomicDict()`. When concurrent
+            multiple threads are mutating this ``AtomicDict()``. When concurrent
             mutations are detected, this exception is raised. *Note that it's
             not always possible to detect concurrent usage.*
         """
@@ -420,44 +415,47 @@ class AtomicDict[Key, Value]:
     def batch_getitem(self, batch: dict, chunk_size: int = 128) -> dict:
         """Batch many lookups together for efficient memory access.
 
-        The values provided in `batch` will be substituted with the values found
-        in the `AtomicDict` instance, or with `cereggii.NOT_FOUND`.
-        Notice no exception is thrown: the `cereggii.NOT_FOUND` object instead
+        The values provided in ``batch`` will be substituted with the values found
+        in the ``AtomicDict`` instance, or with ``cereggii.NOT_FOUND``.
+        Notice no exception is thrown: the ``cereggii.NOT_FOUND`` object instead
         is the returned value for a key that wasn't present.
 
-        Notice that the `cereggii.NOT_FOUND` object can never be inserted
-        into an `AtomicDict`.
+        Notice that the ``cereggii.NOT_FOUND`` object can never be inserted
+        into an ``AtomicDict``.
 
-        The values themselves, provided in `batch`, will always be substituted.
+        The values themselves, provided in ``batch``, will always be substituted.
 
-        !!! example
+        .. rubric:: Example
 
-            With:
-            ```python
+        With:
+
+        .. code-block:: python
+
             foo = AtomicDict({'a': 1, 'b': 2, 'c': 3})
-            ```
 
-            calling
-            ```python
+        calling
+
+        .. code-block:: python
+
             foo.batch_getitem({
                 'a': None,
                 'b': None,
                 'f': None,
             })
-            ```
 
-            returns:
-            ```python
+        returns:
+
+        .. code-block:: python
+
             {
                'a': 1,
                'b': 2,
                'f': <cereggii.NOT_FOUND>,
             }
-            ```
 
-        :param chunk_size: subdivide the keys to lookup from `batch` in smaller chunks of size `chunk_size to prevent
+        :param chunk_size: subdivide the keys to lookup from ``batch`` in smaller chunks of size ``chunk_size`` to prevent
         memory over-prefetching.
-        :returns: the input `batch` dictionary, with substituted values.
+        :returns: the input ``batch`` dictionary, with substituted values.
         """
 
     def reduce(
@@ -466,36 +464,36 @@ class AtomicDict[Key, Value]:
         aggregate: Callable[[Key, Value, Value], Value],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `aggregate`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``aggregate``.
 
-        The `aggregate` function takes as input a key, the value currently stored
+        The ``aggregate`` function takes as input a key, the value currently stored
         in the dictionary,
-        and the new value from `iterator`. It returns the aggregated value.
+        and the new value from ``iterator``. It returns the aggregated value.
 
         Several specialized methods are available to perform common operations:
 
-        - [`reduce_sum`][cereggii._cereggii.AtomicDict.reduce_sum]
-        - [`reduce_and`][cereggii._cereggii.AtomicDict.reduce_and]
-        - [`reduce_or`][cereggii._cereggii.AtomicDict.reduce_or]
-        - [`reduce_max`][cereggii._cereggii.AtomicDict.reduce_max]
-        - [`reduce_min`][cereggii._cereggii.AtomicDict.reduce_min]
-        - [`reduce_list`][cereggii._cereggii.AtomicDict.reduce_list]
-        - [`reduce_count`][cereggii._cereggii.AtomicDict.reduce_count]
+        - :meth:`reduce_sum`
+        - :meth:`reduce_and`
+        - :meth:`reduce_or`
+        - :meth:`reduce_max`
+        - :meth:`reduce_min`
+        - :meth:`reduce_list`
+        - :meth:`reduce_count`
 
-        !!! note
+        .. note::
 
-            The `aggregate` function **must** be:
+            The ``aggregate`` function **must** be:
 
-            - **total** &mdash; it should handle both the case in which the key is present and in which it is not
-            - **state-less** &mdash; you should not rely on the number of times this function is called (it will be
-            called at least once for each item in `iterable`, but there is no upper bound)
-            - **commutative** and **associative** &mdash; the result must not depend on the order of calls to `aggregate`
+            - **total** -- it should handle both the case in which the key is present and in which it is not
+            - **state-less** -- you should not rely on the number of times this function is called (it will be
+            called at least once for each item in ``iterable``, but there is no upper bound)
+            - **commutative** and **associative** -- the result must not depend on the order of calls to ``aggregate``
 
-        !!! example
-            **Counter**
+        .. rubric:: Example: Counter
 
-            ```python
+        .. code-block:: python
+
             d = AtomicDict()
 
             data = [
@@ -511,14 +509,13 @@ class AtomicDict[Key, Value]:
                 return current + new
 
             d.reduce(data, count)
-            ```
 
-        !!! info
+        .. note::
 
             This method exploits the skewness in the data.
 
             First, an intermediate result is aggregated into a thread-local dictionary and then applied to the shared
-            `AtomicDict`. This can greatly reduce contention when the keys in the input are repeated.
+            ``AtomicDict``. This can greatly reduce contention when the keys in the input are repeated.
         """
 
     def reduce_sum(
@@ -526,34 +523,34 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `sum()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``sum()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = value
-            else:
-                atomic_dict[key] += value
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [`reduce`][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = value
+                else:
+                    atomic_dict[key] += value
 
-        ```python
-        def sum_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return new
-            return current + new
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        d.reduce(..., sum_fn)
-        ```
+        .. code-block:: python
 
-        !!! tip
+            def sum_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return new
+                return current + new
+
+            d.reduce(..., sum_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_and(
@@ -561,34 +558,34 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `all()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``all()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = not not value
-            else:
-                atomic_dict[key] = atomic_dict[key] and (not not value)
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = not not value
+                else:
+                    atomic_dict[key] = atomic_dict[key] and (not not value)
 
-        ```python
-        def and_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return not not new
-            return current and (not not new)
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        d.reduce(..., and_fn)
-        ```
+        .. code-block:: python
 
-        !!! tip
+            def and_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return not not new
+                return current and (not not new)
+
+            d.reduce(..., and_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_or(
@@ -596,34 +593,34 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `any()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``any()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = not not value
-            else:
-                atomic_dict[key] = atomic_dict[key] or (not not value)
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = not not value
+                else:
+                    atomic_dict[key] = atomic_dict[key] or (not not value)
 
-        ```python
-        def or_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return not not new
-            return current or (not not new)
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        d.reduce(..., or_fn)
-        ```
+        .. code-block:: python
 
-        !!! tip
+            def or_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return not not new
+                return current or (not not new)
+
+            d.reduce(..., or_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_max(
@@ -631,34 +628,34 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `max()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``max()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = value
-            else:
-                atomic_dict[key] = max(value, atomic_dict[key])
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = value
+                else:
+                    atomic_dict[key] = max(value, atomic_dict[key])
 
-        ```python
-        def max_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return new
-            return max(new, current)
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        d.reduce(..., max_fn)
-        ```
+        .. code-block:: python
 
-        !!! tip
+            def max_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return new
+                return max(new, current)
+
+            d.reduce(..., max_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_min(
@@ -666,34 +663,34 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `min()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``min()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = value
-            else:
-                atomic_dict[key] = min(value, atomic_dict[key])
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = value
+                else:
+                    atomic_dict[key] = min(value, atomic_dict[key])
 
-        ```python
-        def min_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return new
-            return min(new, current)
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        d.reduce(..., min_fn)
-        ```
+        .. code-block:: python
 
-        !!! tip
+            def min_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return new
+                return min(new, current)
+
+            d.reduce(..., min_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_list(
@@ -701,44 +698,44 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[tuple[Key, Value]],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
-        as computed by `list()`.
+        Aggregate the values in this dictionary with those found in ``iterable``,
+        as computed by ``list()``.
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        def to_list(obj):
-            if type(obj) is list:
-                return obj
-            return [obj]
+        .. code-block:: python
 
-        for key, value in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = to_list(value)
-            else:
-                atomic_dict[key] = to_list(atomic_dict[key]) + to_list(value)
-        ```
+            def to_list(obj):
+                if type(obj) is list:
+                    return obj
+                return [obj]
 
-        !!! Warning
+            for key, value in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = to_list(value)
+                else:
+                    atomic_dict[key] = to_list(atomic_dict[key]) + to_list(value)
+
+        .. warning::
             The order of the elements in the returned list is undefined.
             This method will put all the elements from the input in the resulting
             list: their presence is guaranteed, but the order is not.
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        ```python
-        def list_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return to_list(new)
-            return to_list(current) + to_list(new)
+        .. code-block:: python
 
-        d.reduce(..., list_fn)
-        ```
+            def list_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return to_list(new)
+                return to_list(current) + to_list(new)
 
-        !!! tip
+            d.reduce(..., list_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def reduce_count(
@@ -746,65 +743,66 @@ class AtomicDict[Key, Value]:
         iterable: Iterable[Key] | dict[Any, int],
     ) -> None:
         """
-        Aggregate the values in this dictionary with those found in `iterable`,
+        Aggregate the values in this dictionary with those found in ``iterable``,
         by counting the number of occurrences of each key.
         (This is similar to the behavior of
-        [`collections.Counter`](https://docs.python.org/3/library/collections.html#collections.Counter).)
+        `collections.Counter <https://docs.python.org/3/library/collections.html#collections.Counter>`_.)
 
-        !!! Note
-            Differently from [reduce][cereggii._cereggii.AtomicDict.reduce], this
+        .. note::
+            Differently from :meth:`reduce`, this
             method does not interpret the input as an iterable of key-value pairs,
             but rather as an iterable of keys.
 
-        !!! Info "From a dict"
-            A `dict[Any, int]` can also be used, instead of an `Iterable[Key]`.
-            This follows the behavior of `collections.Counter`.
+        .. note:: From a dict
 
-            ```python
-            my_atomic_dict = AtomicDict({"spam": 1})
-            my_atomic_dict.reduce_count({"spam": 10, "eggs": 2, "ham": 3})
-            assert my_atomic_dict["spam"] == 11
-            assert my_atomic_dict["eggs"] == 2
-            assert my_atomic_dict["ham"] == 3
-            ```
+            A ``dict[Any, int]`` can also be used, instead of an ``Iterable[Key]``.
+            This follows the behavior of ``collections.Counter``.
+
+            .. code-block:: python
+
+                my_atomic_dict = AtomicDict({"spam": 1})
+                my_atomic_dict.reduce_count({"spam": 10, "eggs": 2, "ham": 3})
+                assert my_atomic_dict["spam"] == 11
+                assert my_atomic_dict["eggs"] == 2
+                assert my_atomic_dict["ham"] == 3
 
         Multiple threads calling this method would effectively parallelize this single-threaded program:
 
-        ```python
-        for key in iterable:
-            if key not in atomic_dict:
-                atomic_dict[key] = 1
-            else:
-                atomic_dict[key] += 1
-        ```
+        .. code-block:: python
 
-        Behaves exactly as if [reduce][cereggii._cereggii.AtomicDict.reduce] had been called like this:
+            for key in iterable:
+                if key not in atomic_dict:
+                    atomic_dict[key] = 1
+                else:
+                    atomic_dict[key] += 1
 
-        ```python
-        import itertools
+        Behaves exactly as if :meth:`reduce` had been called like this:
 
-        def sum_fn(key, current, new):
-            if current is cereggii.NOT_FOUND:
-                return new
-            return current + new
+        .. code-block:: python
 
-        d.reduce(zip(..., itertools.repeat(1)), sum_fn)
-        ```
+            import itertools
 
-        !!! tip
+            def sum_fn(key, current, new):
+                if current is cereggii.NOT_FOUND:
+                    return new
+                return current + new
+
+            d.reduce(zip(..., itertools.repeat(1)), sum_fn)
+
+        .. tip::
 
             The implementation of this operation is internally optimized. It is recommended to use this method
-            instead of calling `reduce` with a custom function.
+            instead of calling ``reduce`` with a custom function.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:
         """
-        Get a thread-local handle for this `AtomicDict`.
+        Get a thread-local handle for this ``AtomicDict``.
 
         When using a thread-local handle, you can improve the performance of
         your application.
 
-        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        See :class:`ThreadHandle` for more
         information on thread-local object handles.
         """
 
@@ -818,7 +816,7 @@ class AtomicDict[Key, Value]:
 
     def _rehash(self, o: object) -> int:
         """
-        Rehash object `o` with `AtomicDict`'s internal hashing function.
+        Rehash object ``o`` with ``AtomicDict``'s internal hashing function.
 
         For internal usage only.
         This method is subject to change without a deprecation notice.
@@ -830,183 +828,182 @@ class AtomicRef[T]:
     def __init__(self, initial_value: T = None): ...
     def compare_and_set(self, expected: T, desired: T) -> bool:
         """
-        Atomically read the current value of this `AtomicRef`:
+        Atomically read the current value of this ``AtomicRef``:
 
-          - if it is `expected`, then replace it with `desired` and return `True`
-          - else, don't change it and return `False`.
+          - if it is ``expected``, then replace it with ``desired`` and return ``True``
+          - else, don't change it and return ``False``.
         """
 
     def get(self) -> T:
         """
-        Atomically read the current value of this `AtomicRef`.
+        Atomically read the current value of this ``AtomicRef``.
         """
 
     def get_and_set(self, desired: T) -> T:
         """
-        Atomically swap the value of this `AtomicRef` to `desired` and return
+        Atomically swap the value of this ``AtomicRef`` to ``desired`` and return
         the previously stored value.
         """
 
     def set(self, desired: T):  # noqa: A003
         """
-        Unconditionally set the value of this `AtomicRef` to `desired`.
+        Unconditionally set the value of this ``AtomicRef`` to ``desired``.
 
-        !!! warning
+        .. warning::
 
-            Use [`compare_and_set`][cereggii._cereggii.AtomicRef.compare_and_set]
+            Use :meth:`compare_and_set`
             instead.
 
             When using this method, it is not possible to know that the value currently
             stored is the one being expected -- it may be mutated by another thread before
             this mutation is applied. Use this method only when no other thread may be
-            writing to this `AtomicRef`.
+            writing to this ``AtomicRef``.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:
         """
-        Get a thread-local handle for this `AtomicRef`.
+        Get a thread-local handle for this ``AtomicRef``.
 
         When using a thread-local handle, you can improve the performance of
         your application.
 
-        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        See :class:`ThreadHandle` for more
         information on thread-local object handles.
         """
 
 class AtomicInt64(int):
-    """An `int` that may be updated atomically.
+    """An ``int`` that may be updated atomically.
 
-    !!! warning
+    .. warning::
 
         AtomicInt64 is bound to 64-bit signed integers: each of its methods may
-        raise `OverflowError`.
+        raise ``OverflowError``.
 
-    `AtomicInt64` borrows part of its API from Java's `AtomicInteger`, so that it
+    ``AtomicInt64`` borrows part of its API from Java's ``AtomicInteger``, so that it
     should feel familiar to use, if you're coming to Python from Java.
     It also implements most numeric magic methods, so that it should feel
     comfortable to use for Pythonistas.
 
-    !!! note
+    .. note::
 
-        The hash of an `AtomicInt64` is independent of its value.
-        Two `AtomicInt64`s may have the same hash, but hold different values.
+        The hash of an ``AtomicInt64`` is independent of its value.
+        Two ``AtomicInt64``s may have the same hash, but hold different values.
         They may also have different hashes, but hold the same values.
 
-        If you need to get the hash of the currently stored `int` value, you
-        should do this:
-        ```py
-        hash(my_atomic_int.get())
-        ```
+        If you need to get the hash of the currently stored ``int`` value, you
+        should do this::
 
-        An `AtomicInt64` and all of its associated `AtomicInt64Handle`s share the same hash value.
+            hash(my_atomic_int.get())
 
-    !!! note
+        An ``AtomicInt64`` and all of its associated ``AtomicInt64Handle``s share the same hash value.
 
-        The following operations are supported by `int`, but not `AtomicInt64`:
+    .. note::
 
-        - `__itruediv__` (e.g. `my_atomic_int /= 3.14` &mdash; an `AtomicInt64` cannot be used to store floats)
-        - `as_integer_ratio`
-        - `bit_length`
-        - `conjugate`
-        - `from_bytes`
-        - `to_bytes`
-        - `denominator`
-        - `numerator`
-        - `imag`
-        - `real`
+        The following operations are supported by ``int``, but not ``AtomicInt64``:
 
-        You can of course call [`get`][cereggii._cereggii.AtomicInt64.get] on `AtomicInt64` and then call the desired
-        method on the standard `int` object.
+        - ``__itruediv__`` (e.g. ``my_atomic_int /= 3.14`` -- an ``AtomicInt64`` cannot be used to store floats)
+        - ``as_integer_ratio``
+        - ``bit_length``
+        - ``conjugate``
+        - ``from_bytes``
+        - ``to_bytes``
+        - ``denominator``
+        - ``numerator``
+        - ``imag``
+        - ``real``
+
+        You can of course call :meth:`get` on ``AtomicInt64`` and then call the desired
+        method on the standard ``int`` object.
     """
 
     def __init__(self, initial_value: int = 0): ...
     def compare_and_set(self, expected: int, desired: int) -> bool:
         """
-        Atomically read the current value of this `AtomicInt64`:
+        Atomically read the current value of this ``AtomicInt64``:
 
-          - if it is `expected`, then replace it with `desired` and return `True`
-          - else, don't change it and return `False`.
+          - if it is ``expected``, then replace it with ``desired`` and return ``True``
+          - else, don't change it and return ``False``.
         """
 
     def get(self) -> int:
         """
-        Atomically read the current value of this `AtomicInt64`.
+        Atomically read the current value of this ``AtomicInt64``.
         """
 
     def set(self, desired: int) -> None:  # noqa: A003
         """
-        Unconditionally set the value of this `AtomicInt64` to `desired`.
+        Unconditionally set the value of this ``AtomicInt64`` to ``desired``.
 
-        !!! warning
+        .. warning::
 
-            Use [`compare_and_set`][cereggii._cereggii.AtomicInt64.compare_and_set]
+            Use :meth:`compare_and_set`
             instead.
 
             When using this method, it is not possible to know that the value currently
             stored is the one being expected -- it may be mutated by another thread before
             this mutation is applied. Use this method only when no other thread may be
-            writing to this `AtomicInt64`.
+            writing to this ``AtomicInt64``.
         """
 
     def get_and_set(self, desired: int) -> int:
         """
-        Atomically swap the value of this `AtomicInt64` to `desired` and return
+        Atomically swap the value of this ``AtomicInt64`` to ``desired`` and return
         the previously stored value.
         """
 
     def increment_and_get(self, /, amount: int = 1) -> int:
         """
-        Atomically increment this `AtomicInt64` by `amount` and return the
+        Atomically increment this ``AtomicInt64`` by ``amount`` and return the
         incremented value.
         """
 
     def get_and_increment(self, /, amount: int = 1) -> int:
         """
-        Like [`increment_and_get`][cereggii._cereggii.AtomicInt64.increment_and_get], but returns the
+        Like :meth:`increment_and_get`, but returns the
         value that was stored before applying this operation.
         """
 
     def decrement_and_get(self, /, amount: int = 1) -> int:
         """
-        Atomically decrement this `AtomicInt64` by `amount` and return the
+        Atomically decrement this ``AtomicInt64`` by ``amount`` and return the
         decremented value.
         """
 
     def get_and_decrement(self, /, amount: int = 1) -> int:
         """
-        Like [`decrement_and_get`][cereggii._cereggii.AtomicInt64.decrement_and_get], but returns the
+        Like :meth:`decrement_and_get`, but returns the
         value that was stored before applying this operation.
         """
 
     def update_and_get(self, /, callable: Callable[[int], int]) -> int:
         """
-        Atomically update the value currently stored in this `AtomicInt64` by applying
-        `callable` and return the updated value.
+        Atomically update the value currently stored in this ``AtomicInt64`` by applying
+        ``callable`` and return the updated value.
 
-        `callable` should be a function that takes one `int` parameter and
-        returns an `int`.
+        ``callable`` should be a function that takes one ``int`` parameter and
+        returns an ``int``.
 
-        !!! warning
+        .. warning::
 
-            The `callable` function must be **stateless**: it will be called at least
+            The ``callable`` function must be **stateless**: it will be called at least
             once but there is no upper bound to the number of times it will be
             called within one invocation of this method.
         """
 
     def get_and_update(self, /, callable: Callable[[int], int]) -> int:
         """
-        Like [`update_and_get`][cereggii._cereggii.AtomicInt64.update_and_get], but returns the
+        Like :meth:`update_and_get`, but returns the
         value that was stored before applying this operation.
         """
 
     def get_handle(self) -> ThreadHandle[Self]:
         """
-        Get a thread-local handle for this `AtomicInt64`.
+        Get a thread-local handle for this ``AtomicInt64``.
 
         When using a thread-local handle, you can improve the performance of
         your application.
 
-        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
+        See :class:`ThreadHandle` for more
         information on thread-local object handles.
         """
 
@@ -1052,10 +1049,10 @@ class AtomicEvent:
         pass
 
     def wait(self):
-        """Wait for this `AtomicEvent` to be set."""
+        """Wait for this ``AtomicEvent`` to be set."""
 
     def set(self):
-        """Atomically set this `AtomicEvent`."""
+        """Atomically set this ``AtomicEvent``."""
 
     def is_set(self):
-        """Atomically check if this `AtomicEvent` is set."""
+        """Atomically check if this ``AtomicEvent`` is set."""

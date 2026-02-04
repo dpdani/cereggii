@@ -19,11 +19,12 @@ class ReadersWriterLock:
     holds the lock can acquire it again, but every acquisition must be matched
     by a release.
 
-    It is recommended to use a `with` statement to manage the lock.
+    It is recommended to use a ``with`` statement to manage the lock.
 
-    !!! example "Example usage"
+    .. rubric:: Example usage
 
-        ```python
+    .. code-block:: python
+
         lock = ReadersWriterLock()
 
         with lock.reader():
@@ -31,20 +32,19 @@ class ReadersWriterLock:
 
         with lock.writer():
             # do a write
-        ```
 
-    !!! warning
+    .. warning::
 
         Readers may not become writers and vice versa. That is, the following
         code will block forever:
 
-        ```python
-        lock = ReadersWriterLock()
+        .. code-block:: python
 
-        with lock.reader():
-            with lock.writer():
-                pass
-        ```
+            lock = ReadersWriterLock()
+
+            with lock.reader():
+                with lock.writer():
+                    pass
     """
 
     class ReaderLock:

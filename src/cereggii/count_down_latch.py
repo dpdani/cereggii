@@ -4,7 +4,7 @@ from .atomic_int import AtomicInt64
 
 class CountDownLatch:
     """
-    This mimics the `java.util.concurrent.CountDownLatch` class.
+    This mimics the ``java.util.concurrent.CountDownLatch`` class.
     Paraphrasing from Java's documentation:
 
     Implements a synchronization aid that allows one or more threads to wait until
@@ -12,7 +12,7 @@ class CountDownLatch:
 
     The count starts at a given number, and threads decrement it until the count
     reaches zero, at which point waiting threads are released and any subsequent
-    invocations of [`wait()`][cereggii.CountDownLatch.wait] return immediately.
+    invocations of :meth:`wait` return immediately.
 
     This is a one-shot phenomenon — the count cannot be reset.
 
@@ -26,13 +26,13 @@ class CountDownLatch:
         Initializes a CountDownLatch with a specified count value.
 
         If the initial count is set to zero, all calls to
-        [`wait()`][cereggii.CountDownLatch.wait] return immediately.
+        :meth:`wait` return immediately.
 
         :param count: The number of times
-            [`decrement()`][cereggii.CountDownLatch.decrement] or
-            [`decrement_and_get()`][cereggii.CountDownLatch.decrement_and_get]
+            :meth:`decrement` or
+            :meth:`decrement_and_get`
             must be called before threads can pass through
-            [`wait()`][cereggii.CountDownLatch.wait].
+            :meth:`wait`.
             Must be a non-negative integer.
 
         :raises ValueError: If the count is less than 0.
@@ -48,7 +48,7 @@ class CountDownLatch:
 
     def decrement_and_get(self) -> int:
         """
-        Like [`decrement()`][cereggii.CountDownLatch.decrement], but additionally
+        Like :meth:`decrement`, but additionally
         returns the observed count after the decrement.
         """
         while True:
@@ -82,8 +82,8 @@ class CountDownLatch:
     def wait(self) -> None:
         """
         Block the current thread until the count reaches zero, due to invocations
-        of [`decrement()`][cereggii.CountDownLatch.decrement] or
-        [`decrement_and_get()`][cereggii.CountDownLatch.decrement_and_get] in
+        of :meth:`decrement` or
+        :meth:`decrement_and_get` in
         other threads.
         """
         return self._reached_zero.wait()

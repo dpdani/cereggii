@@ -35,20 +35,21 @@ _tombstone = _CacheEntry(
 
 class AtomicCache[K, V]:
     """
-    Thread-safe cache based on [AtomicDict][cereggii._cereggii.AtomicDict].
+    Thread-safe cache based on :class:`~cereggii.AtomicDict`.
 
     AtomicCache provides a thread-safe caching mechanism that automatically
-    fills cache entries using a provided `fill` function. It supports optional
+    fills cache entries using a provided ``fill`` function. It supports optional
     time-to-live (TTL) expiration and explicit invalidation.
 
     When multiple threads access the same key concurrently, only one thread will execute
-    the `fill` function, while others wait for the result to be ready. This ensures that
+    the ``fill`` function, while others wait for the result to be ready. This ensures that
     expensive computations are only performed once per key, even under high concurrency.
     Threads waiting for a result will be blocked until the result is ready.
 
-    !!! example
+    .. rubric:: Example
 
-        ```python
+    .. code-block:: python
+
         from cereggii import AtomicCache
         import time
 
@@ -65,13 +66,13 @@ class AtomicCache[K, V]:
 
         cache.invalidate("spam")  # explicitly remove the entry from the cache
         value = cache["spam"]  # recomputes the result
-        ```
 
-    !!! example "Memoization"
+    .. rubric:: Memoization
 
-        You can use `AtomicCache` to implement a simple memoization decorator:
+    You can use ``AtomicCache`` to implement a simple memoization decorator:
 
-        ```python
+    .. code-block:: python
+
         from cereggii import AtomicCache
 
         @AtomicCache.memoize()
@@ -79,7 +80,6 @@ class AtomicCache[K, V]:
             if n <= 1:
                 return n
             return fib(n - 1) + fib(n - 2)
-        ```
     """
 
     def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
@@ -127,13 +127,13 @@ class AtomicCache[K, V]:
         Get the cached value for a key, filling it if necessary.
 
         If the key is not in the cache or has expired, the
-        [`fill`][cereggii.atomic_dict.atomic_cache.AtomicCache] function is called
+        ``fill`` function is called
         to compute the value. If multiple threads request the same key concurrently,
-        only one thread will execute the `fill` function while others wait for the result.
+        only one thread will execute the ``fill`` function while others wait for the result.
 
         :param key: The key to look up in the cache.
         :returns: The cached or newly computed value.
-        :raises Exception: If the `fill` function raised an exception for this key,
+        :raises Exception: If the ``fill`` function raised an exception for this key,
             that exception is re-raised.
         """
         while True:
@@ -161,17 +161,17 @@ class AtomicCache[K, V]:
         """
         Check if a key exists in the cache and has not expired.
 
-        This method never calls the `fill` function, and never blocks.
+        This method never calls the ``fill`` function, and never blocks.
 
-        ```python
-        cache = AtomicCache(lambda x: x * 2)
-        _ = cache[5]  # populate cache
-        assert 5 in cache
-        assert 10 not in cache
-        ```
+        .. code-block:: python
+
+            cache = AtomicCache(lambda x: x * 2)
+            _ = cache[5]  # populate cache
+            assert 5 in cache
+            assert 10 not in cache
 
         :param key: The key to check.
-        :returns: `True` if the key exists in the cache and has not expired, `False` otherwise.
+        :returns: ``True`` if the key exists in the cache and has not expired, ``False`` otherwise.
         """
         entry = self._cache.get(key, default=NOT_FOUND)
         return not self._not_contains(entry)
@@ -199,12 +199,12 @@ class AtomicCache[K, V]:
         for the fill operation to complete before invalidating. Subsequent accesses
         to the key will trigger a new fill operation.
 
-        ```python
-        cache = AtomicCache(lambda x: x * 2)
-        result1 = cache[5]  # computes 10
-        cache.invalidate(5)
-        result2 = cache[5]  # recomputes 10
-        ```
+        .. code-block:: python
+
+            cache = AtomicCache(lambda x: x * 2)
+            result1 = cache[5]  # computes 10
+            cache.invalidate(5)
+            result2 = cache[5]  # recomputes 10
 
         :param key: The key to invalidate.
         """
@@ -234,16 +234,16 @@ class AtomicCache[K, V]:
         unique set of arguments once, returning cached results for subsequent calls.
 
         Additional parameters will be passed to the underlying
-        [`AtomicCache`][cereggii.atomic_dict.atomic_cache.AtomicCache] constructor.
+        :class:`AtomicCache` constructor.
 
-        ```python
-        @AtomicCache.memoize(ttl=60.0)
-        def expensive_function(x, y):
-            return x ** y
+        .. code-block:: python
 
-        result1 = expensive_function(2, 10)  # computed
-        result2 = expensive_function(2, 10)  # cached
-        ```
+            @AtomicCache.memoize(ttl=60.0)
+            def expensive_function(x, y):
+                return x ** y
+
+            result1 = expensive_function(2, 10)  # computed
+            result2 = expensive_function(2, 10)  # cached
         """
 
         def decorator(func):
@@ -274,15 +274,15 @@ class AtomicCache[K, V]:
             """
             Invalidate the cached result for specific arguments.
 
-            ```python
-            @AtomicCache.memoize()
-            def compute(x, y):
-                return x + y
+            .. code-block:: python
 
-            result = compute(1, 2)  # computed
-            result = compute(1, 2)  # cached
-            compute.invalidate(1, 2)  # remove from cache
-            ```
+                @AtomicCache.memoize()
+                def compute(x, y):
+                    return x + y
+
+                result = compute(1, 2)  # computed
+                result = compute(1, 2)  # cached
+                compute.invalidate(1, 2)  # remove from cache
             """
             return self._cache.invalidate(self._make_key(args, kwargs))
 
