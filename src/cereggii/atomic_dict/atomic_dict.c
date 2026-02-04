@@ -11,7 +11,7 @@
 #include <cereggii/atomic_dict_internal.h>
 #include <cereggii/atomic_ref.h>
 #include <cereggii/thread_handle.h>
-#include <cereggii/_internal_py_core.h>
+#include <cereggii/internal/py_core.h>
 
 
 PyObject *

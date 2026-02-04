@@ -9,7 +9,7 @@
 #include <cereggii/reduce_table.h>
 #include <stdatomic.h>
 #include <cereggii/thread_id.h>
-#include <cereggii/_internal_py_core.h>
+#include <cereggii/internal/py_core.h>
 #include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 

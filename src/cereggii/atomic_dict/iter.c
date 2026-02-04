@@ -8,7 +8,7 @@
 #include <cereggii/atomic_dict_internal.h>
 #include <cereggii/constants.h>
 #include <stdatomic.h>
-#include <cereggii/_internal_py_core.h>
+#include <cereggii/internal/py_core.h>
 
 
 PyObject *
