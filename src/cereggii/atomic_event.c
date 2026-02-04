@@ -4,7 +4,7 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "atomic_event.h"
+#include <atomic_event.h>
 #include <stdatomic.h>
 
 

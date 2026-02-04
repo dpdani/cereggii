@@ -4,15 +4,13 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "atomic_dict.h"
-
+#include <atomic_dict.h>
+#include <atomic_dict_internal.h>
+#include <atomic_ref.h>
+#include <pythread.h>
 #include <stdatomic.h>
-
-#include "atomic_dict_internal.h"
-#include "atomic_ref.h"
-#include "pythread.h"
-#include "thread_handle.h"
-#include "_internal_py_core.h"
+#include <thread_handle.h>
+#include <_internal_py_core.h>
 #include <vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 

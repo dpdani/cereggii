@@ -4,11 +4,8 @@
 
 #define PY_SSIZE_T_CLEAN
 
+#include <atomic_dict_internal.h>
 #include <stdatomic.h>
-
-#include "atomic_dict_internal.h"
-#include "atomic_ref.h"
-#include "pythread.h"
 
 
 AtomicDictMeta *

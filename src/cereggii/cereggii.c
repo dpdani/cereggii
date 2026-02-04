@@ -4,13 +4,13 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "constants.h"
-#include "atomic_event.h"
-#include "atomic_int.h"
-#include "atomic_ref.h"
-#include "atomic_dict.h"
-#include "atomic_dict_internal.h"
-#include "thread_handle.h"
+#include <atomic_dict.h>
+#include <atomic_dict_internal.h>
+#include <atomic_event.h>
+#include <atomic_int.h>
+#include <atomic_ref.h>
+#include <constants.h>
+#include <thread_handle.h>
 
 
 PyObject *
