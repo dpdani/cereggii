@@ -8,7 +8,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
-#include "atomic_ref.h"
+#include <cereggii/atomic_ref.h>
 
 
 typedef struct AtomicDict {

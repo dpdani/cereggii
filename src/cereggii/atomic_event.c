@@ -4,8 +4,8 @@
 
 #define PY_SSIZE_T_CLEAN
 
-#include "atomic_event.h"
 #include <stdatomic.h>
+#include <cereggii/atomic_event.h>
 
 
 PyObject *

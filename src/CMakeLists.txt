@@ -92,7 +92,7 @@ else ()
     endif ()
 endif ()
 
-configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/internal/cereggiiconfig.h")
+configure_file(cereggiiconfig.h.in "${CMAKE_CURRENT_SOURCE_DIR}/include/cereggii/internal/cereggiiconfig.h")
 
 execute_process(COMMAND python -c "import sysconfig; print(sysconfig.get_path('include'), end='')" OUTPUT_VARIABLE Python3_INCLUDE_DIR)
 if (WIN32)
