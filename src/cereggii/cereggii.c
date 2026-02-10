@@ -8,6 +8,7 @@
 #include <cereggii/atomic_event.h>
 #include <cereggii/atomic_int.h>
 #include <cereggii/atomic_ref.h>
+#include <cereggii/atomic_partitioned_queue.h>
 #include <cereggii/constants.h>
 #include <cereggii/thread_handle.h>
 #include <cereggii/internal/atomic_dict.h>
@@ -237,6 +238,37 @@ PyTypeObject AtomicEvent_Type = {
 };
 
 
+static PyMethodDef AtomicPartitionedQueue_methods[] = {
+    {"put",        (PyCFunction) AtomicPartitionedQueue_Put,       METH_O,                       NULL},
+    {"get",        (PyCFunction) AtomicPartitionedQueue_Get,       METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get",    (PyCFunction) AtomicPartitionedQueue_TryGet,    METH_NOARGS,                  NULL},
+    {"close",      (PyCFunction) AtomicPartitionedQueue_Close,     METH_NOARGS,                  NULL},
+    {"approx_len", (PyCFunction) AtomicPartitionedQueue_ApproxLen, METH_NOARGS,                  NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+static PyGetSetDef AtomicPartitionedQueue_properties[] = {
+    {"closed", (getter) AtomicPartitionedQueue_Closed_Get, NULL, NULL, NULL},
+    {NULL, NULL, NULL, NULL, NULL}
+};
+
+PyTypeObject AtomicPartitionedQueue_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicPartitionedQueue",
+    .tp_doc = PyDoc_STR("An atomic partitioned queue."),
+    .tp_basicsize = sizeof(AtomicPartitionedQueue),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_new = AtomicPartitionedQueue_new,
+    .tp_init = (initproc) AtomicPartitionedQueue_init,
+    .tp_traverse = (traverseproc) AtomicPartitionedQueue_traverse,
+    .tp_clear = (inquiry) AtomicPartitionedQueue_clear,
+    .tp_dealloc = (destructor) AtomicPartitionedQueue_dealloc,
+    .tp_methods = AtomicPartitionedQueue_methods,
+    .tp_getset = AtomicPartitionedQueue_properties,
+};
+
+
 // see constants.h
 PyObject *NOT_FOUND = NULL;
 PyObject *ANY = NULL;
@@ -381,6 +413,8 @@ PyInit__cereggii(void)
         return NULL;
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
+    if (PyType_Ready(&AtomicPartitionedQueue_Type) < 0)
+        return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicInt64_Type) < 0)
@@ -444,6 +478,10 @@ PyInit__cereggii(void)
     if (PyModule_AddObjectRef(m, "AtomicEvent", (PyObject *) &AtomicEvent_Type) < 0)
         goto fail;
     Py_DECREF(&AtomicEvent_Type);
+
+    if (PyModule_AddObjectRef(m, "AtomicPartitionedQueue", (PyObject *) &AtomicPartitionedQueue_Type) < 0)
+        goto fail;
+    Py_DECREF(&AtomicPartitionedQueue_Type);
 
     if (PyModule_AddObjectRef(m, "AtomicRef", (PyObject *) &AtomicRef_Type) < 0)
         goto fail;
