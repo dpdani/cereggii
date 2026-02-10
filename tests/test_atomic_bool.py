@@ -3,8 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from cereggii import AtomicBool
-from cereggii.constants import ExpectationFailed
+from cereggii import AtomicBool, ExpectationFailed
 from threading import Barrier
 
 from .utils import TestingThreadSet
