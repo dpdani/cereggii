@@ -1,4 +1,5 @@
 from .atomic_ref import AtomicRef
+from .constants import ExpectationFailed
 
 
 class AtomicBool:
@@ -81,6 +82,26 @@ class AtomicBool:
         b = AtomicBool()
         b._value = self._value.get_handle()
         return b
+
+    def set_or_raise(self):
+        """
+        Set the value of this `AtomicBool` to `True` if it is currently `False`,
+        or else raise an exception.
+
+        :raises ExpectationFailed: If the value is already `True`.
+        """
+        if not self.compare_and_set(False, True):
+            raise ExpectationFailed("already set to True")
+
+    def reset_or_raise(self):
+        """
+        Reset the value of this `AtomicBool` to `False` if it is currently `True`,
+        or else raise an exception.
+
+        :raises ExpectationFailed: If the value is already `False`.
+        """
+        if not self.compare_and_set(True, False):
+            raise ExpectationFailed("already set to False")
 
     def set(self, desired: bool):
         """
