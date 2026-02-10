@@ -7,6 +7,7 @@ Thread synchronization utilities for Python.
 """
 
 from .__about__ import __license__, __version__, __version_tuple__  # noqa: F401
+from .atomic_bool import AtomicBool  # noqa: F401
 from .atomic_dict import AtomicDict  # noqa: F401
 from .atomic_dict.atomic_cache import AtomicCache  # noqa: F401
 from .atomic_event import AtomicEvent  # noqa: F401

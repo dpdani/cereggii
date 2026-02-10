@@ -10,6 +10,7 @@ nav:
     - 'index.md'
     - 'compatibility.md'
   - 'API Reference':
+      - 'api/AtomicBool.md'
       - 'api/AtomicDict.md'
       - 'api/AtomicCache.md'
       - 'api/AtomicInt64.md'
