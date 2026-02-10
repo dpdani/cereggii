@@ -1555,7 +1555,8 @@ private:
 	///////////////////////////
 	
 	enum InnerQueueContext { implicit_context = 0, explicit_context = 1 };
-	
+
+public:
 	struct Block
 	{
 		Block()
@@ -1694,7 +1695,8 @@ private:
 	///////////////////////////
 	// Producer base
 	///////////////////////////
-	
+
+private:
 	struct ProducerBase : public details::ConcurrentQueueProducerTypelessBase
 	{
 		ProducerBase(ConcurrentQueue* parent_, bool isExplicit_) :
@@ -3646,7 +3648,7 @@ private:
 		aligned_free<U>(p);
 	}
 
-private:
+public:
 	std::atomic<ProducerBase*> producerListTail;
 	std::atomic<std::uint32_t> producerCount;
 	

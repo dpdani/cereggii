@@ -567,7 +567,7 @@ private:
 		(Traits::free)(p);
 	}
 	
-private:
+public:
 	ConcurrentQueue inner;
 	std::unique_ptr<LightweightSemaphore, void (*)(LightweightSemaphore*)> sema;
 };
