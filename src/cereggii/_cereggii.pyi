@@ -81,25 +81,40 @@ class ThreadHandle[T](T):
 
 class AtomicDict[Key, Value]:
     """
-    A concurrent dictionary (hash table).
+    A lock-free, thread-safe dictionary with atomic operations.
 
-    Features of AtomicDict:
+    `AtomicDict` provides a high-performance, concurrent hash map implementation.
+    It enables safe concurrent access from multiple threads without traditional
+    locking mechanisms, offering true parallel scalability.
 
-    1. you don't need an external lock to synchronize changes (mutations) to the dictionary:
+    !!! example "Basic Usage"
 
-        1. you don't have to manually guard your code against deadlocks (reentrancy-caused deadlocks can still be an
-        issue)
-        2. when `AtomicDict` is correctly configured (setting `min_size` so that no resizing occurs), even if the OS
-        decides to interrupt or terminate a thread which was accessing an `AtomicDict`, all remaining threads will
-        continue to make progress
+        ```python
+        from cereggii import AtomicDict
 
-    2. mutations are atomic and can be aborted or retried under contention
-    3. scalability:
+        # Create an atomic dictionary
+        d = AtomicDict({'a': 1, 'b': 2})
 
-        1. TODO
-        2. for some workloads scalability is already quite good: see
-        [`AtomicDict.reduce`][cereggii._cereggii.AtomicDict.reduce].
+        # Read values
+        value = d['a']  # or d.get('a')
 
+        # Safe concurrent updates using compare-and-set
+        d.compare_and_set(key='a', expected=1, desired=2)
+
+        # Aggregate data from multiple threads
+        d.reduce_sum([('a', 10), ('b', 20), ('c', 30)])
+        ```
+
+    !!! note "Thread-safety"
+
+        While basic operations like
+        [`__getitem__`][cereggii._cereggii.AtomicDict.__getitem__] and
+        [`get`][cereggii._cereggii.AtomicDict.get] are always safe to call
+        from multiple threads, mutations should use the
+        [`compare_and_set`][cereggii._cereggii.AtomicDict.compare_and_set] family of
+        methods to ensure correctness in concurrent scenarios. The
+        [`reduce`][cereggii._cereggii.AtomicDict.reduce] family of methods provides
+        high-level abstractions for common concurrent aggregation patterns.
 
     !!! note
 
@@ -260,9 +275,13 @@ class AtomicDict[Key, Value]:
          - if it is `expected`, then replace it with `desired`
          - else, don't change it and raise `ExpectationFailed`.
 
-        !!! example
+        !!! tip
 
-            **Insert only**
+            This family of methods is the recommended way to mutate an `AtomicDict`.
+            Though, you should probably want to use a higher-level method than `compare_and_set`, like
+            [`reduce`][cereggii._cereggii.AtomicDict.reduce].
+
+        !!! example "Insert only"
 
             The expected value can be [`cereggii.NOT_FOUND`][cereggii.NOT_FOUND], in
             which case the call will succeed only when the item is inserted, and
@@ -276,11 +295,9 @@ class AtomicDict[Key, Value]:
             )
             ```
 
-        !!! example
+        !!! example "Counter"
 
-            **Counter**
-
-            Correct way to increment the value associated with `key`, coping with concurrent mutations:
+            Correctly incrementing the value associated with `key`, coping with concurrent mutations:
 
             ```python
             done = False
@@ -295,13 +312,7 @@ class AtomicDict[Key, Value]:
                     done = True
             ```
 
-            The [`reduce`][cereggii._cereggii.AtomicDict.reduce] method removes a lot of boilerplate.
-
-        !!! tip
-
-            This family of methods is the recommended way to mutate an `AtomicDict`.
-            Though, you should probably want to use a higher-level method than `compare_and_set`, like
-            [`reduce`][cereggii._cereggii.AtomicDict.reduce].
+            The [`reduce_count`][cereggii._cereggii.AtomicDict.reduce_count] method removes a lot of boilerplate.
 
 
         :raises ExpectationFailed: If the found value was not `expected`.
