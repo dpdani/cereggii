@@ -7,7 +7,7 @@ from cereggii import AtomicBool
 from cereggii.constants import ExpectationFailed
 from threading import Barrier
 
-from .utils import TestingThreadSet, gc_collect_until_stable
+from .utils import TestingThreadSet
 
 
 def test_init():
