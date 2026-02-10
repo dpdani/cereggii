@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <stdatomic.h>
-
-#include "atomic_dict.h"
-#include "atomic_dict_internal.h"
-#include "_internal_py_core.h"
+#include <cereggii/atomic_dict.h>
+#include <cereggii/internal/atomic_dict.h>
+#include <cereggii/internal/py_core.h>
 
 
 AtomicDictAccessorStorage *

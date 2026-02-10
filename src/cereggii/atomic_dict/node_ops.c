@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <stdint.h>
-#include "atomic_dict_internal.h"
-#include <thread_id.h>
 #include <stdatomic.h>
-#include <vendor/pythoncapi_compat/pythoncapi_compat.h>
+#include <stdint.h>
+#include <cereggii/internal/atomic_dict.h>
+#include <cereggii/internal/thread_id.h>
+#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 // these functions take a pointer to meta, but to avoid multiple reads
 // you should dereference dk->meta (i.e. make a thread-local copy) and

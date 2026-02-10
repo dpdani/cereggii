@@ -288,3 +288,6 @@ _deps
 
 ## test results
 junit/
+
+## build config
+src/include/cereggii/internal/cereggiiconfig.h

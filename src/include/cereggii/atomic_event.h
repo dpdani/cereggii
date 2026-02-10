@@ -6,9 +6,8 @@
 #define CEREGGII_ATOMIC_EVENT_H
 
 #include <Python.h>
-#include "internal/c11threads.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cereggii/internal/c11threads.h>
+
 
 typedef struct AtomicEvent {
     PyObject_HEAD

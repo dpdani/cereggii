@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "atomic_ref.h"
 #include <stdatomic.h>
-#include "thread_handle.h"
-#include "_internal_py_core.h"
+#include <cereggii/atomic_ref.h>
+#include <cereggii/thread_handle.h>
+#include <cereggii/internal/py_core.h>
 
 
 PyObject *

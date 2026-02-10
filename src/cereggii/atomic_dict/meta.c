@@ -5,10 +5,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <stdatomic.h>
-
-#include "atomic_dict_internal.h"
-#include "atomic_ref.h"
-#include "pythread.h"
+#include <cereggii/internal/atomic_dict.h>
 
 
 AtomicDictMeta *

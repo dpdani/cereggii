@@ -1,8 +1,8 @@
 #ifndef CEREGGII_PY_CORE_H
 #define CEREGGII_PY_CORE_H
 
-#include "Python.h"
-#include "internal/misc.h"
+#include <Python.h>
+#include <cereggii/internal/misc.h>
 
 #ifdef Py_GIL_DISABLED
 

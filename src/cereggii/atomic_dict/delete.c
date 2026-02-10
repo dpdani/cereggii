@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "atomic_dict_internal.h"
 #include <stdatomic.h>
+#include <cereggii/internal/atomic_dict.h>
 
 
 void

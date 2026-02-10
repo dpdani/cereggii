@@ -5,10 +5,10 @@
 #ifndef CEREGGII_DEV_ATOMIC_DICT_INTERNAL_H
 #define CEREGGII_DEV_ATOMIC_DICT_INTERNAL_H
 
-#include "atomic_dict.h"
-#include "atomic_event.h"
-#include "internal/cereggiiconfig.h"
-#include "internal/misc.h"
+#include <cereggii/atomic_dict.h>
+#include <cereggii/atomic_event.h>
+#include <cereggii/internal/cereggiiconfig.h>
+#include <cereggii/internal/misc.h>
 
 
 #define ATOMIC_DICT_MIN_LOG_SIZE 7

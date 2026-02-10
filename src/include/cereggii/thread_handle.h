@@ -5,7 +5,7 @@
 #ifndef THREAD_HANDLE_H
 #define THREAD_HANDLE_H
 
-#include "Python.h"
+#include <Python.h>
 
 
 typedef struct {

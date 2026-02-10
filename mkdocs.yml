@@ -9,6 +9,7 @@ nav:
   - Home: 'index.md'
   - 'API Reference':
       - 'Index': 'api/index.md'
+      - 'api/AtomicBool.md'
       - 'api/AtomicDict.md'
       - 'api/AtomicCache.md'
       - 'api/AtomicInt64.md'

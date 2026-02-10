@@ -5,7 +5,7 @@
 #ifndef CEREGGII_THREAD_ID_H
 #define CEREGGII_THREAD_ID_H
 
-#include "Python.h"
+#include <Python.h>
 
 #ifndef Py_GIL_DISABLED
 #define _Py_ThreadId (uintptr_t) PyThreadState_GET
