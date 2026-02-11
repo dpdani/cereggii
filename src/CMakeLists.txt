@@ -25,6 +25,12 @@ if (MSVC)
 
     # from pythoncapi-compat PyAPI_FUNC
     add_compile_options(/wd4210)  # nonstandard extension used: function given file scope
+
+    # Py_UNUSED() doesn't work properly with MSVC in Python < 3.12
+    # See: https://github.com/python/cpython/issues/107249
+    if (Python3_VERSION VERSION_LESS "3.12")
+        add_compile_options(/wd4100)  # unreferenced formal parameter
+    endif()
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 
