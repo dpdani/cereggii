@@ -3,6 +3,7 @@
 
 #include <Python.h>
 #include <cereggii/internal/misc.h>
+#include <cereggii/internal/py_mutex.h>
 
 #ifdef Py_GIL_DISABLED
 
@@ -212,14 +213,6 @@ _Py_SetWeakrefAndIncref(PyObject *obj)
 #else
     Py_INCREF(obj);
 #endif // Py_GIL_DISABLED
-}
-
-
-static inline int
-_PyMutex_TryLock(PyMutex *m)
-{
-    uint8_t expected = _Py_UNLOCKED;
-    return _Py_atomic_compare_exchange_uint8(&m->_bits, &expected, _Py_LOCKED);
 }
 
 

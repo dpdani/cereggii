@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Type
+from typing import Generic, Type, TypeVar
 
 from . import AtomicDict
 from ..atomic_event import AtomicEvent
@@ -33,7 +33,12 @@ _tombstone = _CacheEntry(
 )
 
 
-class AtomicCache[K, V]:
+K = TypeVar("K")
+V = TypeVar("V")
+RV = TypeVar("RV")
+
+
+class AtomicCache(Generic[K, V]):
     """
     Thread-safe cache based on [AtomicDict][cereggii._cereggii.AtomicDict].
 
@@ -42,7 +47,7 @@ class AtomicCache[K, V]:
     time-to-live (TTL) expiration and explicit invalidation.
 
     When multiple threads access the same key concurrently, only one thread will execute
-    the fill function, while others wait for the result to be ready. This ensures that
+    the `fill` function, while others wait for the result to be ready. This ensures that
     expensive computations are only performed once per key, even under high concurrency.
     Threads waiting for a result will be blocked until the result is ready.
 
@@ -67,7 +72,9 @@ class AtomicCache[K, V]:
         value = cache["spam"]  # recomputes the result
         ```
 
-    !!! example
+    !!! example "Memoization"
+
+        You can use `AtomicCache` to implement a simple memoization decorator:
 
         ```python
         from cereggii import AtomicCache
@@ -78,16 +85,17 @@ class AtomicCache[K, V]:
                 return n
             return fib(n - 1) + fib(n - 2)
         ```
-
-    :param fill: A callable that takes a key and returns the value to cache.
-        This function is called once per key to populate the cache, even if
-        multiple threads access the same key concurrently.
-    :param ttl: Optional time-to-live in seconds. If specified, cached entries will
-        expire after this duration and be refilled on the next access. Expired
-        keys are removed lazily. Do not rely on this TTL for memory management.
     """
 
     def __init__(self, fill: Callable[[K], V], ttl: float | None = None):
+        """
+        :param fill: A callable that takes a key and returns the value to cache.
+            This function is called once per key to populate the cache, even if
+            multiple threads access the same key concurrently.
+        :param ttl: Optional time-to-live in seconds. If specified, cached entries will
+            expire after this duration and be refilled on the next access. Expired
+            keys are removed lazily. Do not rely on this TTL for memory management.
+        """
         _tombstone.ready.set()
         self._fill = fill
         self._ttl = ttl
@@ -248,7 +256,7 @@ class AtomicCache[K, V]:
 
         return decorator
 
-    class MemoizedFunction[RV]:
+    class MemoizedFunction(Generic[RV]):
         def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV], *args, **kwargs):
 
             def _func(params: tuple[tuple, tuple]):

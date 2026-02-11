@@ -36,4 +36,9 @@ jobs:
 
       - run: pip install .[docs]
 
-      - run: mkdocs gh-deploy --force
+      - run: sudo apt-get -yqq install pngquant
+
+      - name: Build and deploy docs
+        env:
+          CI: true
+        run: mkdocs gh-deploy --force
