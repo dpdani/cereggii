@@ -20,6 +20,16 @@
 #define PyMutex uint8_t
 #define PyMutex_Lock(mutex) do { (void)(mutex); } while (0)
 #define PyMutex_Unlock(mutex) do { (void)(mutex); } while (0)
+#define _PyMutex_TryLock(mutex) 1
+
+#else
+
+static inline int
+_PyMutex_TryLock(PyMutex *m)
+{
+    uint8_t expected = _Py_UNLOCKED;
+    return _Py_atomic_compare_exchange_uint8(&m->_bits, &expected, _Py_LOCKED);
+}
 
 #endif
 
