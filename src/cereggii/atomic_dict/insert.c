@@ -888,8 +888,18 @@ reduce_count_zip_iter_with_ones(AtomicDict *Py_UNUSED(self), PyObject *iterable)
         goto fail;
     }
 
-    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "zip", &builtin_zip) < 0)
+#if PY_VERSION_HEX >= 0x030D0000 // 3.13
+    PyObject *builtins = PyEval_GetFrameBuiltins();
+#else
+    PyObject *builtins = PyEval_GetBuiltins();
+#endif
+
+    if (PyDict_GetItemStringRef(builtins, "zip", &builtin_zip) < 0)
         goto fail;
+
+#if PY_VERSION_HEX >= 0x030D0000 // 3.13
+    Py_DECREF(builtins);
+#endif
 
     // the following lines implement this Python code:
     //     import itertools

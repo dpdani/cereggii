@@ -1,7 +1,10 @@
 import itertools
 from collections.abc import Callable, Iterable
 from threading import Thread
-from typing import overload
+from typing import overload, ParamSpec
+
+
+P = ParamSpec('P')
 
 
 class ThreadSet:
@@ -140,7 +143,7 @@ class ThreadSet:
         return cls.with_args(*(cls.Args(i) for i in range(start, stop, step)))
 
     @classmethod
-    def target[**P](cls, target: Callable[P, None]) -> Callable[P, Thread]:
+    def target(cls, target: Callable[P, None]) -> Callable[P, Thread]:
         """
         ```python
         @ThreadSet.target

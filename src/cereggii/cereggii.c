@@ -11,6 +11,7 @@
 #include <cereggii/constants.h>
 #include <cereggii/thread_handle.h>
 #include <cereggii/internal/atomic_dict.h>
+#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 PyObject *
@@ -170,7 +171,12 @@ PyTypeObject AtomicDict_Type = {
     .tp_doc = PyDoc_STR("A thread-safe dictionary (hashmap), that's almost-lock-free™."),
     .tp_basicsize = sizeof(AtomicDict),
     .tp_itemsize = 0,
+#if PY_VERSION_HEX < 0x030C0000 // 3.12
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_weaklistoffset = offsetof(AtomicDict, weakreflist),
+#else
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_MANAGED_WEAKREF,
+#endif
     .tp_new = AtomicDict_new,
     .tp_traverse = (traverseproc) AtomicDict_traverse,
     .tp_clear = (inquiry) AtomicDict_clear,

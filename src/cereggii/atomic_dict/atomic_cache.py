@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Type
+from typing import Generic, Type, TypeVar
 
 from . import AtomicDict
 from ..atomic_event import AtomicEvent
@@ -33,7 +33,12 @@ _tombstone = _CacheEntry(
 )
 
 
-class AtomicCache[K, V]:
+K = TypeVar("K")
+V = TypeVar("V")
+RV = TypeVar("RV")
+
+
+class AtomicCache(Generic[K, V]):
     """
     Thread-safe cache based on [AtomicDict][cereggii._cereggii.AtomicDict].
 
@@ -251,7 +256,7 @@ class AtomicCache[K, V]:
 
         return decorator
 
-    class MemoizedFunction[RV]:
+    class MemoizedFunction(Generic[RV]):
         def __init__(self, cache_class: Type[AtomicCache], func: Callable[..., RV], *args, **kwargs):
 
             def _func(params: tuple[tuple, tuple]):

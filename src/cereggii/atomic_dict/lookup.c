@@ -8,6 +8,7 @@
 #include <cereggii/constants.h>
 #include <cereggii/internal/atomic_dict.h>
 #include <cereggii/internal/py_core.h>
+#include <cereggii/vendor/pythoncapi_compat/pythoncapi_compat.h>
 
 
 void
