@@ -87,7 +87,11 @@ filterwarnings = [
 enable = [
   "cpython-freethreading",
 ]
-skip = ["*-win32", "*i686"]
+skip = [
+  "*-win32",
+  "*i686",
+  "cp310-win_arm64",  # unsupported
+]
 before-test = "pip install pytest==8.3.3 pytest-reraise==2.1.2"
 test-command = "pytest {project}"
 
