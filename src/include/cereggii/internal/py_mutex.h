@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <Python.h>
 
-#if PY_VERSION_HEX < 0x030D0000
+#if PY_VERSION_HEX < 0x030D0000 // 3.13
 
 #define PyMutex uint8_t
 #define PyMutex_Lock(mutex) do { (void)(mutex); } while (0)
