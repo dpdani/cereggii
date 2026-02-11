@@ -342,7 +342,7 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
-#if Py_VERSION_HEX < 0x030C0000
+#if PY_VERSION_HEX < 0x030C0000
     if (self->weakreflist != NULL)
 #endif
     PyObject_ClearWeakRefs((PyObject *) self);

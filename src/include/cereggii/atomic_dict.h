@@ -15,7 +15,7 @@
 typedef struct AtomicDict {
     PyObject_HEAD
 
-#if Py_VERSION_HEX < 0x030C0000 // 3.12
+#if PY_VERSION_HEX < 0x030C0000 // 3.12
     PyObject *weakreflist;
 #endif
 
