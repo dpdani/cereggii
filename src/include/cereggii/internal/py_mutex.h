@@ -12,9 +12,12 @@
 #ifndef CEREGGII_PY_MUTEX_H
 #define CEREGGII_PY_MUTEX_H
 
-#ifndef Py_GIL_DISABLED
+#include <stdint.h>
+#include <Python.h>
 
-#define PyMutex void*
+#if PY_VERSION_HEX < 0x030D0000
+
+#define PyMutex uint8_t
 #define PyMutex_Lock(mutex) do { (void)(mutex); } while (0)
 #define PyMutex_Unlock(mutex) do { (void)(mutex); } while (0)
 
