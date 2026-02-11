@@ -889,9 +889,9 @@ reduce_count_zip_iter_with_ones(AtomicDict *Py_UNUSED(self), PyObject *iterable)
     }
 
 #if PY_VERSION_HEX >= 0x030D0000 // 3.13
-    PyObject *builtins = PyEval_GetBuiltins();
-#else
     PyObject *builtins = PyEval_GetFrameBuiltins();
+#else
+    PyObject *builtins = PyEval_GetBuiltins();
 #endif
 
     if (PyDict_GetItemStringRef(builtins, "zip", &builtin_zip) < 0)
