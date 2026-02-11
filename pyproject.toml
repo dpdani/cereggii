@@ -7,7 +7,7 @@ build-backend = "py_build_cmake.build"
 name = "cereggii"
 dynamic = ["version", "description"]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
   { name = "dpdani", email = "git@danieleparmeggiani.me" },

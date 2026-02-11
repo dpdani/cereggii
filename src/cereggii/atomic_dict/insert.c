@@ -888,7 +888,7 @@ reduce_count_zip_iter_with_ones(AtomicDict *Py_UNUSED(self), PyObject *iterable)
         goto fail;
     }
 
-    if (PyDict_GetItemStringRef(PyEval_GetFrameBuiltins(), "zip", &builtin_zip) < 0)
+    if (PyDict_GetItemStringRef(PyEval_GetBuiltins(), "zip", &builtin_zip) < 0)
         goto fail;
 
     // the following lines implement this Python code:

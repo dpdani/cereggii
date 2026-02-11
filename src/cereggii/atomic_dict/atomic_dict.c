@@ -20,6 +20,11 @@ AtomicDict_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSE
     AtomicDict *self = NULL;
     self = PyObject_GC_New(AtomicDict, type);
     if (self != NULL) {
+
+#if PY_VERSION_HEX < 0x030C0000
+        self->weakreflist = NULL;
+#endif
+
         self->metadata = NULL;
         self->min_log_size = 0;
         self->reservation_buffer_size = 0;
@@ -337,6 +342,9 @@ void
 AtomicDict_dealloc(AtomicDict *self)
 {
     PyObject_GC_UnTrack(self);
+#if Py_VERSION_HEX < 0x030C0000
+    if (self->weakreflist != NULL)
+#endif
     PyObject_ClearWeakRefs((PyObject *) self);
     AtomicDict_clear(self);
     Py_TYPE(self)->tp_free((PyObject *) self);

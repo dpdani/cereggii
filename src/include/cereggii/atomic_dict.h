@@ -9,10 +9,15 @@
 
 #include <Python.h>
 #include <cereggii/atomic_ref.h>
+#include <cereggii/internal/py_mutex.h>
 
 
 typedef struct AtomicDict {
     PyObject_HEAD
+
+#if Py_VERSION_HEX < 0x030C0000 // 3.12
+    PyObject *weakreflist;
+#endif
 
     AtomicRef *metadata;
 
