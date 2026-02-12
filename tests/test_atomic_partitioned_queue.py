@@ -128,6 +128,7 @@ def test_put_various_types():
 
     assert q.approx_len() == 6
 
+
 def test_producers_consumers():
     q = AtomicPartitionedQueue()
     num_producers = 10
@@ -215,7 +216,6 @@ def test_concurrent_approx_len():
     (producer | consumer | length_checker).start_and_join()
 
 
-
 def test_blocking_get_timeout_behavior():
     q = AtomicPartitionedQueue()
     timeouts = []
@@ -223,6 +223,7 @@ def test_blocking_get_timeout_behavior():
     @TestingThreadSet.repeat(4)
     def consumers():
         import time
+
         start = time.time()
         try:
             q.get(block=True, timeout=0.1)
