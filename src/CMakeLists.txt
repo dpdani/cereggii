@@ -125,6 +125,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_event.c"
         "cereggii/atomic_int.c"
         "cereggii/atomic_ref.c"
+        "cereggii/atomic_partitioned_queue.cpp"
         "cereggii/cereggii.c"
         "cereggii/constants.c"
         "cereggii/thread_handle.c"
