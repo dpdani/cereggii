@@ -1059,3 +1059,61 @@ class AtomicEvent:
 
     def is_set(self):
         """Atomically check if this `AtomicEvent` is set."""
+
+class AtomicPartitionedQueue[T]:
+    """An atomic partitioned queue.
+
+    A thread-safe queue implementation that supports partitioned access patterns
+    for efficient concurrent operations.
+    """
+
+    def __init__(self):
+        """Initialize an empty `AtomicPartitionedQueue`."""
+
+    def put(self, obj: T) -> None:
+        """
+        Add an item to the queue.
+
+        :param obj: The object to add to the queue.
+        """
+
+    def get(self, block: bool = True, timeout: float | None = None) -> T:
+        """
+        Remove and return an item from the queue.
+
+        :param block: If `True`, block until an item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block indefinitely.
+        :return: An item from the queue.
+        """
+
+    def try_get(self) -> T | None:
+        """
+        Try to remove and return an item from the queue without blocking.
+
+        :return: An item from the queue, or `None` if the queue is empty.
+        """
+
+    def close(self) -> None:
+        """
+        Close the queue, preventing further additions.
+
+        After closing, no new items can be added to the queue.
+        """
+
+    @property
+    def closed(self) -> bool:
+        """
+        Check if the queue is closed.
+
+        :return: `True` if the queue is closed, `False` otherwise.
+        """
+
+    def approx_len(self) -> int:
+        """
+        Get the approximate number of items in the queue.
+
+        This method does not prevent other threads from mutating the queue,
+        so the returned value is an approximation.
+
+        :return: Approximate number of items in the queue.
+        """
