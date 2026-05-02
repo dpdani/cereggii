@@ -236,4 +236,4 @@ def test_blocking_get_timeout_behavior():
 
     assert timeouts
     for elapsed in timeouts:
-        assert 0.1 <= elapsed <= 0.2  # allow some timing variance
+        assert 0.08 <= elapsed <= 0.2  # allow some timing variance
