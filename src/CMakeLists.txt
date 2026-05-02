@@ -41,6 +41,7 @@ else()
 
     # warnings ignored because causing many false positives
     add_compile_options(-Wno-cast-function-type)
+    add_compile_options(-Wno-writable-strings)
 endif()
 
 message(STATUS "CEREGGII_TSAN=$ENV{CEREGGII_TSAN}")
