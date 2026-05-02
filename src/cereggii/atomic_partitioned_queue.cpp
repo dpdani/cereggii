@@ -183,7 +183,7 @@ AtomicPartitionedQueue_Get(AtomicPartitionedQueue *self, PyObject *args, PyObjec
     int block = 1;
     double timeout = -1.0;
 
-    const char *kw_list[] = {static_cast<const char*>("block"), static_cast<const char*>("timeout"), nullptr};
+    char *kw_list[] = {"block", "timeout", nullptr};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|pd", kw_list, &block, &timeout)) {
         return nullptr;
