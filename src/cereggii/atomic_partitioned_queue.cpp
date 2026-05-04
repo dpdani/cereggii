@@ -44,29 +44,18 @@ AtomicPartitionedQueue_init(AtomicPartitionedQueue *Py_UNUSED(self), PyObject *P
     return 0;
 }
 
-static int
-traverse_block(moodycamel::ConcurrentQueue<PyObject *>::Block *block, visitproc visit, void *arg)
-{
-    for (size_t i = 0; i < moodycamel::ConcurrentQueueDefaultTraits::BLOCK_SIZE; ++i) {
-        if (block->emptyFlags[i])
-            continue;
-
-        PyObject *item = *(*block)[i];
-        Py_VISIT(item);
-    }
-    return 0;
-}
-
 int
 AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, void *arg)
 {
-    for (size_t block_i = 0; block_i < self->impl->queue.inner.initialBlockPoolSize; ++block_i) {
-        moodycamel::ConcurrentQueue<PyObject *>::Block *block = &self->impl->queue.inner.initialBlockPool[block_i];
-        while (block != nullptr) {
-            traverse_block(block, visit, arg);
-            block = block->next;
-        }
+    // Traverse all items in the queue using PyDict_Next-like interface
+    // Keep iteration state on the stack
+    moodycamel::ConcurrentQueue<PyObject*>::TraverseState state;
+    PyObject* item;
+
+    while (self->impl->queue.inner.traverse(&state, &item)) {
+        Py_VISIT(item);
     }
+
     return 0;
 }
 

@@ -1346,6 +1346,111 @@ public:
 			details::static_is_lock_free<typename details::thread_id_converter<details::thread_id_t>::thread_id_numeric_size_t>::value == 2;
 	}
 
+	// Traversal state structur
+	// Uses void* to avoid forward declaration issues
+	struct TraverseState {
+		void* producer;      // Actually ProducerBase*
+		void* block;         // Actually Block*
+		void* tailBlock;     // Actually Block*
+		size_t slot_index;
+		bool started;
+
+		TraverseState() : producer(nullptr), block(nullptr), tailBlock(nullptr), slot_index(0), started(false) {}
+	};
+
+	// Helper method for GC traversal
+	// Returns true if an item was found, false if iteration is complete
+	// The caller maintains TraverseState on their stack and passes it to each call
+	// Usage:
+	//   TraverseState state;
+	//   T item;
+	//   while (queue.traverse(&state, &item)) {
+	//       // process item
+	//   }
+	bool traverse(TraverseState* state, T* item_out)
+	{
+		constexpr size_t THRESHOLD = EXPLICIT_BLOCK_EMPTY_COUNTER_THRESHOLD;
+
+		// Cast void* back to typed pointers
+		ProducerBase* producer = static_cast<ProducerBase*>(state->producer);
+		Block* block = static_cast<Block*>(state->block);
+		Block* tailBlock = static_cast<Block*>(state->tailBlock);
+
+		// Initialize on first call
+		if (!state->started) {
+			producer = producerListTail.load(std::memory_order_acquire);
+			state->producer = producer;
+			state->started = true;
+			state->slot_index = 0;
+			block = nullptr;
+			tailBlock = nullptr;
+		}
+
+		// Continue from where we left off
+		while (producer != nullptr) {
+			// Initialize block if needed
+			if (block == nullptr) {
+				tailBlock = producer->tailBlock;
+				if (tailBlock == nullptr) {
+					// Move to next producer
+					producer = producer->next_prod();
+					state->producer = producer;
+					state->slot_index = 0;
+					continue;
+				}
+				block = tailBlock;
+				state->block = block;
+				state->tailBlock = tailBlock;
+				state->slot_index = 0;
+			}
+
+			// Search for next non-empty slot in current block
+			while (state->slot_index < BLOCK_SIZE) {
+				size_t i = state->slot_index;
+
+				// Check if the slot is empty
+				bool is_empty;
+				if (BLOCK_SIZE <= THRESHOLD) {
+					is_empty = block->emptyFlags[i].load(std::memory_order_relaxed);
+				} else {
+					// Skip large blocks for safety
+					state->slot_index++;
+					continue;
+				}
+
+				if (!is_empty) {
+					// Get the item at this index
+					T item = *(*block)[i];
+					if (item != nullptr) {
+						// Found an item - advance for next call and return it
+						state->slot_index++;
+						*item_out = item;
+						return true;
+					}
+				}
+
+				state->slot_index++;
+			}
+
+			// Move to next block in circular list
+			block = block->next;
+			state->block = block;
+			state->slot_index = 0;
+
+			// Check if we've completed the circular list
+			if (block == tailBlock) {
+				// Move to next producer
+				producer = producer->next_prod();
+				state->producer = producer;
+				block = nullptr;
+				tailBlock = nullptr;
+				state->block = nullptr;
+				state->tailBlock = nullptr;
+			}
+		}
+
+		return false;  // No more items
+	}
 
 private:
 	friend struct ProducerToken;
@@ -1355,6 +1460,7 @@ private:
 	struct ImplicitProducer;
 	friend struct ImplicitProducer;
 	friend class ConcurrentQueueTests;
+	template<typename> friend struct ConcurrentQueueTraverser;
 		
 	enum AllocationMode { CanAlloc, CannotAlloc };
 	
@@ -1747,13 +1853,13 @@ private:
 	protected:
 		std::atomic<index_t> tailIndex;		// Where to enqueue to next
 		std::atomic<index_t> headIndex;		// Where to dequeue from next
-		
+
 		std::atomic<index_t> dequeueOptimisticCount;
 		std::atomic<index_t> dequeueOvercommit;
-		
-		Block* tailBlock;
-		
+
 	public:
+		Block* tailBlock;  // Made public for GC traversal by cereggii
+
 		bool isExplicit;
 		ConcurrentQueue* parent;
 		
@@ -3680,7 +3786,6 @@ public:
 	std::atomic<ImplicitProducer*> implicitProducers;
 #endif
 };
-
 
 template<typename T, typename Traits>
 ProducerToken::ProducerToken(ConcurrentQueue<T, Traits>& queue)
