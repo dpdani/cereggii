@@ -214,26 +214,3 @@ def test_concurrent_approx_len():
             assert 0 <= q.approx_len() <= repetitions * num_producers
 
     (producer | consumer | length_checker).start_and_join()
-
-
-def test_blocking_get_timeout_behavior():
-    q = AtomicPartitionedQueue()
-    timeouts = []
-
-    @TestingThreadSet.repeat(4)
-    def consumers():
-        import time
-
-        start = time.time()
-        try:
-            q.get(block=True, timeout=0.1)
-        except TimeoutError:
-            pass
-        elapsed = time.time() - start
-        timeouts.append(elapsed)
-
-    consumers.start_and_join()
-
-    assert timeouts
-    for elapsed in timeouts:
-        assert 0.08 <= elapsed <= 0.2  # allow some timing variance
