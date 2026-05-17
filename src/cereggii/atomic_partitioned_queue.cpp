@@ -52,7 +52,7 @@ AtomicPartitionedQueue_traverse(AtomicPartitionedQueue *self, visitproc visit, v
     moodycamel::ConcurrentQueue<PyObject*>::TraverseState state;
     PyObject* item;
 
-    while (self->impl->queue.inner.traverse(&state, &item)) {
+    while (self->impl->queue.traverse(&state, &item)) {
         Py_VISIT(item);
     }
 
