@@ -1063,6 +1063,7 @@ class AtomicEvent:
 class AtomicPartitionedQueue[T]:
     """A thread-safe queue implementation that supports partitioned access
     patterns for efficient concurrent operations.
+    Based on https://github.com/cameron314/concurrentqueue.
 
     To improve the overall throughput of the queue when used repeatedly by the
     same thread, use consumer and producer contexts to reduce contention on the
@@ -1157,8 +1158,10 @@ class AtomicPartitionedQueue[T]:
         """
         Get the approximate number of items in the queue.
 
-        This method does not prevent other threads from mutating the queue,
-        so the returned value is an approximation.
+        !!! warning
+            This method may return a non-sequentially consistent value.
+            Assuming that no threads are modifying the queue, then the value
+            returned will be correct.
 
         :return: Approximate number of items in the queue.
         """

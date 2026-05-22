@@ -187,6 +187,106 @@ def test_concurrent_put_blocking_get():
     assert consumed.get() == num_items
 
 
+def test_producer_context_manager():
+    q = AtomicPartitionedQueue()
+    with q.producer() as p:
+        p.put("item1")
+        p.put("item2")
+    assert q.try_get() == "item1"
+    assert q.try_get() == "item2"
+
+
+def test_producer_without_context_manager():
+    q = AtomicPartitionedQueue()
+    p = q.producer()
+    p.put("a")
+    assert q.try_get() == "a"
+
+
+def test_consumer_context_manager():
+    q = AtomicPartitionedQueue()
+    q.put("item1")
+    q.put("item2")
+    with q.consumer() as c:
+        assert c.get() == "item1"
+        assert c.try_get() == "item2"
+
+
+def test_consumer_try_get_empty():
+    q = AtomicPartitionedQueue()
+    with q.consumer() as c:
+        assert c.try_get() is None
+
+
+def test_producer_consumer_roundtrip():
+    q = AtomicPartitionedQueue()
+    with q.producer() as p, q.consumer() as c:
+        p.put(None)
+        p.put(42)
+        p.put("hello")
+        assert c.get() is None
+        assert c.get() == 42
+        assert c.get() == "hello"
+
+
+def test_producer_put_after_close():
+    q = AtomicPartitionedQueue()
+    p = q.producer()
+    q.close()
+    with pytest.raises(RuntimeError, match="queue is closed"):
+        p.put("item")
+
+
+def test_consumer_get_after_close():
+    q = AtomicPartitionedQueue()
+    c = q.consumer()
+    q.close()
+    with pytest.raises(RuntimeError, match="queue is closed"):
+        c.get()
+
+
+def test_producer_keeps_queue_alive():
+    q = AtomicPartitionedQueue()
+    p = q.producer()
+    del q
+    p.put("survived")
+    # producer still holds a reference to the queue's impl
+
+
+def test_concurrent_producers_consumers_with_tokens():
+    q = AtomicPartitionedQueue()
+    num_producers = 8
+    num_consumers = 8
+    barrier = Barrier(num_producers + num_consumers)
+    items_per_producer = 50
+    dequeued = [AtomicInt64(0) for _ in range(items_per_producer * num_producers)]
+
+    @TestingThreadSet.range(num_producers)
+    def producers(me):
+        with q.producer() as p:
+            barrier.wait()
+            for i in range(items_per_producer):
+                p.put(me * items_per_producer + i)
+
+    @TestingThreadSet.repeat(num_consumers)
+    def consumers():
+        with q.consumer() as c:
+            barrier.wait()
+            for _ in range(items_per_producer * num_producers // num_consumers):
+                item = c.try_get()
+                if item is not None:
+                    dequeued[item].increment_and_get(1)
+
+    (producers | consumers).start_and_join()
+
+    # consumer leftovers
+    while (item := q.try_get()) is not None:
+        dequeued[item].increment_and_get(1)
+
+    for item in dequeued:
+        assert item.get() == 1
+
+
 def test_concurrent_approx_len():
     q = AtomicPartitionedQueue()
     num_producers = 2
