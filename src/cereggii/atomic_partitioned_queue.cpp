@@ -17,12 +17,14 @@ struct AtomicPartitionedQueueImpl {
 };
 
 PyObject *
-AtomicPartitionedQueue_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
+AtomicPartitionedQueue_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
-    AtomicPartitionedQueue *self = PyObject_GC_New(AtomicPartitionedQueue, &AtomicPartitionedQueue_Type);
+    AtomicPartitionedQueue *self = reinterpret_cast<AtomicPartitionedQueue*>(type->tp_alloc(type, 0));
 
-    if (self == nullptr)
+    if (self == nullptr) {
+        PyErr_NoMemory();
         return nullptr;
+    }
 
     try {
         self->impl = new AtomicPartitionedQueueImpl();
@@ -31,8 +33,6 @@ AtomicPartitionedQueue_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(ar
         PyErr_NoMemory();
         return nullptr;
     }
-
-    PyObject_GC_Track(self);
 
     return reinterpret_cast<PyObject*>(self);
 }
@@ -111,9 +111,9 @@ AtomicPartitionedQueue_Put(AtomicPartitionedQueue *self, PyObject *obj)
 static void
 dequeue_with_timeout(AtomicPartitionedQueue* self, int64_t timeout_usecs, PyObject *&item, bool& success)
 {
-    Py_BEGIN_ALLOW_THREADS
-        success = self->impl->queue.wait_dequeue_timed(item, timeout_usecs);
-    Py_END_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
+    success = self->impl->queue.wait_dequeue_timed(item, timeout_usecs);
+    Py_END_ALLOW_THREADS;
 }
 
 static bool
