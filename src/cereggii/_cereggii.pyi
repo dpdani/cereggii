@@ -1061,10 +1061,55 @@ class AtomicEvent:
         """Atomically check if this `AtomicEvent` is set."""
 
 class AtomicPartitionedQueue[T]:
-    """An atomic partitioned queue.
+    """A thread-safe queue implementation that supports partitioned access
+    patterns for efficient concurrent operations.
 
-    A thread-safe queue implementation that supports partitioned access patterns
-    for efficient concurrent operations.
+    To improve the overall throughput of the queue when used repeatedly by the
+    same thread, use consumer and producer contexts to reduce contention on the
+    queue's internal partitions:
+
+    ```python
+    q = AtomicPartitionedQueue()
+    with q.producer() as p:
+        p.put(...)
+    ```
+
+    This will not restrict a consumer or producer to a single partition, but
+    will create an "affinity" so that different threads will not contend for
+    the same partition most of the time.
+    A consumer that sees its partition being empty will rotate to a different
+    partition.
+    This partitioning logic is mostly internal, and there should not be
+    additional logic to work around it in your application, except for
+    declaring consumers and producers by creating their contexts.
+    Note that the performance improvements that partitioning provides can only
+    be achieved when the contexts are not short-lived.
+
+    !!! warning
+        Consumer and producer contexts must not be shared between threads.
+        Their ownership may be transferred, but this is discouraged and may be
+        disallowed in a future release.
+
+    See
+    [`AtomicPartitionedQueue.producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
+    and
+    [`AtomicPartitionedQueue.consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer].
+
+    To improve throughput further, consider enqueuing and dequeuing multiple
+    items at a time:
+    ```python
+    q = AtomicPartitionedQueue()
+    q.put_many([1, 2, 3, ...])
+
+    # also doable with a producer context
+    with q.producer() as p:
+        p.put_many([1, 2, 3, ...])
+    ```
+
+    See
+    [`AtomicPartitionedQueue.put_many`][cereggii._cereggii.AtomicPartitionedQueue.put_many]
+    and
+    [`AtomicPartitionedQueue.get_many`][cereggii._cereggii.AtomicPartitionedQueue.get_many].
     """
 
     def __init__(self):
@@ -1117,3 +1162,82 @@ class AtomicPartitionedQueue[T]:
 
         :return: Approximate number of items in the queue.
         """
+
+    def producer(self) -> AtomicPartitionedQueueProducer[T]:
+        """
+        Create a producer context for this queue to reduce contention on the
+        queue's internal partitions when enqueuing repeatedly from the same
+        thread.
+
+        The returned object can be used as a context manager:
+
+        ```python
+        q = AtomicPartitionedQueue()
+        with q.producer() as p:
+            p.put(item)
+        ```
+        """
+
+    def consumer(self) -> AtomicPartitionedQueueConsumer[T]:
+        """
+        Create a consumer context for this queue to reduce contention on the
+        queue's internal partitions when dequeuing repeatedly from the same
+        thread.
+
+        The returned object can be used as a context manager:
+
+        ```python
+        q = AtomicPartitionedQueue()
+        with q.consumer() as c:
+            item = c.get()
+        ```
+        """
+
+class AtomicPartitionedQueueProducer[T]:
+    """
+    A producer context for an `AtomicPartitionedQueue`.
+
+    Instances are only created by calling
+    [`AtomicPartitionedQueue.producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
+    and can be used as context managers.
+    """
+
+    def put(self, obj: T) -> None:
+        """
+        Add an item to the underlying queue using this producer context.
+
+        :param obj: The object to add to the queue.
+        """
+
+    def __enter__(self) -> Self: ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
+
+class AtomicPartitionedQueueConsumer[T]:
+    """
+    A consumer context for an `AtomicPartitionedQueue`.
+
+    Instances are only created by calling
+    [`AtomicPartitionedQueue.consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer]
+    and can be used as context managers.
+    """
+
+    def get(self, block: bool = True, timeout: float | None = None) -> T:
+        """
+        Remove and return an item from the underlying queue using this
+        consumer context.
+
+        :param block: If `True`, block until an item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block indefinitely.
+        :return: An item from the queue.
+        """
+
+    def try_get(self) -> T | None:
+        """
+        Try to remove and return an item from the underlying queue without
+        blocking, using this consumer context.
+
+        :return: An item from the queue, or `None` if the queue is empty.
+        """
+
+    def __enter__(self) -> Self: ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...

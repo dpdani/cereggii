@@ -16,6 +16,18 @@ struct AtomicPartitionedQueueImpl {
     AtomicPartitionedQueueImpl() : queue(), closed(false) {}
 };
 
+struct AtomicPartitionedQueueProducerImpl {
+    moodycamel::ProducerToken token;
+
+    explicit AtomicPartitionedQueueProducerImpl(AtomicPartitionedQueueImpl *q) : token(q->queue) {}
+};
+
+struct AtomicPartitionedQueueConsumerImpl {
+    moodycamel::ConsumerToken token;
+
+    explicit AtomicPartitionedQueueConsumerImpl(AtomicPartitionedQueueImpl *q) : token(q->queue) {}
+};
+
 PyObject *
 AtomicPartitionedQueue_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
@@ -89,8 +101,8 @@ AtomicPartitionedQueue_dealloc(AtomicPartitionedQueue *self)
 }
 
 
-PyObject *
-AtomicPartitionedQueue_Put(AtomicPartitionedQueue *self, PyObject *obj)
+static PyObject *
+put(AtomicPartitionedQueue *self, PyObject *obj, moodycamel::ProducerToken *token)
 {
     if (self->impl->closed.load(std::memory_order_acquire)) {
         PyErr_SetString(PyExc_RuntimeError, "queue is closed");
@@ -99,7 +111,15 @@ AtomicPartitionedQueue_Put(AtomicPartitionedQueue *self, PyObject *obj)
 
     _Py_SetWeakrefAndIncref(obj);
 
-    if (!self->impl->queue.enqueue(obj)) {
+    bool ok;
+    if (token != nullptr) {
+        ok = self->impl->queue.enqueue(*token, obj);
+    }
+    else {
+        ok = self->impl->queue.enqueue(obj);
+    }
+
+    if (!ok) {
         Py_DECREF(obj);
         PyErr_SetString(PyExc_RuntimeError, "failed to enqueue item");
         return nullptr;
@@ -108,19 +128,29 @@ AtomicPartitionedQueue_Put(AtomicPartitionedQueue *self, PyObject *obj)
     Py_RETURN_NONE;
 }
 
+PyObject *
+AtomicPartitionedQueue_Put(AtomicPartitionedQueue *self, PyObject *obj)
+{
+    return put(self, obj, nullptr);
+}
+
 static void
-dequeue_with_timeout(AtomicPartitionedQueue* self, int64_t timeout_usecs, PyObject *&item, bool& success)
+dequeue_with_timeout(AtomicPartitionedQueue* self, moodycamel::ConsumerToken *token, int64_t timeout_usecs, PyObject *&item, bool& success)
 {
     Py_BEGIN_ALLOW_THREADS;
-    success = self->impl->queue.wait_dequeue_timed(item, timeout_usecs);
+    if (token != nullptr) {
+        success = self->impl->queue.wait_dequeue_timed(*token, item, timeout_usecs);
+    } else {
+        success = self->impl->queue.wait_dequeue_timed(item, timeout_usecs);
+    }
     Py_END_ALLOW_THREADS;
 }
 
 static bool
-dequeue_wait_indefinitely(AtomicPartitionedQueue* self, PyObject *&item, bool& success)
+dequeue_wait_indefinitely(AtomicPartitionedQueue* self, moodycamel::ConsumerToken *token, PyObject *&item, bool& success)
 {
     while (true) {
-        dequeue_with_timeout(self, 100000, item, success);
+        dequeue_with_timeout(self, token, 100000, item, success);
         if (success)
             break;
         if (PyErr_CheckSignals())
@@ -132,7 +162,7 @@ dequeue_wait_indefinitely(AtomicPartitionedQueue* self, PyObject *&item, bool& s
 }
 
 static PyObject *
-get(AtomicPartitionedQueue* self, int block, double timeout)
+get(AtomicPartitionedQueue* self, moodycamel::ConsumerToken *token, int block, double timeout)
 {
     PyObject *item = nullptr;
     bool success = false;
@@ -143,15 +173,19 @@ get(AtomicPartitionedQueue* self, int block, double timeout)
 
     if (block) {
         if (timeout < 0.0) {
-            if (dequeue_wait_indefinitely(self, item, success))
+            if (dequeue_wait_indefinitely(self, token, item, success))
                 goto closed;
         } else {
             auto timeout_usecs = static_cast<int64_t>(timeout * 1000000.0);  // convert seconds to microseconds
-            dequeue_with_timeout(self, timeout_usecs, item, success);
+            dequeue_with_timeout(self, token, timeout_usecs, item, success);
         }
     } else {
         // non-blocking
-        success = self->impl->queue.try_dequeue(item);
+        if (token != nullptr) {
+            success = self->impl->queue.try_dequeue(*token, item);
+        } else {
+            success = self->impl->queue.try_dequeue(item);
+        }
     }
 
     if (!success) {
@@ -166,25 +200,33 @@ closed:
     return nullptr;
 }
 
-PyObject *
-AtomicPartitionedQueue_Get(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs)
+static bool
+parse_get_args(PyObject *args, PyObject *kwargs, int &block, double &timeout)
 {
-    int block = 1;
-    double timeout = -1.0;
+    block = 1;
+    timeout = -1.0;
 
     char *kw_list[] = {"block", "timeout", nullptr};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|pd", kw_list, &block, &timeout)) {
+    return (bool)PyArg_ParseTupleAndKeywords(args, kwargs, "|pd", kw_list, &block, &timeout);
+}
+
+PyObject *
+AtomicPartitionedQueue_Get(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs)
+{
+    int block;
+    double timeout;
+    if (!parse_get_args(args, kwargs, block, timeout)) {
         return nullptr;
     }
 
-    return get(self, block, timeout);
+    return get(self, nullptr, block, timeout);
 }
 
 PyObject *
 AtomicPartitionedQueue_TryGet(AtomicPartitionedQueue *self)
 {
-    return get(self, 0, 0.0);
+    return get(self, nullptr, 0, 0.0);
 }
 
 PyObject *
@@ -206,4 +248,170 @@ AtomicPartitionedQueue_ApproxLen(AtomicPartitionedQueue *self)
 {
     size_t len = self->impl->queue.size_approx();
     return PyLong_FromSize_t(len);
+}
+
+/// Producer
+
+PyObject *
+AtomicPartitionedQueue_Producer(AtomicPartitionedQueue *self, PyObject *Py_UNUSED(args))
+{
+    AtomicPartitionedQueueProducer *producer = reinterpret_cast<AtomicPartitionedQueueProducer*>(
+        AtomicPartitionedQueueProducer_Type.tp_alloc(&AtomicPartitionedQueueProducer_Type, 0)
+    );
+    if (producer == nullptr) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    producer->impl = nullptr;
+    producer->queue = nullptr;
+
+    try {
+        producer->impl = new AtomicPartitionedQueueProducerImpl(self->impl);
+    } catch (const std::bad_alloc&) {
+        Py_DECREF(producer);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    Py_INCREF(self);
+    producer->queue = self;
+
+    return reinterpret_cast<PyObject*>(producer);
+}
+
+int
+AtomicPartitionedQueueProducer_traverse(AtomicPartitionedQueueProducer *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->queue);
+    return 0;
+}
+
+int
+AtomicPartitionedQueueProducer_clear(AtomicPartitionedQueueProducer *self)
+{
+    // The token's destructor accesses the queue's internal state,
+    // so destroy the token before releasing the queue reference.
+    auto impl = self->impl;
+    if (impl != nullptr) {
+        self->impl = nullptr;
+        delete impl;
+    }
+    Py_CLEAR(self->queue);
+    return 0;
+}
+
+void
+AtomicPartitionedQueueProducer_dealloc(AtomicPartitionedQueueProducer *self)
+{
+    PyObject_GC_UnTrack(self);
+    AtomicPartitionedQueueProducer_clear(self);
+    Py_TYPE(self)->tp_free(reinterpret_cast<PyObject*>(self));
+}
+
+PyObject *
+AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObject *obj)
+{
+    return put(self->queue, obj, &self->impl->token);
+}
+
+PyObject *
+AtomicPartitionedQueueProducer_Enter(AtomicPartitionedQueueProducer *self, PyObject *Py_UNUSED(args))
+{
+    Py_INCREF(self);
+    return reinterpret_cast<PyObject*>(self);
+}
+
+PyObject *
+AtomicPartitionedQueueProducer_Exit(AtomicPartitionedQueueProducer *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    Py_RETURN_NONE;
+}
+
+/// Consumer
+
+PyObject *
+AtomicPartitionedQueue_Consumer(AtomicPartitionedQueue *self, PyObject *Py_UNUSED(args))
+{
+    AtomicPartitionedQueueConsumer *consumer = reinterpret_cast<AtomicPartitionedQueueConsumer*>(
+        AtomicPartitionedQueueConsumer_Type.tp_alloc(&AtomicPartitionedQueueConsumer_Type, 0)
+    );
+    if (consumer == nullptr) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    consumer->impl = nullptr;
+    consumer->queue = nullptr;
+
+    try {
+        consumer->impl = new AtomicPartitionedQueueConsumerImpl(self->impl);
+    } catch (const std::bad_alloc&) {
+        Py_DECREF(consumer);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    Py_INCREF(self);
+    consumer->queue = self;
+
+    return reinterpret_cast<PyObject*>(consumer);
+}
+
+int
+AtomicPartitionedQueueConsumer_traverse(AtomicPartitionedQueueConsumer *self, visitproc visit, void *arg)
+{
+    Py_VISIT(self->queue);
+    return 0;
+}
+
+int
+AtomicPartitionedQueueConsumer_clear(AtomicPartitionedQueueConsumer *self)
+{
+    auto impl = self->impl;
+    if (impl != nullptr) {
+        self->impl = nullptr;
+        delete impl;
+    }
+    Py_CLEAR(self->queue);
+    return 0;
+}
+
+void
+AtomicPartitionedQueueConsumer_dealloc(AtomicPartitionedQueueConsumer *self)
+{
+    PyObject_GC_UnTrack(self);
+    AtomicPartitionedQueueConsumer_clear(self);
+    Py_TYPE(self)->tp_free(reinterpret_cast<PyObject*>(self));
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs)
+{
+    int block;
+    double timeout;
+    if (!parse_get_args(args, kwargs, block, timeout)) {
+        return nullptr;
+    }
+
+    return get(self->queue, &self->impl->token, block, timeout);
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_TryGet(AtomicPartitionedQueueConsumer *self)
+{
+    return get(self->queue, &self->impl->token, 0, 0.0);
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_Enter(AtomicPartitionedQueueConsumer *self, PyObject *Py_UNUSED(args))
+{
+    Py_INCREF(self);
+    return reinterpret_cast<PyObject*>(self);
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_Exit(AtomicPartitionedQueueConsumer *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+{
+    Py_RETURN_NONE;
 }

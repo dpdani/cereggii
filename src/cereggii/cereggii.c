@@ -250,6 +250,8 @@ static PyMethodDef AtomicPartitionedQueue_methods[] = {
     {"try_get",    (PyCFunction) AtomicPartitionedQueue_TryGet,    METH_NOARGS,                  NULL},
     {"close",      (PyCFunction) AtomicPartitionedQueue_Close,     METH_NOARGS,                  NULL},
     {"approx_len", (PyCFunction) AtomicPartitionedQueue_ApproxLen, METH_NOARGS,                  NULL},
+    {"producer",   (PyCFunction) AtomicPartitionedQueue_Producer,  METH_NOARGS,                  NULL},
+    {"consumer",   (PyCFunction) AtomicPartitionedQueue_Consumer,  METH_NOARGS,                  NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -272,6 +274,49 @@ PyTypeObject AtomicPartitionedQueue_Type = {
     .tp_dealloc = (destructor) AtomicPartitionedQueue_dealloc,
     .tp_methods = AtomicPartitionedQueue_methods,
     .tp_getset = AtomicPartitionedQueue_properties,
+};
+
+
+static PyMethodDef AtomicPartitionedQueueProducer_methods[] = {
+    {"put",       (PyCFunction) AtomicPartitionedQueueProducer_Put,   METH_O,       NULL},
+    {"__enter__", (PyCFunction) AtomicPartitionedQueueProducer_Enter, METH_NOARGS,  NULL},
+    {"__exit__",  (PyCFunction) AtomicPartitionedQueueProducer_Exit,  METH_VARARGS, NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+PyTypeObject AtomicPartitionedQueueProducer_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicPartitionedQueueProducer",
+    .tp_doc = PyDoc_STR("A producer context for an AtomicPartitionedQueue."),
+    .tp_basicsize = sizeof(AtomicPartitionedQueueProducer),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_traverse = (traverseproc) AtomicPartitionedQueueProducer_traverse,
+    .tp_clear = (inquiry) AtomicPartitionedQueueProducer_clear,
+    .tp_dealloc = (destructor) AtomicPartitionedQueueProducer_dealloc,
+    .tp_methods = AtomicPartitionedQueueProducer_methods,
+};
+
+
+static PyMethodDef AtomicPartitionedQueueConsumer_methods[] = {
+    {"get",       (PyCFunction) AtomicPartitionedQueueConsumer_Get,    METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get",   (PyCFunction) AtomicPartitionedQueueConsumer_TryGet, METH_NOARGS,                  NULL},
+    {"__enter__", (PyCFunction) AtomicPartitionedQueueConsumer_Enter,  METH_NOARGS,                  NULL},
+    {"__exit__",  (PyCFunction) AtomicPartitionedQueueConsumer_Exit,   METH_VARARGS,                 NULL},
+    {NULL, NULL, 0, NULL}
+};
+
+PyTypeObject AtomicPartitionedQueueConsumer_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "cereggii.AtomicPartitionedQueueConsumer",
+    .tp_doc = PyDoc_STR("A consumer context for an AtomicPartitionedQueue."),
+    .tp_basicsize = sizeof(AtomicPartitionedQueueConsumer),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_traverse = (traverseproc) AtomicPartitionedQueueConsumer_traverse,
+    .tp_clear = (inquiry) AtomicPartitionedQueueConsumer_clear,
+    .tp_dealloc = (destructor) AtomicPartitionedQueueConsumer_dealloc,
+    .tp_methods = AtomicPartitionedQueueConsumer_methods,
 };
 
 
@@ -420,6 +465,10 @@ PyInit__cereggii(void)
     if (PyType_Ready(&AtomicEvent_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicPartitionedQueue_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicPartitionedQueueProducer_Type) < 0)
+        return NULL;
+    if (PyType_Ready(&AtomicPartitionedQueueConsumer_Type) < 0)
         return NULL;
     if (PyType_Ready(&AtomicRef_Type) < 0)
         return NULL;
