@@ -1063,7 +1063,7 @@ class AtomicEvent:
 class AtomicPartitionedQueue[T]:
     """A thread-safe queue implementation that supports partitioned access
     patterns for efficient concurrent operations.
-    Based on https://github.com/cameron314/concurrentqueue.
+    Implementation based on https://github.com/cameron314/concurrentqueue.
 
     To improve the overall throughput of the queue when used repeatedly by the
     same thread, use consumer and producer contexts to reduce contention on the
@@ -1092,9 +1092,9 @@ class AtomicPartitionedQueue[T]:
         disallowed in a future release.
 
     See
-    [`AtomicPartitionedQueue.producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
+    [`producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
     and
-    [`AtomicPartitionedQueue.consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer].
+    [`consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer].
 
     To improve throughput further, consider enqueuing and dequeuing multiple
     items at a time:
@@ -1108,9 +1108,9 @@ class AtomicPartitionedQueue[T]:
     ```
 
     See
-    [`AtomicPartitionedQueue.put_many`][cereggii._cereggii.AtomicPartitionedQueue.put_many]
+    [`put_many`][cereggii._cereggii.AtomicPartitionedQueue.put_many]
     and
-    [`AtomicPartitionedQueue.get_many`][cereggii._cereggii.AtomicPartitionedQueue.get_many].
+    [`get_many`][cereggii._cereggii.AtomicPartitionedQueue.get_many].
     """
 
     def __init__(self):
@@ -1251,6 +1251,9 @@ class AtomicPartitionedQueueProducer[T]:
         """
         Add an item to the underlying queue using this producer context.
 
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.put].
+
         :param obj: The object to add to the queue.
         """
 
@@ -1258,6 +1261,9 @@ class AtomicPartitionedQueueProducer[T]:
         """
         Add multiple items to the underlying queue in a single bulk operation,
         using this producer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.put_many].
 
         :param items: An iterable of objects to add to the queue.
         """
@@ -1279,6 +1285,9 @@ class AtomicPartitionedQueueConsumer[T]:
         Remove and return an item from the underlying queue using this
         consumer context.
 
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.get].
+
         :param block: If `True`, block until an item is available.
         :param timeout: Optional timeout in seconds. If `None`, block indefinitely.
         :return: An item from the queue.
@@ -1289,6 +1298,9 @@ class AtomicPartitionedQueueConsumer[T]:
         Try to remove and return an item from the underlying queue without
         blocking, using this consumer context.
 
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.try_get].
+
         :return: An item from the queue, or `None` if the queue is empty.
         """
 
@@ -1297,9 +1309,8 @@ class AtomicPartitionedQueueConsumer[T]:
         Remove and return up to `max_items` items from the underlying queue
         in a single bulk operation, using this consumer context.
 
-        When `block` is `True`, this call waits until at least one item is
-        available (or until `timeout` elapses); it may return fewer than
-        `max_items` items.
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.get_many].
 
         :param max_items: The maximum number of items to dequeue.
         :param block: If `True`, block until at least one item is available.
@@ -1312,6 +1323,9 @@ class AtomicPartitionedQueueConsumer[T]:
         """
         Try to remove and return up to `max_items` items from the underlying
         queue without blocking, using this consumer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.try_get_many].
 
         :param max_items: The maximum number of items to dequeue.
         :return: A list of dequeued items, possibly empty.
