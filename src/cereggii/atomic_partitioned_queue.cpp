@@ -40,21 +40,26 @@ AtomicPartitionedQueue_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObje
         return nullptr;
     }
 
-    try {
-        self->impl = new AtomicPartitionedQueueImpl();
-    } catch (const std::bad_alloc&) {
-        Py_DECREF(self);
-        PyErr_NoMemory();
-        return nullptr;
-    }
+    self->impl = nullptr;
 
     return reinterpret_cast<PyObject*>(self);
 }
 
 int
-AtomicPartitionedQueue_init(AtomicPartitionedQueue *Py_UNUSED(self), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
+AtomicPartitionedQueue_init(AtomicPartitionedQueue *self, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwargs))
 {
-    // nothing to be done
+    if (self->impl != nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "queue already initialized");
+        return -1;
+    }
+
+    try {
+        self->impl = new AtomicPartitionedQueueImpl();
+    } catch (const std::bad_alloc&) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
     return 0;
 }
 
