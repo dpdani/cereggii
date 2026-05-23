@@ -460,7 +460,6 @@ def test_producer_put_many_after_close():
         p.put_many([1, 2])
 
 
-# @pytest.mark.skip
 def test_concurrent_put_many_get_many():
     q = AtomicPartitionedQueue()
     num_producers = 4
