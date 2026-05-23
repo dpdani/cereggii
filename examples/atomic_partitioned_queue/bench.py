@@ -35,14 +35,8 @@ def _run(label, producer_fn, consumer_fn, queue_factory=AtomicPartitionedQueue):
     barrier = Barrier(NUM_PRODUCERS + NUM_CONSUMERS + 1)
     consumed = AtomicInt64(0)
 
-    producers = [
-        threading.Thread(target=producer_fn, args=(q, barrier, i))
-        for i in range(NUM_PRODUCERS)
-    ]
-    consumers = [
-        threading.Thread(target=consumer_fn, args=(q, barrier, consumed))
-        for _ in range(NUM_CONSUMERS)
-    ]
+    producers = [threading.Thread(target=producer_fn, args=(q, barrier, i)) for i in range(NUM_PRODUCERS)]
+    consumers = [threading.Thread(target=consumer_fn, args=(q, barrier, consumed)) for _ in range(NUM_CONSUMERS)]
 
     for t in producers + consumers:
         t.start()
@@ -144,11 +138,11 @@ def main():
     print(f"  {'mode':<25} {'time':>7}     {'throughput':>16}")
     print(f"  {'-'*25} {'-'*7}     {'-'*16}")
 
-    _run("stdlib queue.Queue",      _prod_plain,    _cons_plain,   queue_factory=queue.Queue)
-    _run("plain put/get",           _prod_plain,    _cons_plain)
-    _run("ctx put/get",             _prod_ctx,      _cons_ctx)
-    _run("plain put_many/get_many", _prod_bulk,     _cons_bulk)
-    _run("ctx put_many/get_many",   _prod_bulk_ctx, _cons_bulk_ctx)
+    _run("stdlib queue.Queue", _prod_plain, _cons_plain, queue_factory=queue.Queue)
+    _run("plain put/get", _prod_plain, _cons_plain)
+    _run("ctx put/get", _prod_ctx, _cons_ctx)
+    _run("plain put_many/get_many", _prod_bulk, _cons_bulk)
+    _run("ctx put_many/get_many", _prod_bulk_ctx, _cons_bulk_ctx)
 
 
 if __name__ == "__main__":
