@@ -5,6 +5,8 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
+#include <new>
+#include <vector>
 #include <cereggii/atomic_partitioned_queue.h>
 #include <cereggii/internal/py_core.h>
 #include <cereggii/vendor/moodycamel_concurrentqueue/blockingconcurrentqueue.h>
@@ -211,6 +213,175 @@ parse_get_args(PyObject *args, PyObject *kwargs, int &block, double &timeout)
     return (bool)PyArg_ParseTupleAndKeywords(args, kwargs, "|pd", kw_list, &block, &timeout);
 }
 
+static PyObject *
+put_many(AtomicPartitionedQueue *self, PyObject *iterable, moodycamel::ProducerToken *token)
+{
+    if (self->impl->closed.load(std::memory_order_acquire)) {
+        PyErr_SetString(PyExc_RuntimeError, "queue is closed");
+        return nullptr;
+    }
+
+    PyObject *seq = PySequence_Fast(iterable, "put_many() requires an iterable");
+    if (seq == nullptr) {
+        return nullptr;
+    }
+
+    Py_ssize_t count = PySequence_Fast_GET_SIZE(seq);
+    if (count == 0) {
+        Py_DECREF(seq);
+        Py_RETURN_NONE;
+    }
+
+    PyObject **items_ptr = PySequence_Fast_ITEMS(seq);
+
+    for (Py_ssize_t i = 0; i < count; i++) {
+        _Py_SetWeakrefAndIncref(items_ptr[i]);
+    }
+
+    bool ok = false;
+    try {
+        if (token != nullptr) {
+            ok = self->impl->queue.enqueue_bulk(*token, items_ptr, static_cast<size_t>(count));
+        } else {
+            ok = self->impl->queue.enqueue_bulk(items_ptr, static_cast<size_t>(count));
+        }
+    } catch (const std::bad_alloc&) {
+        ok = false;
+    }
+
+    if (!ok) {
+        for (Py_ssize_t i = 0; i < count; i++) {
+            Py_DECREF(items_ptr[i]);
+        }
+        Py_DECREF(seq);
+        PyErr_SetString(PyExc_RuntimeError, "failed to enqueue items");
+        return nullptr;
+    }
+
+    Py_DECREF(seq);
+    Py_RETURN_NONE;
+}
+
+static void
+dequeue_bulk_with_timeout(AtomicPartitionedQueue *self, moodycamel::ConsumerToken *token, PyObject **out, size_t max_items, int64_t timeout_usecs, size_t &count)
+{
+    Py_BEGIN_ALLOW_THREADS;
+    if (token != nullptr) {
+        count = self->impl->queue.wait_dequeue_bulk_timed(*token, out, max_items, timeout_usecs);
+    } else {
+        count = self->impl->queue.wait_dequeue_bulk_timed(out, max_items, timeout_usecs);
+    }
+    Py_END_ALLOW_THREADS;
+}
+
+static bool
+dequeue_bulk_wait_indefinitely(AtomicPartitionedQueue *self, moodycamel::ConsumerToken *token, PyObject **out, size_t max_items, size_t &count)
+{
+    while (true) {
+        dequeue_bulk_with_timeout(self, token, out, max_items, 100000, count);
+        if (count > 0)
+            break;
+        if (PyErr_CheckSignals())
+            break;
+        if (self->impl->closed.load(std::memory_order_acquire))
+            return true;
+    }
+    return false;
+}
+
+static PyObject *
+get_many(AtomicPartitionedQueue *self, moodycamel::ConsumerToken *token, Py_ssize_t max_items, int block, double timeout)
+{
+    assert(max_items >= 1);
+    if (self->impl->closed.load(std::memory_order_acquire)) {
+        PyErr_SetString(PyExc_RuntimeError, "queue is closed");
+        return nullptr;
+    }
+
+    std::vector<PyObject*> buffer;
+    try {
+        buffer.assign(static_cast<size_t>(max_items), nullptr);
+    } catch (const std::bad_alloc&) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+
+    size_t count = 0;
+    bool closed = false;
+
+    if (block) {
+        if (timeout < 0.0) {
+            if (dequeue_bulk_wait_indefinitely(self, token, buffer.data(), static_cast<size_t>(max_items), count)) {
+                closed = true;
+            }
+        } else {
+            auto timeout_usecs = static_cast<int64_t>(timeout * 1000000.0);
+            dequeue_bulk_with_timeout(self, token, buffer.data(), static_cast<size_t>(max_items), timeout_usecs, count);
+        }
+    } else {
+        if (token != nullptr) {
+            count = self->impl->queue.try_dequeue_bulk(*token, buffer.data(), static_cast<size_t>(max_items));
+        } else {
+            count = self->impl->queue.try_dequeue_bulk(buffer.data(), static_cast<size_t>(max_items));
+        }
+    }
+
+    if (closed && count == 0) {
+        PyErr_SetString(PyExc_RuntimeError, "queue is closed");
+        return nullptr;
+    }
+
+    PyObject *result = PyList_New(static_cast<Py_ssize_t>(count));
+    if (result == nullptr) {
+        for (size_t i = 0; i < count; i++) {
+            Py_DECREF(buffer[i]);
+        }
+        return nullptr;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        // transfer ownership from queue to list
+        PyList_SET_ITEM(result, static_cast<Py_ssize_t>(i), buffer[i]);
+    }
+
+    return result;
+}
+
+static bool
+parse_get_many_args(PyObject *args, PyObject *kwargs, Py_ssize_t &max_items, int &block, double &timeout)
+{
+    block = 1;
+    timeout = -1.0;
+    int _max_items = -1;
+
+    char *kw_list[] = {"max_items", "block", "timeout", nullptr};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|pd", kw_list, &_max_items, &block, &timeout)) {
+        return false;
+    }
+    if (_max_items < 1) {
+        PyErr_SetString(PyExc_ValueError, "max_items must be >= 1");
+        return false;
+    }
+    max_items = _max_items;
+    return true;
+}
+
+static bool
+parse_try_get_many_args(PyObject *args, PyObject *kwargs, Py_ssize_t &max_items)
+{
+    char *kw_list[] = {"max_items", nullptr};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n", kw_list, &max_items)) {
+        return false;
+    }
+    if (max_items < 1) {
+        PyErr_SetString(PyExc_ValueError, "max_items must be >= 1");
+        return false;
+    }
+    return true;
+}
+
 PyObject *
 AtomicPartitionedQueue_Get(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs)
 {
@@ -227,6 +398,36 @@ PyObject *
 AtomicPartitionedQueue_TryGet(AtomicPartitionedQueue *self)
 {
     return get(self, nullptr, 0, 0.0);
+}
+
+PyObject *
+AtomicPartitionedQueue_PutMany(AtomicPartitionedQueue *self, PyObject *iterable)
+{
+    return put_many(self, iterable, nullptr);
+}
+
+PyObject *
+AtomicPartitionedQueue_GetMany(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs)
+{
+    Py_ssize_t max_items;
+    int block;
+    double timeout;
+    if (!parse_get_many_args(args, kwargs, max_items, block, timeout)) {
+        return nullptr;
+    }
+
+    return get_many(self, nullptr, max_items, block, timeout);
+}
+
+PyObject *
+AtomicPartitionedQueue_TryGetMany(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs)
+{
+    Py_ssize_t max_items;
+    if (!parse_try_get_many_args(args, kwargs, max_items)) {
+        return nullptr;
+    }
+
+    return get_many(self, nullptr, max_items, 0, 0.0);
 }
 
 PyObject *
@@ -316,6 +517,12 @@ AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObjec
 }
 
 PyObject *
+AtomicPartitionedQueueProducer_PutMany(AtomicPartitionedQueueProducer *self, PyObject *iterable)
+{
+    return put_many(self->queue, iterable, &self->impl->token);
+}
+
+PyObject *
 AtomicPartitionedQueueProducer_Enter(AtomicPartitionedQueueProducer *self, PyObject *Py_UNUSED(args))
 {
     Py_INCREF(self);
@@ -401,6 +608,30 @@ PyObject *
 AtomicPartitionedQueueConsumer_TryGet(AtomicPartitionedQueueConsumer *self)
 {
     return get(self->queue, &self->impl->token, 0, 0.0);
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_GetMany(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs)
+{
+    Py_ssize_t max_items;
+    int block;
+    double timeout;
+    if (!parse_get_many_args(args, kwargs, max_items, block, timeout)) {
+        return nullptr;
+    }
+
+    return get_many(self->queue, &self->impl->token, max_items, block, timeout);
+}
+
+PyObject *
+AtomicPartitionedQueueConsumer_TryGetMany(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs)
+{
+    Py_ssize_t max_items;
+    if (!parse_try_get_many_args(args, kwargs, max_items)) {
+        return nullptr;
+    }
+
+    return get_many(self->queue, &self->impl->token, max_items, 0, 0.0);
 }
 
 PyObject *

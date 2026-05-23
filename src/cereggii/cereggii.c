@@ -245,13 +245,16 @@ PyTypeObject AtomicEvent_Type = {
 
 
 static PyMethodDef AtomicPartitionedQueue_methods[] = {
-    {"put",        (PyCFunction) AtomicPartitionedQueue_Put,       METH_O,                       NULL},
-    {"get",        (PyCFunction) AtomicPartitionedQueue_Get,       METH_VARARGS | METH_KEYWORDS, NULL},
-    {"try_get",    (PyCFunction) AtomicPartitionedQueue_TryGet,    METH_NOARGS,                  NULL},
-    {"close",      (PyCFunction) AtomicPartitionedQueue_Close,     METH_NOARGS,                  NULL},
-    {"approx_len", (PyCFunction) AtomicPartitionedQueue_ApproxLen, METH_NOARGS,                  NULL},
-    {"producer",   (PyCFunction) AtomicPartitionedQueue_Producer,  METH_NOARGS,                  NULL},
-    {"consumer",   (PyCFunction) AtomicPartitionedQueue_Consumer,  METH_NOARGS,                  NULL},
+    {"put",          (PyCFunction) AtomicPartitionedQueue_Put,         METH_O,                       NULL},
+    {"get",          (PyCFunction) AtomicPartitionedQueue_Get,         METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get",      (PyCFunction) AtomicPartitionedQueue_TryGet,      METH_NOARGS,                  NULL},
+    {"put_many",     (PyCFunction) AtomicPartitionedQueue_PutMany,     METH_O,                       NULL},
+    {"get_many",     (PyCFunction) AtomicPartitionedQueue_GetMany,     METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get_many", (PyCFunction) AtomicPartitionedQueue_TryGetMany,  METH_VARARGS | METH_KEYWORDS, NULL},
+    {"close",        (PyCFunction) AtomicPartitionedQueue_Close,       METH_NOARGS,                  NULL},
+    {"approx_len",   (PyCFunction) AtomicPartitionedQueue_ApproxLen,   METH_NOARGS,                  NULL},
+    {"producer",     (PyCFunction) AtomicPartitionedQueue_Producer,    METH_NOARGS,                  NULL},
+    {"consumer",     (PyCFunction) AtomicPartitionedQueue_Consumer,    METH_NOARGS,                  NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -278,9 +281,10 @@ PyTypeObject AtomicPartitionedQueue_Type = {
 
 
 static PyMethodDef AtomicPartitionedQueueProducer_methods[] = {
-    {"put",       (PyCFunction) AtomicPartitionedQueueProducer_Put,   METH_O,       NULL},
-    {"__enter__", (PyCFunction) AtomicPartitionedQueueProducer_Enter, METH_NOARGS,  NULL},
-    {"__exit__",  (PyCFunction) AtomicPartitionedQueueProducer_Exit,  METH_VARARGS, NULL},
+    {"put",       (PyCFunction) AtomicPartitionedQueueProducer_Put,     METH_O,       NULL},
+    {"put_many",  (PyCFunction) AtomicPartitionedQueueProducer_PutMany, METH_O,       NULL},
+    {"__enter__", (PyCFunction) AtomicPartitionedQueueProducer_Enter,   METH_NOARGS,  NULL},
+    {"__exit__",  (PyCFunction) AtomicPartitionedQueueProducer_Exit,    METH_VARARGS, NULL},
     {NULL, NULL, 0, NULL}
 };
 
@@ -299,10 +303,12 @@ PyTypeObject AtomicPartitionedQueueProducer_Type = {
 
 
 static PyMethodDef AtomicPartitionedQueueConsumer_methods[] = {
-    {"get",       (PyCFunction) AtomicPartitionedQueueConsumer_Get,    METH_VARARGS | METH_KEYWORDS, NULL},
-    {"try_get",   (PyCFunction) AtomicPartitionedQueueConsumer_TryGet, METH_NOARGS,                  NULL},
-    {"__enter__", (PyCFunction) AtomicPartitionedQueueConsumer_Enter,  METH_NOARGS,                  NULL},
-    {"__exit__",  (PyCFunction) AtomicPartitionedQueueConsumer_Exit,   METH_VARARGS,                 NULL},
+    {"get",          (PyCFunction) AtomicPartitionedQueueConsumer_Get,        METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get",      (PyCFunction) AtomicPartitionedQueueConsumer_TryGet,     METH_NOARGS,                  NULL},
+    {"get_many",     (PyCFunction) AtomicPartitionedQueueConsumer_GetMany,    METH_VARARGS | METH_KEYWORDS, NULL},
+    {"try_get_many", (PyCFunction) AtomicPartitionedQueueConsumer_TryGetMany, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"__enter__",    (PyCFunction) AtomicPartitionedQueueConsumer_Enter,      METH_NOARGS,                  NULL},
+    {"__exit__",     (PyCFunction) AtomicPartitionedQueueConsumer_Exit,       METH_VARARGS,                 NULL},
     {NULL, NULL, 0, NULL}
 };
 

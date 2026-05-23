@@ -44,6 +44,12 @@ PyObject *AtomicPartitionedQueue_Get(AtomicPartitionedQueue *self, PyObject *arg
 
 PyObject *AtomicPartitionedQueue_TryGet(AtomicPartitionedQueue *self);
 
+PyObject *AtomicPartitionedQueue_PutMany(AtomicPartitionedQueue *self, PyObject *iterable);
+
+PyObject *AtomicPartitionedQueue_GetMany(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicPartitionedQueue_TryGetMany(AtomicPartitionedQueue *self, PyObject *args, PyObject *kwargs);
+
 PyObject *AtomicPartitionedQueue_Close(AtomicPartitionedQueue *self);
 
 PyObject *AtomicPartitionedQueue_Closed_Get(AtomicPartitionedQueue *self, void *closure);
@@ -70,6 +76,8 @@ extern PyTypeObject AtomicPartitionedQueue_Type;
 
 PyObject *AtomicPartitionedQueueProducer_Put(AtomicPartitionedQueueProducer *self, PyObject *obj);
 
+PyObject *AtomicPartitionedQueueProducer_PutMany(AtomicPartitionedQueueProducer *self, PyObject *iterable);
+
 PyObject *AtomicPartitionedQueueProducer_Enter(AtomicPartitionedQueueProducer *self, PyObject *args);
 
 PyObject *AtomicPartitionedQueueProducer_Exit(AtomicPartitionedQueueProducer *self, PyObject *args);
@@ -86,6 +94,10 @@ extern PyTypeObject AtomicPartitionedQueueProducer_Type;
 PyObject *AtomicPartitionedQueueConsumer_Get(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs);
 
 PyObject *AtomicPartitionedQueueConsumer_TryGet(AtomicPartitionedQueueConsumer *self);
+
+PyObject *AtomicPartitionedQueueConsumer_GetMany(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs);
+
+PyObject *AtomicPartitionedQueueConsumer_TryGetMany(AtomicPartitionedQueueConsumer *self, PyObject *args, PyObject *kwargs);
 
 PyObject *AtomicPartitionedQueueConsumer_Enter(AtomicPartitionedQueueConsumer *self, PyObject *args);
 

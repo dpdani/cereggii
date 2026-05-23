@@ -1139,6 +1139,48 @@ class AtomicPartitionedQueue[T]:
         :return: An item from the queue, or `None` if the queue is empty.
         """
 
+    def put_many(self, items: Iterable[T]) -> None:
+        """
+        Add multiple items to the queue in a single bulk operation.
+
+        This is more efficient than calling
+        [`put`][cereggii._cereggii.AtomicPartitionedQueue.put] in a loop when
+        enqueuing many items at once.
+
+        :param items: An iterable of objects to add to the queue.
+        """
+
+    def get_many(self, max_items: int, block: bool = True, timeout: float | None = None) -> list[T]:
+        """
+        Remove and return up to `max_items` items from the queue in a single
+        bulk operation.
+
+        This is more efficient than calling
+        [`get`][cereggii._cereggii.AtomicPartitionedQueue.get] in a loop when
+        dequeuing many items at once.
+
+        When `block` is `True`, this call waits until at least one item is
+        available (or until `timeout` elapses); it may return fewer than
+        `max_items` items.
+
+        :param max_items: The maximum number of items to dequeue.
+        :param block: If `True`, block until at least one item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block
+            indefinitely.
+        :return: A list of dequeued items. May be empty if `block` is `False`
+            and the queue was empty, or if `block` is `True` and `timeout`
+            elapsed without any items becoming available.
+        """
+
+    def try_get_many(self, max_items: int) -> list[T]:
+        """
+        Try to remove and return up to `max_items` items from the queue
+        without blocking.
+
+        :param max_items: The maximum number of items to dequeue.
+        :return: A list of dequeued items, possibly empty.
+        """
+
     def close(self) -> None:
         """
         Close the queue, preventing further additions.
@@ -1212,6 +1254,14 @@ class AtomicPartitionedQueueProducer[T]:
         :param obj: The object to add to the queue.
         """
 
+    def put_many(self, items: Iterable[T]) -> None:
+        """
+        Add multiple items to the underlying queue in a single bulk operation,
+        using this producer context.
+
+        :param items: An iterable of objects to add to the queue.
+        """
+
     def __enter__(self) -> Self: ...
     def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
 
@@ -1240,6 +1290,31 @@ class AtomicPartitionedQueueConsumer[T]:
         blocking, using this consumer context.
 
         :return: An item from the queue, or `None` if the queue is empty.
+        """
+
+    def get_many(self, max_items: int, block: bool = True, timeout: float | None = None) -> list[T]:
+        """
+        Remove and return up to `max_items` items from the underlying queue
+        in a single bulk operation, using this consumer context.
+
+        When `block` is `True`, this call waits until at least one item is
+        available (or until `timeout` elapses); it may return fewer than
+        `max_items` items.
+
+        :param max_items: The maximum number of items to dequeue.
+        :param block: If `True`, block until at least one item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block
+            indefinitely.
+        :return: A list of dequeued items.
+        """
+
+    def try_get_many(self, max_items: int) -> list[T]:
+        """
+        Try to remove and return up to `max_items` items from the underlying
+        queue without blocking, using this consumer context.
+
+        :param max_items: The maximum number of items to dequeue.
+        :return: A list of dequeued items, possibly empty.
         """
 
     def __enter__(self) -> Self: ...
