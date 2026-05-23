@@ -357,18 +357,17 @@ parse_get_many_args(PyObject *args, PyObject *kwargs, Py_ssize_t &max_items, int
 {
     block = 1;
     timeout = -1.0;
-    int _max_items = -1;
+    max_items = 0;
 
     char *kw_list[] = {"max_items", "block", "timeout", nullptr};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|pd", kw_list, &_max_items, &block, &timeout)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "n|pd", kw_list, &max_items, &block, &timeout)) {
         return false;
     }
-    if (_max_items < 1) {
+    if (max_items < 1) {
         PyErr_SetString(PyExc_ValueError, "max_items must be >= 1");
         return false;
     }
-    max_items = _max_items;
     return true;
 }
 
