@@ -132,12 +132,19 @@ def _cons_bulk_ctx(q, barrier, consumed):
 
 class WrappedDeque(collections.deque):
     put = collections.deque.append
+    put_many = collections.deque.extend
 
     def get(self):
         try:
             return self.popleft()
         except IndexError:
             return None
+
+    def get_many(self, n):
+        try:
+            return [self.popleft() for _ in range(n)]
+        except IndexError:
+            return []
 
 
 def main():
@@ -151,6 +158,7 @@ def main():
 
     _run("stdlib queue.Queue", _prod_plain, _cons_plain, queue_factory=queue.Queue)
     _run("stdlib deque", _prod_plain, _cons_plain, queue_factory=WrappedDeque)
+    _run("stdlib deque many", _prod_bulk, _cons_bulk, queue_factory=WrappedDeque)
     _run("plain put/get", _prod_plain, _cons_plain)
     _run("ctx put/get", _prod_ctx, _cons_ctx)
     _run("plain put_many/get_many", _prod_bulk, _cons_bulk)
