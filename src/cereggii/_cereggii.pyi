@@ -1059,3 +1059,277 @@ class AtomicEvent:
 
     def is_set(self):
         """Atomically check if this `AtomicEvent` is set."""
+
+class AtomicPartitionedQueue[T]:
+    """A thread-safe queue implementation that supports partitioned access
+    patterns for efficient concurrent operations.
+    Implementation based on https://github.com/cameron314/concurrentqueue.
+
+    To improve the overall throughput of the queue when used repeatedly by the
+    same thread, use consumer and producer contexts to reduce contention on the
+    queue's internal partitions:
+
+    ```python
+    q = AtomicPartitionedQueue()
+    with q.producer() as p:
+        p.put(...)
+    ```
+
+    This will not restrict a consumer or producer to a single partition, but
+    will create an "affinity" so that different threads will not contend for
+    the same partition most of the time.
+    A consumer that sees its partition being empty will rotate to a different
+    partition.
+    This partitioning logic is mostly internal, and there should not be
+    additional logic to work around it in your application, except for
+    declaring consumers and producers by creating their contexts.
+    Note that the performance improvements that partitioning provides can only
+    be achieved when the contexts are not short-lived.
+
+    !!! warning
+        Consumer and producer contexts must not be shared between threads.
+        Their ownership may be transferred, but this is discouraged and may be
+        disallowed in a future release.
+
+    See
+    [`producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
+    and
+    [`consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer].
+
+    To improve throughput further, consider enqueuing and dequeuing multiple
+    items at a time:
+    ```python
+    q = AtomicPartitionedQueue()
+    q.put_many([1, 2, 3, ...])
+
+    # also doable with a producer context
+    with q.producer() as p:
+        p.put_many([1, 2, 3, ...])
+    ```
+
+    See
+    [`put_many`][cereggii._cereggii.AtomicPartitionedQueue.put_many]
+    and
+    [`get_many`][cereggii._cereggii.AtomicPartitionedQueue.get_many].
+    """
+
+    def __init__(self):
+        """Initialize an empty `AtomicPartitionedQueue`."""
+
+    def put(self, obj: T) -> None:
+        """
+        Add an item to the queue.
+
+        :param obj: The object to add to the queue.
+        """
+
+    def get(self, block: bool = True, timeout: float | None = None) -> T:
+        """
+        Remove and return an item from the queue.
+
+        :param block: If `True`, block until an item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block indefinitely.
+        :return: An item from the queue.
+        """
+
+    def try_get(self) -> T | None:
+        """
+        Try to remove and return an item from the queue without blocking.
+
+        :return: An item from the queue, or `None` if the queue is empty.
+        """
+
+    def put_many(self, items: Iterable[T]) -> None:
+        """
+        Add multiple items to the queue in a single bulk operation.
+
+        This is more efficient than calling
+        [`put`][cereggii._cereggii.AtomicPartitionedQueue.put] in a loop when
+        enqueuing many items at once.
+
+        :param items: An iterable of objects to add to the queue.
+        """
+
+    def get_many(self, max_items: int, block: bool = True, timeout: float | None = None) -> list[T]:
+        """
+        Remove and return up to `max_items` items from the queue in a single
+        bulk operation.
+
+        This is more efficient than calling
+        [`get`][cereggii._cereggii.AtomicPartitionedQueue.get] in a loop when
+        dequeuing many items at once.
+
+        When `block` is `True`, this call waits until at least one item is
+        available (or until `timeout` elapses); it may return fewer than
+        `max_items` items.
+
+        :param max_items: The maximum number of items to dequeue.
+        :param block: If `True`, block until at least one item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block
+            indefinitely.
+        :return: A list of dequeued items. May be empty if `block` is `False`
+            and the queue was empty, or if `block` is `True` and `timeout`
+            elapsed without any items becoming available.
+        """
+
+    def try_get_many(self, max_items: int) -> list[T]:
+        """
+        Try to remove and return up to `max_items` items from the queue
+        without blocking.
+
+        :param max_items: The maximum number of items to dequeue.
+        :return: A list of dequeued items, possibly empty.
+        """
+
+    def close(self) -> None:
+        """
+        Close the queue, preventing further additions.
+
+        After closing, no new items can be added to the queue.
+        """
+
+    @property
+    def closed(self) -> bool:
+        """
+        Check if the queue is closed.
+
+        :return: `True` if the queue is closed, `False` otherwise.
+        """
+
+    def approx_len(self) -> int:
+        """
+        Get the approximate number of items in the queue.
+
+        !!! warning
+            This method may return a non-sequentially consistent value.
+            Assuming that no threads are modifying the queue, then the value
+            returned will be correct.
+
+        :return: Approximate number of items in the queue.
+        """
+
+    def producer(self) -> AtomicPartitionedQueueProducer[T]:
+        """
+        Create a producer context for this queue to reduce contention on the
+        queue's internal partitions when enqueuing repeatedly from the same
+        thread.
+
+        The returned object can be used as a context manager:
+
+        ```python
+        q = AtomicPartitionedQueue()
+        with q.producer() as p:
+            p.put(item)
+        ```
+        """
+
+    def consumer(self) -> AtomicPartitionedQueueConsumer[T]:
+        """
+        Create a consumer context for this queue to reduce contention on the
+        queue's internal partitions when dequeuing repeatedly from the same
+        thread.
+
+        The returned object can be used as a context manager:
+
+        ```python
+        q = AtomicPartitionedQueue()
+        with q.consumer() as c:
+            item = c.get()
+        ```
+        """
+
+class AtomicPartitionedQueueProducer[T]:
+    """
+    A producer context for an `AtomicPartitionedQueue`.
+
+    Instances are only created by calling
+    [`AtomicPartitionedQueue.producer`][cereggii._cereggii.AtomicPartitionedQueue.producer]
+    and can be used as context managers.
+    """
+
+    def put(self, obj: T) -> None:
+        """
+        Add an item to the underlying queue using this producer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.put].
+
+        :param obj: The object to add to the queue.
+        """
+
+    def put_many(self, items: Iterable[T]) -> None:
+        """
+        Add multiple items to the underlying queue in a single bulk operation,
+        using this producer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.put_many].
+
+        :param items: An iterable of objects to add to the queue.
+        """
+
+    def __enter__(self) -> Self: ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
+
+class AtomicPartitionedQueueConsumer[T]:
+    """
+    A consumer context for an `AtomicPartitionedQueue`.
+
+    Instances are only created by calling
+    [`AtomicPartitionedQueue.consumer`][cereggii._cereggii.AtomicPartitionedQueue.consumer]
+    and can be used as context managers.
+    """
+
+    def get(self, block: bool = True, timeout: float | None = None) -> T:
+        """
+        Remove and return an item from the underlying queue using this
+        consumer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.get].
+
+        :param block: If `True`, block until an item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block indefinitely.
+        :return: An item from the queue.
+        """
+
+    def try_get(self) -> T | None:
+        """
+        Try to remove and return an item from the underlying queue without
+        blocking, using this consumer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.try_get].
+
+        :return: An item from the queue, or `None` if the queue is empty.
+        """
+
+    def get_many(self, max_items: int, block: bool = True, timeout: float | None = None) -> list[T]:
+        """
+        Remove and return up to `max_items` items from the underlying queue
+        in a single bulk operation, using this consumer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.get_many].
+
+        :param max_items: The maximum number of items to dequeue.
+        :param block: If `True`, block until at least one item is available.
+        :param timeout: Optional timeout in seconds. If `None`, block
+            indefinitely.
+        :return: A list of dequeued items.
+        """
+
+    def try_get_many(self, max_items: int) -> list[T]:
+        """
+        Try to remove and return up to `max_items` items from the underlying
+        queue without blocking, using this consumer context.
+
+        Also see
+        [without the context][cereggii._cereggii.AtomicPartitionedQueue.try_get_many].
+
+        :param max_items: The maximum number of items to dequeue.
+        :return: A list of dequeued items, possibly empty.
+        """
+
+    def __enter__(self) -> Self: ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
