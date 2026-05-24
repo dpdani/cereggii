@@ -13,6 +13,7 @@ the consumers cooperatively drain them all. Reported numbers are wall-clock
 time and total items per second (producer + consumer side combined).
 """
 
+import collections
 import queue
 import threading
 import time
@@ -129,6 +130,16 @@ def _cons_bulk_ctx(q, barrier, consumed):
     consumed += local_consumed
 
 
+class WrappedDeque(collections.deque):
+    put = collections.deque.append
+
+    def get(self):
+        try:
+            return self.popleft()
+        except IndexError:
+            return None
+
+
 def main():
     print(
         f"AtomicPartitionedQueue bench: "
@@ -139,6 +150,7 @@ def main():
     print(f"  {'-'*25} {'-'*7}     {'-'*16}")
 
     _run("stdlib queue.Queue", _prod_plain, _cons_plain, queue_factory=queue.Queue)
+    _run("stdlib deque", _prod_plain, _cons_plain, queue_factory=WrappedDeque)
     _run("plain put/get", _prod_plain, _cons_plain)
     _run("ctx put/get", _prod_ctx, _cons_ctx)
     _run("plain put_many/get_many", _prod_bulk, _cons_bulk)
