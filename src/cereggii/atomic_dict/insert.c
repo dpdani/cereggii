@@ -260,7 +260,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     int must_grow;
     PyObject *result = expected_insert_or_update(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
-    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
+    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update (or a post-reserve error)
         // keep entry_loc.entry->flags reserved, or set to 0
         uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
         atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
@@ -281,8 +281,17 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     }
     PyMutex_Unlock(&storage->self_mutex);
 
-    if (result == NULL && !must_grow)
-        goto fail;
+    if (result == NULL && !must_grow) {
+        // Error after (possibly) reserving an entry, e.g. a key's __eq__ raised during a
+        // collision compare. If an entry was reserved (entry_loc.location != 0), the cleanup
+        // block above already released `key`; releasing it again at `fail:` was an over-decref
+        // that corrupts the key's refcount (crashes the GC / _Py_NegativeRefcount). Release
+        // only what is still owned here.
+        Py_DECREF(desired);
+        if (entry_loc.location == 0)
+            Py_DECREF(key);
+        return NULL;
+    }
 
     int max_fill_ratio_approx_reached = 0;
     if (inserted_increased_significantly) {

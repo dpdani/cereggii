@@ -157,6 +157,36 @@ def test_setitem_updates_an_inserted_value():
     assert d[0] == 2
 
 
+def test_setitem_key_eq_raises_during_collision_no_over_decref():
+    # AtomicDict_CompareAndSet DECREF'd a colliding key twice on the error path
+    # (once in the reserved-entry cleanup, once again at `fail:`). That
+    # over-decref frees a still-referenced key -> use-after-free / GC
+    # "refcount is too small" abort. The store must raise __eq__'s exception
+    # and leave the key's refcount intact.
+    class EqRaises:
+        def __hash__(self):
+            return 101  # constant hash -> forces collisions -> __eq__ is called
+
+        def __eq__(self, other):
+            raise KeyError("boom")
+
+    d = AtomicDict()
+    d[EqRaises()] = 0  # seed one key at hash 101 (no collision yet -> inserts fine)
+
+    survivors = []
+    for _ in range(200):
+        k = EqRaises()  # collides at hash 101 -> compare calls __eq__ -> raises
+        with raises(KeyError):
+            d[k] = 1
+        survivors.append(k)  # keep every colliding key alive
+
+    # An over-decref would have freed some of these while we still hold them:
+    # touching a freed key (or the shutdown GC) would crash on the buggy build.
+    for k in survivors:
+        assert k.__hash__() == 101
+    gc_collect_until_stable()
+
+
 def test_full_dict():
     d = AtomicDict({k: None for k in range(63)})
     assert len(d._debug()["index"]) == 128
