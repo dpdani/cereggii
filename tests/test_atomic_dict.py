@@ -206,6 +206,32 @@ def test_concurrent_insert():
     assert d[2] in (1, 2)
 
 
+def test_concurrent_store_forcing_resize_gc_safe():
+    # Pages are shared between the old and new meta across a resize; the meta's
+    # traverse recursed into them inline, so a shared page's keys/values were
+    # visited once per meta and double-counted by the cyclic GC -> the debug GC
+    # aborted (validate_gc_objects: "refcount is too small"). Enough concurrent
+    # inserters fill a page and force the resize; a deferred-refcount key (a
+    # function) makes the miscount fatal. The GC must stay consistent.
+    def deferred_key():  # functions use deferred reference counting
+        pass
+
+    d = AtomicDict()
+    n = 8  # 8 x reservation_buffer_size fills a page -> forces a resize
+    barrier = threading.Barrier(n)
+
+    @TestingThreadSet.repeat(n)
+    def storers():
+        barrier.wait()
+        for _ in range(3000):
+            d[deferred_key] = 1
+
+    storers.start_and_join()
+
+    assert d[deferred_key] == 1
+    gc_collect_until_stable()  # aborted here on the buggy build
+
+
 def test_get_default():
     d = AtomicDict()
     d["key"] = "value"

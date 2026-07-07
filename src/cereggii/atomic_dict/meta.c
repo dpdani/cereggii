@@ -130,7 +130,12 @@ AtomicDictMeta_traverse(AtomicDictMeta *self, visitproc visit, void *arg)
 
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
     for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {
-        AtomicDictPage_traverse(self->pages[page_i], visit, arg);
+        // Visit the page as a GC node rather than recursing into it here: pages
+        // are shared between the old and new meta across a resize, so recursing
+        // would report each shared page's keys/values once per meta and
+        // double-count them in the cyclic GC (crashing the debug GC's
+        // validate_gc_objects). As a tracked object each page is traversed once.
+        Py_VISIT(self->pages[page_i]);
     }
     return 0;
 }
