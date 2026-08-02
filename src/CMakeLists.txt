@@ -22,6 +22,11 @@ if (MSVC)
     add_compile_options(/wd4232)  # address of dllimport 'PyType_GenericNew' is not static, identity not guaranteed
     add_compile_options(/wd5045)  # compiler will insert Spectre mitigation for memory load
     add_compile_options(/wd4710)  # function not inlined
+    add_compile_options(/wd4625)  # copy constructor was implicitly defined as deleted
+    add_compile_options(/wd4626)  # assignment operator was implicitly defined as deleted
+    add_compile_options(/wd5026)  # move constructor was implicitly defined as deleted
+    add_compile_options(/wd5027)  # move constructor was implicitly defined as deleted
+    add_compile_options(/wd4514)  # unreferenced inline function has been removed
 
     # from pythoncapi-compat PyAPI_FUNC
     add_compile_options(/wd4210)  # nonstandard extension used: function given file scope
@@ -36,6 +41,7 @@ else()
 
     # warnings ignored because causing many false positives
     add_compile_options(-Wno-cast-function-type)
+    add_compile_options(-Wno-write-strings)
 endif()
 
 message(STATUS "CEREGGII_TSAN=$ENV{CEREGGII_TSAN}")
@@ -50,8 +56,8 @@ endif ()
 message(STATUS "CEREGGII_ASAN=$ENV{CEREGGII_ASAN}")
 
 if (DEFINED ENV{CEREGGII_ASAN})
-    add_compile_options("-fsanitize=address,undefined")
-    add_link_options("-fsanitize=address")
+    add_compile_options("-fsanitize=address,undefined" "-fno-sanitize=vptr")
+    add_link_options("-fsanitize=address,undefined" "-fno-sanitize=vptr")
     add_compile_options("-g")
     add_compile_options("-fno-omit-frame-pointer")
 endif ()
@@ -125,6 +131,7 @@ Python3_add_library(_cereggii MODULE
         "cereggii/atomic_event.c"
         "cereggii/atomic_int.c"
         "cereggii/atomic_ref.c"
+        "cereggii/atomic_partitioned_queue.cpp"
         "cereggii/cereggii.c"
         "cereggii/constants.c"
         "cereggii/thread_handle.c"

@@ -6,6 +6,7 @@
 - [AtomicDict](AtomicDict.md) – A lock-free, atomic dictionary implementation
 - [AtomicCache](AtomicCache.md) – A lock-free, atomic key-value cache with invalidation support
 - [AtomicInt64](AtomicInt64.md) – 64-bit atomic integer operations
+- [AtomicPartitionedQueue](AtomicPartitionedQueue.md) – High throughput thread-safe queue
 - [AtomicRef](AtomicRef.md) – Atomic reference to an object with thread-safe operations
 
 ## Concurrency Primitives
