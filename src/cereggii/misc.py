@@ -2,7 +2,6 @@ import functools
 
 from . import AtomicEvent, AtomicRef
 
-
 _not_set = object()
 
 
