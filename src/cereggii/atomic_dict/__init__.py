@@ -4,7 +4,6 @@
 
 import warnings
 
-
 try:
     from cereggii import _cereggii
 except ImportError as exc:  # building sdist (without compiled modules)

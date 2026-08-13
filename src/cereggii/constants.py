@@ -1,6 +1,5 @@
 import warnings
 
-
 try:
     from cereggii._cereggii import NOT_FOUND, ANY, EXPECTATION_FAILED, ExpectationFailed, ConcurrentUsageDetected
 except ImportError as exc:

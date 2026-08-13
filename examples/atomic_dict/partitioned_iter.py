@@ -3,7 +3,6 @@ import time
 
 import cereggii
 
-
 keys = 2**23
 py_d = {}
 
