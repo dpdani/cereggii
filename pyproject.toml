@@ -87,9 +87,6 @@ filterwarnings = [
 ]
 
 [tool.cibuildwheel]
-enable = [
-  "cpython-freethreading",
-]
 skip = [
   "*-win32",
   "*i686",

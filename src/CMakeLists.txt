@@ -106,6 +106,13 @@ if (WIN32)
     # https://github.com/dpdani/cereggii/actions/runs/20556789700/job/59042260881?pr=104#step:9:11
     execute_process(COMMAND python -c "import sysconfig; from pathlib import Path; print(Path(sysconfig.get_config_var('LIBDIR'))/Path(sysconfig.get_config_var('LIBRARY')).with_suffix('.lib'), end='')" OUTPUT_VARIABLE Python3_LIBRARY)
 endif ()
+# see https://github.com/tttapa/py-build-cmake/issues/59
+if (
+        CMAKE_VERSION VERSION_GREATER_EQUAL "4.4"
+        AND PY_BUILD_CMAKE_PYTHON_ABIFLAGS MATCHES "t"
+)
+    set(Python3_FIND_ABI "ANY" "ANY" "ANY" "ON")
+endif()
 find_package(Python3 REQUIRED COMPONENTS Development.Module)
 
 include_directories("include/")
