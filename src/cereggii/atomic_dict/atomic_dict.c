@@ -110,6 +110,10 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
         int error = PyLong_AsInt64(min_size_arg, &min_size);
         if (error)
             return -1;
+        if (min_size < 0) {
+            PyErr_SetString(PyExc_ValueError, "min_size < 0");
+            return -1;
+        }
         if (min_size > (1LL << ATOMIC_DICT_MAX_LOG_SIZE)) {
             PyErr_SetString(PyExc_ValueError, "min_size > 2 ** 56");
             return -1;
@@ -225,6 +229,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
     AtomicDictAccessorStorage *storage = get_or_create_accessor_storage(self);
     if (storage == NULL)
         goto fail;
+    storage->local_inserted = 0;
 
     if (initial != NULL && PyDict_Size(initial) > 0) {
         get_entry_at(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
@@ -255,6 +260,7 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 log_size++;
                 goto create;
             }
+            storage->local_inserted += 1;
         }
 
         Py_END_CRITICAL_SECTION();
@@ -539,7 +545,10 @@ AtomicDict_Debug(AtomicDict *self)
         PyObject *n = Py_BuildValue("K", node.node);
         if (n == NULL)
             goto fail;
-        PyList_Append(index_nodes, n);
+        if (PyList_Append(index_nodes, n) < 0) {
+            Py_DECREF(n);
+            goto fail;
+        }
         Py_DECREF(n);
     }
 
@@ -557,13 +566,11 @@ AtomicDict_Debug(AtomicDict *self)
         if (entries == NULL)
             goto fail;
 
-        for (int j = 0; j < 64; j++) {
+        for (int j = 0; j < ATOMIC_DICT_ENTRIES_IN_PAGE; j++) {
             PyObject *key = page->entries[j].entry.key;
             PyObject *value = page->entries[j].entry.value;
-            if (key != NULL) {
-                if (value == NULL) {
-                    value = PyExc_KeyError;
-                }
+            if (value != NULL) {
+                assert(key != NULL);
                 uint64_t entry_ix = (i << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE) + j;
                 entry_tuple = Py_BuildValue("(KBnOO)",
                                             entry_ix,
@@ -573,19 +580,22 @@ AtomicDict_Debug(AtomicDict *self)
                                             value);
                 if (entry_tuple == NULL)
                     goto fail;
-                Py_INCREF(key);
-                Py_INCREF(value);
-                PyList_Append(entries, entry_tuple);
+                if (PyList_Append(entries, entry_tuple) < 0)
+                    goto fail;
                 Py_DECREF(entry_tuple);
+                entry_tuple = NULL;
             }
         }
 
         page_info = Py_BuildValue("{sO}", "entries\0", entries);
         Py_DECREF(entries);
+        entries = NULL;
         if (page_info == NULL)
             goto fail;
-        PyList_Append(pages, page_info);
+        if (PyList_Append(pages, page_info) < 0)
+            goto fail;
         Py_DECREF(page_info);
+        page_info = NULL;
     }
 
     PyObject *out = Py_BuildValue("{sOsOsO}", "meta\0", metadata, "pages\0", pages, "index\0", index_nodes);

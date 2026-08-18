@@ -127,6 +127,8 @@ AtomicDictMeta_traverse(AtomicDictMeta *self, visitproc visit, void *arg)
 
     if (self->pages == NULL)
         return 0;
+    if (self->new_gen_metadata)
+        return 0;  // don't visit pages which are shared with other metas
 
     int64_t greatest_allocated_page = atomic_load_explicit((_Atomic (int64_t) *) &self->greatest_allocated_page, memory_order_acquire);
     for (int64_t page_i = 0; page_i <= greatest_allocated_page; ++page_i) {

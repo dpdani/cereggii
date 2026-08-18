@@ -137,7 +137,11 @@ AtomicDict_GetItem(AtomicDict *self, PyObject *key)
 
     if (value == NULL) {
         if (!PyErr_Occurred()) {
-            PyErr_SetObject(PyExc_KeyError, key);
+            PyObject *error = PyObject_CallOneArg(PyExc_KeyError, key);
+            if (error != NULL) {
+                PyErr_SetObject(PyExc_KeyError, error);
+                Py_DECREF(error);
+            }
         }
     }
 
