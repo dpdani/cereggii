@@ -36,10 +36,7 @@ def test_reflected_bin_ops():
 
 
 def test_get_handle_survives_allocation_failure():
-    # get_handle() built its args tuple for ThreadHandle_init without a NULL
-    # check, so an allocation failure (Py_BuildValue -> NULL) reached
-    # PyArg_ParseTuple(NULL): SIGABRT on a debug build, SIGSEGV on release.
-    # It must raise MemoryError instead of crashing.
+    # See https://github.com/dpdani/cereggii/pull/147/
     _testcapi = pytest.importorskip("_testcapi")
     if not hasattr(_testcapi, "set_nomemory"):
         pytest.skip("_testcapi.set_nomemory unavailable")
