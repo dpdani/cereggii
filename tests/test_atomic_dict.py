@@ -1,10 +1,11 @@
 # SPDX-FileCopyrightText: 2023-present dpdani <git@danieleparmeggiani.me>
 #
 # SPDX-License-Identifier: Apache-2.0
-
+import gc
 import itertools
 import random
 import threading
+import weakref
 from collections import Counter
 
 import cereggii
@@ -14,6 +15,38 @@ from pytest import raises
 
 from .atomic_dict_hashing_utils import keys_for_hash_for_log_size
 from .utils import TestingThreadSet, eventually_raises, skip_if_gil_enabled_build, gc_collect_until_stable
+
+
+class HashError(Exception):
+    pass
+
+
+class EqError(Exception):
+    pass
+
+
+class HostileKey:
+    def __init__(self, value, hash_value=42, *, hash_error=False, eq_error=False):
+        self.value = value
+        self.hash_value = hash_value
+        self.hash_error = hash_error
+        self.eq_error = eq_error
+        self.hash_calls = 0
+        self.eq_calls = 0
+
+    def __hash__(self):
+        self.hash_calls += 1
+        if self.hash_error:
+            raise HashError(self.value)
+        return self.hash_value
+
+    def __eq__(self, other):
+        self.eq_calls += 1
+        if self.eq_error:
+            raise EqError(self.value)
+        if not isinstance(other, HostileKey):
+            return NotImplemented
+        return self.value == other.value
 
 
 def test_init():
@@ -27,9 +60,31 @@ def test_init():
     AtomicDict(min_size=120)
     AtomicDict(min_size=64, initial={1: 0})
     AtomicDict[str, int]({"spam": 42})
-
     with raises(TypeError):
         AtomicDict(None)
+    with pytest.raises(ValueError):
+        AtomicDict(min_size=-1)
+    with pytest.raises(OverflowError):
+        AtomicDict(min_size=-(2**100))
+    with pytest.raises(ValueError):
+        AtomicDict(min_size=2**56 + 1)
+    with pytest.raises(ValueError):
+        AtomicDict(buffer_size=0)
+    with pytest.raises(ValueError):
+        AtomicDict(buffer_size=3)
+    with pytest.raises(ValueError):
+        AtomicDict(buffer_size=65)
+    with pytest.raises(ValueError):
+        AtomicDict(buffer_size=-1)
+    for x in (1.5, "16", None):
+        with pytest.raises(TypeError):
+            AtomicDict(buffer_size=x)
+        with pytest.raises(TypeError):
+            AtomicDict(min_size=x)
+    with pytest.raises(TypeError):
+        AtomicDict({}, {}, initial={})
+    with pytest.raises(TypeError):
+        AtomicDict(initial=[])
 
 
 def test_multiple_inits():
@@ -55,7 +110,6 @@ def test_concurrent_inits():
             d[_] = _
 
     initializers.start_and_join()
-
     assert exceptions == n - 1
 
 
@@ -77,7 +131,6 @@ def test_log_size_bumped():
     d = AtomicDict({k: None for k in keys})
     for k in keys:
         assert d[k] is None
-
     keys = [i * 64 for i in range(26)]
     d = AtomicDict({k: None for k in keys})
     for k in keys:
@@ -93,7 +146,6 @@ def test_key_error():
 def test_getitem():
     d = AtomicDict({"spam": 42})
     assert d["spam"] == 42
-
     with raises(TypeError, match="unhashable type"):
         d[list()]
     with raises(TypeError, match="unhashable type"):
@@ -160,12 +212,10 @@ def test_setitem_updates_an_inserted_value():
 def test_full_dict():
     d = AtomicDict({k: None for k in range(63)})
     assert len(d._debug()["index"]) == 128
-
     d = AtomicDict(min_size=64)
     for k in range(62):
         d[k] = None
     assert len(d._debug()["index"]) == 128
-
     d = AtomicDict({k: None for k in range((1 << 10) - 1)})
     assert len(d._debug()["index"]) == 1 << 11
     d = AtomicDict(min_size=1 << 10)
@@ -196,14 +246,11 @@ def test_concurrent_insert():
         d[2] = 2
 
     (thread_1 | thread_2).start_and_join()
-
     assert d[0] == 1
     assert d[1] == 1
-
+    assert d[2] in (1, 2)
     assert d[3] == 2
     assert d[4] == 2
-
-    assert d[2] in (1, 2)
 
 
 def test_get_default():
@@ -219,103 +266,14 @@ def test_delete():
     del d["atomic"]
     with raises(KeyError):
         del d["atomic"]
-
     d["flower"] = "cereus greggii"
     del d["flower"]
     with raises(KeyError):
         del d["flower"]
 
-    keys = keys_for_hash_for_log_size[6]  # noqa: F841
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(15)})
-    # assert d._debug()["pages"][0]["entries"][14]  # exists
-    # del d[keys[14][0]]
-    # with raises(KeyError):
-    #     d[keys[14][0]]
-    # debug = d._debug()
-    # assert debug["index"][14] == debug["meta"]["tombstone"]
-    # with raises(IndexError):
-    #     debug["pages"][0]["entries"][14]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(16)})
-    # del d[keys[14][0]]
-    # with raises(KeyError):
-    #     d[keys[14][0]]
-    # debug = d._debug()
-    # assert debug["index"][14] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(15)})
-    # d[keys[14][1]] = None
-    # del d[keys[14][0]]
-    # with raises(KeyError):
-    #     d[keys[14][0]]
-    # debug = d._debug()
-    # assert debug["index"][15] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(15)})
-    # del d[keys[7][0]]
-    # with raises(KeyError):
-    #     d[keys[7][0]]
-    # debug = d._debug()
-    # assert debug["index"][7] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(8)})
-    # for _ in range(7, 7 + 7):
-    #     d[keys[_][1]] = None
-    # debug = d._debug()
-    # assert debug["index"][14] != 0
-    # del d[keys[7][0]]
-    # with raises(KeyError):
-    #     d[keys[7][0]]
-    # debug = d._debug()
-    # assert debug["index"][14] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(16)})
-    # del d[keys[15][0]]
-    # with raises(KeyError):
-    #     d[keys[15][0]]
-    # debug = d._debug()
-    # assert debug["index"][15] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[_][0]: None for _ in range(17)})
-    # del d[keys[15][0]]
-    # with raises(KeyError):
-    #     d[keys[15][0]]
-    # debug = d._debug()
-    # assert debug["index"][15] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[16][0]: None})
-    # del d[keys[16][0]]
-    # with raises(KeyError):
-    #     d[keys[16][0]]
-    # debug = d._debug()
-    # assert debug["index"][16] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[16][0]: None, keys[17][0]: None})
-    # del d[keys[16][0]]
-    # with raises(KeyError):
-    #     d[keys[16][0]]
-    # debug = d._debug()
-    # assert debug["index"][16] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[15][0]: None, keys[16][0]: None})
-    # del d[keys[16][0]]
-    # with raises(KeyError):
-    #     d[keys[16][0]]
-    # debug = d._debug()
-    # assert debug["index"][16] == debug["meta"]["tombstone"]
-
-    # d = AtomicDict({keys[15][0]: None, keys[16][0]: None, keys[17][0]: None})
-    # del d[keys[16][0]]
-    # with raises(KeyError):
-    #     d[keys[16][0]]
-    # debug = d._debug()
-    # assert debug["index"][16] == debug["meta"]["tombstone"]
-
 
 def test_delete_concurrent():
     d = AtomicDict({"spam": "lovely", "atomic": True, "flower": "cereus greggii"})
-
     key_error_1 = False
     key_error_2 = False
 
@@ -338,14 +296,12 @@ def test_delete_concurrent():
             key_error_2 = True
 
     (thread_1 | thread_2).start_and_join()
-
     with raises(KeyError):
         d["spam"]
     with raises(KeyError):
         d["atomic"]
     with raises(KeyError):
         d["flower"]
-
     assert key_error_1 or key_error_2
 
 
@@ -398,42 +354,27 @@ def test_grow():
 def test_grow_then_shrink():
     d = AtomicDict()
     assert d._debug()["meta"]["log_size"] == 7
-
     for _ in range(2**10):
         debug = d._debug()
         assert len(Counter(debug["index"]).keys()) == _ + 1, debug["meta"]["log_size"]
         d[_] = None
     assert d._debug()["meta"]["log_size"] == 11
-
     for _ in range(2**10):
         del d[_]
-    # assert d._debug()["meta"]["log_size"] == 7  # cannot shrink back to 6
-
-    # debug = d._debug()
-    # empty = 0
-    # tombstone = debug["meta"]["tombstone"]
-    # assert len(Counter(debug["index"]).keys()) == len({empty, tombstone}), debug["meta"]["log_size"]
-
     for _ in range(2**20, 2**20 + 2**14):
         d[_] = None
-
     assert d._debug()["meta"]["log_size"] == 15
-    # assert len(Counter(d._debug()["index"]).keys()) == 2**14 + 1
-
     for _ in range(2**20, 2**20 + 2**14):
         del d[_]
-    # assert d._debug()["meta"]["log_size"] == 7
 
 
 @pytest.mark.skip()
 def test_large_grow_then_shrink():
     d = AtomicDict()
     assert d._debug()["meta"]["log_size"] == 6
-
     for _ in range(2**25):
         d[_] = None
     assert d._debug()["meta"]["log_size"] == 26
-
     for _ in range(2**25):
         del d[_]
     assert d._debug()["meta"]["log_size"] == 7
@@ -443,11 +384,9 @@ def test_large_grow_then_shrink():
 def test_large_pre_allocated_grow_then_shrink():
     d = AtomicDict(min_size=2**26)
     assert d._debug()["meta"]["log_size"] == 26
-
     for _ in range(2**25):
         d[_] = None
     assert d._debug()["meta"]["log_size"] == 26
-
     for _ in range(2**25):
         del d[_]
     assert d._debug()["meta"]["log_size"] == 26
@@ -461,27 +400,59 @@ def test_dont_implode():
     assert d._debug()["meta"]["log_size"] == 7
 
 
+def test_readers_and_cas_writers_during_repeated_growth():
+    d = AtomicDict({"counter": 0})
+    writers = 4
+    increments = 200
+    barrier = threading.Barrier(writers + 2)
+    errors = []
+
+    @TestingThreadSet.repeat(writers)
+    def cas_writers():
+        barrier.wait()
+        for _ in range(increments):
+            while True:
+                current = d["counter"]
+                try:
+                    d.compare_and_set("counter", current, current + 1)
+                    break
+                except cereggii.ExpectationFailed:
+                    pass
+
+    @TestingThreadSet.repeat(1)
+    def grower():
+        barrier.wait()
+        for i in range(1500):
+            d[("grow", i)] = i
+
+    @TestingThreadSet.repeat(1)
+    def reader():
+        barrier.wait()
+        for _ in range(3000):
+            value = d.get("counter")
+            if not isinstance(value, int):
+                errors.append(value)
+
+    (cas_writers | grower | reader).start_and_join()
+    assert not errors
+    assert d["counter"] == writers * increments
+    assert len(d) == 1501
+
+
 def test_len_bounds():
     d = AtomicDict()
-
     assert d.len_bounds() == (0, 0)
     assert d.approx_len() == 0
-
     for _ in range(10):
         d[_] = None
-
     assert d.len_bounds() == (10, 10)
     assert d.approx_len() == 10
-
     for _ in range(100):
         d[_] = None
-
     assert d.len_bounds() == (100, 100)
     assert d.approx_len() == 100
-
     for _ in range(100):
         del d[_]
-
     assert d.len_bounds() == (0, 0)
     assert d.approx_len() == 0
 
@@ -518,12 +489,10 @@ def test_issue_75():
 def test_fast_iter():
     min_log_size = 128
     d = AtomicDict(min_size=2 * 4 * min_log_size * 2)  # = 1024
-
     for _ in range(1, min_log_size):  # must offset for entry number 0
         d[_] = 1
     for _ in range(min_log_size):
         d[_ + min_log_size] = 2
-
     for p in range(1, 4):
         for _ in range(p * 2 * min_log_size, p * 2 * min_log_size + min_log_size):
             d[_] = 1
@@ -547,6 +516,33 @@ def test_fast_iter():
         assert n == 4 * min_log_size
 
     (partition_1 | partition_2).start_and_join()
+
+
+@pytest.mark.parametrize("size,partitions", [(0, 1), (1, 4), (100, 7), (100, 128)])
+def test_fast_iter_partitions_form_exact_union(size, partitions):
+    d = AtomicDict({i: i * 2 for i in range(size)})
+    items = []
+    for partition in range(partitions):
+        items.extend(d.fast_iter(partitions, partition))
+    assert len(items) == size
+    assert dict(items) == {i: i * 2 for i in range(size)}
+
+
+def test_fast_iterator_keeps_dictionary_and_generation_alive():
+    d = AtomicDict({i: i for i in range(200)})
+    reference = weakref.ref(d)
+    iterator = d.fast_iter()
+    del d
+    gc_collect_until_stable()
+    assert reference() is not None
+    assert dict(iterator) == {i: i for i in range(200)}
+    with pytest.raises(StopIteration):
+        next(iterator)
+    with pytest.raises(StopIteration):
+        next(iterator)
+    del iterator
+    gc_collect_until_stable()
+    assert reference() is None
 
 
 @skip_if_gil_enabled_build(reason="cannot occur in GIL-enabled builds")
@@ -621,6 +617,24 @@ def test_racy_deletes():
     (deleting | inserting).start_and_join()
 
 
+class Payload:
+    pass
+
+
+def test_cycles_and_replaced_objects_are_collectable():
+    finalized = []
+    d = AtomicDict()
+    key, value = Payload(), Payload()
+    key.owner = d
+    value.owner = d
+    weakref.finalize(key, finalized.append, "key")
+    weakref.finalize(value, finalized.append, "value")
+    d[key] = value
+    del key, value, d
+    gc_collect_until_stable()
+    assert sorted(finalized) == ["key", "value"]
+
+
 def test_compare_and_set():
     d = AtomicDict(
         {
@@ -630,17 +644,13 @@ def test_compare_and_set():
     )
     d.compare_and_set(key="spam", expected=0, desired=100)
     assert d["spam"] == 100
-
     with pytest.raises(cereggii.ExpectationFailed):
         d.compare_and_set(key="foo", expected=100, desired=0)
     assert d["foo"] is None
-
     d.compare_and_set(key="witch", expected=cereggii.NOT_FOUND, desired="duck")
     assert d["witch"] == "duck"
-
     d.compare_and_set(key="foo", expected=cereggii.ANY, desired=0)
     assert d["foo"] == 0
-
     d.compare_and_set(key="bar", expected=cereggii.ANY, desired="baz")
     assert d["bar"] == "baz"
 
@@ -650,35 +660,42 @@ def test_batch_getitem():
     d = AtomicDict({_: _ for _ in range(keys_count)})
     batch = {random.randrange(0, 2 * keys_count): None for _ in range(keys_count // 2)}  # noqa: S311
     d.batch_getitem(batch)
-
     for k in batch:
         assert d.get(k, cereggii.NOT_FOUND) == batch[k]
+
+
+class DictSubclass(dict):
+    pass
+
+
+def test_batch_getitem_invalid_calls():
+    d = AtomicDict()
+    for chunk_size in (0, -1):
+        with pytest.raises(ValueError, match="chunk_size"):
+            d.batch_getitem({}, chunk_size)
+    with pytest.raises(TypeError):
+        d.batch_getitem(DictSubclass())
+    with pytest.raises(TypeError):
+        d.batch_getitem([])
 
 
 def test_len():
     d = AtomicDict({_: None for _ in range(10)})
     assert len(d) == 10
-
     for _ in range(32):
         d[_ + 10] = None
-
     assert len(d) == 42
-
     for _ in range(32):
         d[_ + 10] = None
-
     assert len(d) == 42  # updates don't change count
-
     for _ in range(32):
         del d[_ + 10]
-
     assert len(d) == 10
     assert len(d) == 10  # test twice for len_dirty
 
 
 def test_reduce():
     d = AtomicDict()
-
     data = [
         ("red", 1),
         ("green", 42),
@@ -692,7 +709,6 @@ def test_reduce():
         return current + new
 
     d.reduce(data, count)
-
     assert d["red"] == 6
     assert d["green"] == 42
     assert d["blue"] == 3
@@ -820,11 +836,9 @@ def test_reduce_specialized_count():
     d = AtomicDict()
     d.reduce_count([])
     assert as_dict(d) == {}
-
     d = AtomicDict()
     d.reduce_count("gallahad")
     assert as_dict(d) == {'g': 1, 'a': 3, 'l': 2, 'h': 1, 'd': 1}
-
     d = AtomicDict()
     d.reduce_count({"red": 4, "blue": 2})
     assert as_dict(d) == {"red": 4, "blue": 2}
@@ -892,6 +906,35 @@ def test_reentrant():
         assert d["spam"] == 0
 
 
+def test_reentrant_hash():
+    d = AtomicDict({"side": 0})
+
+    class MutatingHash:
+        def __hash__(self):
+            d["side"] = d["side"] + 1
+            return 11
+
+    key = MutatingHash()
+    d[key] = "value"
+    assert d[key] == "value" and d["side"] == 2
+
+
+def test_reentrant_eq():
+    d = AtomicDict()
+
+    class MutatingEq(HostileKey):
+        def __eq__(self, other):
+            d["side"] = 2
+            return super().__eq__(other)
+
+        __hash__ = HostileKey.__hash__
+
+    stored = MutatingEq("stored")
+    d[stored] = "stored-value"
+    assert d[HostileKey("stored")] == "stored-value"
+    assert d["side"] == 2
+
+
 def test_rehash_raises_type_error_for_unhashable_types():
     # see https://github.com/dpdani/cereggii/issues/89
     with raises(TypeError):
@@ -903,5 +946,163 @@ def test_new_raises_runtime_error_when_out_of_tss_keys():
         d = None
         for _ in range(10_000):
             d = AtomicDict({0: d})
-
     gc_collect_until_stable()
+
+
+def test_identical_key_bypasses_equality():
+    key = HostileKey("key", eq_error=True)
+    d = AtomicDict({key: 1})
+    assert d[key] == 1
+    assert key.eq_calls == 0
+
+
+@pytest.mark.parametrize("hash_value", [-2, 1, 2**200 + 17])
+def test_hostile_hash_values_and_equal_nonidentical_keys(hash_value):
+    stored = HostileKey("same", hash_value)
+    lookup = HostileKey("same", hash_value)
+    d = AtomicDict({stored: "old"})
+    assert d[lookup] == "old"
+    d[lookup] = "new"
+    assert len(d) == 1
+    assert d[stored] == "new"
+    assert lookup.eq_calls + stored.eq_calls == 2
+
+
+def test_hash_exceptions_propagate_and_leave_contents_unchanged():
+    bad = HostileKey("bad", hash_error=True)
+    d = AtomicDict({"sentinel": object()})
+    before = dict(d.fast_iter())
+    operations = [
+        lambda: d[bad],
+        lambda: d.get(bad),
+        lambda: d.__setitem__(bad, 1),
+        lambda: d.__delitem__(bad),
+        lambda: d.compare_and_set(bad, cereggii.ANY, 1),
+        lambda: d.batch_getitem({bad: None}),
+    ]
+    for operation in operations:
+        with pytest.raises(HashError):
+            operation()
+        assert dict(d.fast_iter()) == before
+        assert d["sentinel"] is before["sentinel"]
+
+
+@pytest.mark.parametrize("operation", ["get", "set", "delete", "cas"])
+def test_equality_exceptions_propagate_without_corrupting_dict(operation):
+    stored = HostileKey("stored", eq_error=True)
+    probe = HostileKey("probe")
+    d = AtomicDict({stored: "value"})
+    with pytest.raises(EqError):
+        if operation == "get":
+            d[probe]
+        elif operation == "set":
+            d[probe] = "other"
+        elif operation == "delete":
+            del d[probe]
+        else:
+            d.compare_and_set(probe, cereggii.ANY, "other")
+    assert d[stored] == "value"
+    assert len(d) == 1
+
+
+@pytest.mark.parametrize("key", ["missing", ("tuple", "key")])
+def test_keyerror_contains_the_original_key(key):
+    d = AtomicDict()
+    with pytest.raises(KeyError) as raised:
+        d[key]
+    assert raised.value.args == (key,)
+    with pytest.raises(KeyError) as raised:
+        del d[key]
+    assert raised.value.args == (key,)
+
+
+def test_unhashable_keys_rejected():
+    d = AtomicDict()
+    operations = [
+        lambda: d.__getitem__([]),
+        lambda: d.get([]),
+        lambda: d.__setitem__([], 1),
+        lambda: d.__delitem__([]),
+        lambda: d.compare_and_set([], cereggii.ANY, 1),
+    ]
+    for operation in operations[:-1]:
+        with pytest.raises(TypeError, match="unhashable"):
+            operation()
+
+
+@pytest.mark.parametrize("partitions,this_partition", [(0, 0), (-1, 0), (1, -1), (1, 1), (2, 2)])
+def test_fast_iter_partition_validation(partitions, this_partition):
+    with pytest.raises(ValueError):
+        AtomicDict().fast_iter(partitions, this_partition)
+
+
+class NeverEqual:
+    def __hash__(self):
+        return 1
+
+    def __eq__(self, other):
+        return NotImplemented
+
+
+def test_notimplemented_is_supported():
+    first, second = NeverEqual(), NeverEqual()
+    d = AtomicDict({first: 1})
+    d[second] = 2
+    assert d[first] == 1 and d[second] == 2 and len(d) == 2
+
+
+def test_long_collision_probe_chains():
+    d = AtomicDict()
+    live = {}
+    original_size = d._debug()["meta"]["log_size"]
+    for repeat in range(8):
+        new = [HostileKey(repeat * 40 + i) for i in range(40)]
+        for key in new:
+            d[key] = key.value
+            live[key.value] = key
+        for value in sorted(live)[::3]:
+            del d[live.pop(value)]
+        assert len(d) == len(live)
+        for value, key in live.items():
+            assert d[key] == value
+    assert d._debug()["meta"]["log_size"] > original_size
+
+
+def test_single_referent_after_resize():
+    # After resizing, there may be accessor storages still referring to the old
+    # metadata generation. The GC should ignore them and not traverse them.
+    # See https://github.com/dpdani/cereggii/pull/148
+    d = AtomicDict()
+    payload = Payload()
+    payload.cycle = payload
+    payload_ref = weakref.ref(payload)
+    d["payload"] = payload
+
+    @TestingThreadSet.repeat(1)
+    def pin_old_metadata():
+        assert d["payload"] is payload  # noqa: F821
+
+    pin_old_metadata.start_and_join()
+    gc_was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        original_log_size = d._debug()["meta"]["log_size"]
+        for _ in range(200):
+            d[_] = None
+        assert d._debug()["meta"]["log_size"] > original_log_size
+        metadata_generations = {
+            referent for referent in gc.get_referents(d) if type(referent).__name__ == "_AtomicDictMeta"
+        }
+        assert len(metadata_generations) == 2
+        payload_owners = sum(
+            any(referent is payload for referent in gc.get_referents(metadata)) for metadata in metadata_generations
+        )
+        assert payload_owners == 1
+        del payload
+        gc.collect()
+        collected_payload = payload_ref()
+        assert collected_payload is not None
+        assert d["payload"] is collected_payload
+    finally:
+        if gc_was_enabled:
+            gc.enable()

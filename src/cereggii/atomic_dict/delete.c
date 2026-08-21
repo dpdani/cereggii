@@ -75,7 +75,11 @@ AtomicDict_DelItem(AtomicDict *self, PyObject *key)
     }
     if (!result.found) {
         PyMutex_Unlock(&storage->self_mutex);
-        PyErr_SetObject(PyExc_KeyError, key);
+        PyObject *error = PyObject_CallOneArg(PyExc_KeyError, key);
+        if (error != NULL) {
+            PyErr_SetObject(PyExc_KeyError, error);
+            Py_DECREF(error);
+        }
         goto fail;
     }
     accessor_len_inc(self, storage, -1);

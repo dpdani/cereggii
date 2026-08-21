@@ -24,8 +24,8 @@ AtomicDict_FastIter(AtomicDict *self, PyObject *args, PyObject *kwargs)
         PyErr_SetString(PyExc_ValueError, "partitions <= 0");
         goto fail_parse;
     }
-    if (this_partition > partitions) {
-        PyErr_SetString(PyExc_ValueError, "this_partition > partitions");
+    if (this_partition < 0 || this_partition >= partitions) {
+        PyErr_SetString(PyExc_ValueError, "this_partition not in range(partitions)");
         goto fail_parse;
     }
 
