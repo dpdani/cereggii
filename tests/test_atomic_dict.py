@@ -851,11 +851,7 @@ def test_reduce_specialized_sum_invalid_values():
 
 
 def test_reduce_count_key_eq_raises_during_flush():
-    # flush_one() re-looked-up each key and used the result without a NULL
-    # check. A reduce key that collides (equal hash) with a stored key whose
-    # __eq__ raises makes the lookup return NULL; NULL was then handed to
-    # PyNumber_Add() -> _Py_TYPE(NULL) -> SIGSEGV. The exception raised by
-    # __eq__ must propagate instead of crashing.
+    # See https://github.com/dpdani/cereggii/pull/146
     class EqRaises:
         def __init__(self, h):
             self.h = h
