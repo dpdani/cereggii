@@ -163,6 +163,7 @@ def test_getitem_confused():
     with raises(KeyError):
         d[256]
 
+
 def test_setitem_updates_a_value_set_at_init():
     d = AtomicDict({0: 1})
     d[0] = 3
@@ -701,10 +702,12 @@ def test_reduce():
         ("blue", 3),
         ("red", 5),
     ]
+
     def count(key, current, new):  # noqa: ARG001
         if current is cereggii.NOT_FOUND:
             return new
         return current + new
+
     d.reduce(data, count)
     assert d["red"] == 6
     assert d["green"] == 42
@@ -1088,14 +1091,11 @@ def test_single_referent_after_resize():
             d[_] = None
         assert d._debug()["meta"]["log_size"] > original_log_size
         metadata_generations = {
-            referent
-            for referent in gc.get_referents(d)
-            if type(referent).__name__ == "_AtomicDictMeta"
+            referent for referent in gc.get_referents(d) if type(referent).__name__ == "_AtomicDictMeta"
         }
         assert len(metadata_generations) == 2
         payload_owners = sum(
-            any(referent is payload for referent in gc.get_referents(metadata))
-            for metadata in metadata_generations
+            any(referent is payload for referent in gc.get_referents(metadata)) for metadata in metadata_generations
         )
         assert payload_owners == 1
         del payload
