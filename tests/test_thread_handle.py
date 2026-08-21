@@ -1,3 +1,4 @@
+import pytest
 from cereggii import AtomicDict, AtomicInt64, AtomicRef, ThreadHandle
 from pytest import raises
 
@@ -32,3 +33,27 @@ def test_reflected_bin_ops():
     assert 2 - ThreadHandle(1) == 1
     assert 2 / ThreadHandle(1) == 2
     assert 3 ^ ThreadHandle(1) == 2
+
+
+def test_get_handle_survives_allocation_failure():
+    # See https://github.com/dpdani/cereggii/pull/147/
+    _testcapi = pytest.importorskip("_testcapi")
+    if not hasattr(_testcapi, "set_nomemory"):
+        pytest.skip("_testcapi.set_nomemory unavailable")
+
+    # Drain the 1-element tuple free-list so Py_BuildValue("(O)") actually
+    # allocates (otherwise it reuses a cached tuple and never hits the failure).
+    hold = [(i,) for i in range(5000)]
+
+    for factory in (AtomicRef, AtomicDict, AtomicInt64):
+        for start in range(40):
+            obj = factory()
+            _testcapi.set_nomemory(start, start + 2)
+            try:
+                obj.get_handle()
+            except MemoryError:
+                pass
+            finally:
+                _testcapi.remove_mem_hooks()
+
+    assert len(hold) == 5000  # keep the free-list drain alive to here

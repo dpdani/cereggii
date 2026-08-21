@@ -630,6 +630,8 @@ AtomicDict_GetHandle(AtomicDict *self)
         goto fail;
 
     args = Py_BuildValue("(O)", self);
+    if (args == NULL)
+        goto fail;
     if (ThreadHandle_init(handle, args, NULL) < 0)
         goto fail;
     Py_DECREF(args);
