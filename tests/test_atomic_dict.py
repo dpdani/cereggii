@@ -864,6 +864,24 @@ def test_reduce_specialized_sum_invalid_values():
         #   d[cereggii.ANY] = cereggii.ANY
 
 
+def test_reduce_count_key_eq_raises_during_flush():
+    # See https://github.com/dpdani/cereggii/pull/146
+    class EqRaises:
+        def __init__(self, h):
+            self.h = h
+
+        def __hash__(self):
+            return self.h
+
+        def __eq__(self, other):
+            raise RuntimeError("eq boom")
+
+    d = AtomicDict()
+    d[EqRaises(42)] = 0  # seed one key at hash 42 (no collision yet -> inserts fine)
+    with raises(RuntimeError):
+        d.reduce_count([EqRaises(42)])  # flush re-lookup collides -> __eq__ raises
+
+
 def test_reduce_specialized_count_threads():
     d = AtomicDict()
     iterations = 1_000

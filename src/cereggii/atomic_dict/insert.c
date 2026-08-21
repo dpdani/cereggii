@@ -387,6 +387,8 @@ flush_one(AtomicDict *self, PyObject *key, PyObject *expected, PyObject *new, Py
 
     while (1) {
         current = AtomicDict_GetItemOrDefault(self, key, NOT_FOUND);
+        if (current == NULL)  // the lookup raised (e.g. a colliding key's __eq__)
+            goto fail;
 
         if (current == expected) {
             previous = AtomicDict_CompareAndSet(self, key, expected, desired);
