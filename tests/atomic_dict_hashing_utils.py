@@ -3,7 +3,6 @@ from pathlib import Path
 
 from cereggii import AtomicDict
 
-
 stored_hashes = Path(__file__).parent / "keys_for_hash_for_log_size.pickle"
 
 if not stored_hashes.exists():

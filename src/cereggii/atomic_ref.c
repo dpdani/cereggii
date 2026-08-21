@@ -17,7 +17,7 @@ AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject
     if (self == NULL)
         return NULL;
 
-    atomic_store_explicit(&self->reference, Py_None, memory_order_release);
+    atomic_store_explicit(&self->reference, Py_NewRef(Py_None), memory_order_release);
 
     PyObject_GC_Track(self);
 
@@ -40,11 +40,11 @@ AtomicRef_init(AtomicRef *self, PyObject *args, PyObject *kwargs)
         _Py_SetWeakrefAndIncref(initial_value);
         // decref'ed in destructor
         atomic_store_explicit(&self->reference, initial_value, memory_order_release);
+        Py_DECREF(Py_None);
     }
     return 0;
 
     fail:
-    Py_XDECREF(initial_value);
     return -1;
 }
 

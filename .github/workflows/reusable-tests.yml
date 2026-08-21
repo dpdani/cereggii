@@ -23,9 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: set up python ${{ inputs.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
+          allow-prereleases: true
       - run: python --version --version && which python
       - name: system info
         run: uname -a

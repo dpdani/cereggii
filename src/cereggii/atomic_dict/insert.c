@@ -260,7 +260,7 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
     int must_grow;
     PyObject *result = expected_insert_or_update(meta, key, hash, expected, desired, &entry_loc, &must_grow, 0);
 
-    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update
+    if (result != NOT_FOUND && entry_loc.location != 0) {  // it was an update (or exception occurred)
         // keep entry_loc.entry->flags reserved, or set to 0
         uint8_t flags = atomic_load_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, memory_order_acquire);
         atomic_store_explicit((_Atomic (uint8_t) *) &entry_loc.entry->flags, flags & ENTRY_FLAGS_RESERVED, memory_order_release);
@@ -268,7 +268,10 @@ AtomicDict_CompareAndSet(AtomicDict *self, PyObject *key, PyObject *expected, Py
         atomic_store_explicit((_Atomic (PyObject *) *) &entry_loc.entry->value, NULL, memory_order_release);
         atomic_store_explicit((_Atomic (Py_hash_t) *) &entry_loc.entry->hash, 0, memory_order_release);
         reservation_buffer_put_back_one(&storage->reservation_buffer);
-        Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
+        if (result != NULL) {  // no exception was raised
+            Py_DECREF(key);  // for the previous _Py_SetWeakrefAndIncref
+        }
+        // on exception, key will be decref'ed in fail: block
     }
 
     int inserted_increased_significantly = 0;
@@ -322,9 +325,14 @@ AtomicDict_CompareAndSet_callable(AtomicDict *self, PyObject *args, PyObject *kw
         goto fail;
     if (ret == EXPECTATION_FAILED) {
         PyObject *error = PyUnicode_FromFormat("self[%R] != %R", key, expected);
+        Py_DECREF(ret);
+        if (error == NULL)
+            goto fail;
         PyErr_SetObject(Cereggii_ExpectationFailed, error);
+        Py_DECREF(error);
         goto fail;
     }
+    Py_DECREF(ret);
     Py_RETURN_NONE;
 
     fail:
@@ -989,4 +997,3 @@ AtomicDict_ReduceCount_callable(AtomicDict *self, PyObject *args, PyObject *kwar
     fail:
     return NULL;
 }
-

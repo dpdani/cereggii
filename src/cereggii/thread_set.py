@@ -3,7 +3,6 @@ from collections.abc import Callable, Iterable
 from threading import Thread
 from typing import overload, ParamSpec
 
-
 P = ParamSpec('P')
 
 

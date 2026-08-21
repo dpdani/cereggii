@@ -9,7 +9,6 @@ from . import AtomicDict
 from ..atomic_event import AtomicEvent
 from ..constants import ExpectationFailed, NOT_FOUND
 
-
 _reserved = object()
 _raised = object()
 _tombstone_value = object()
