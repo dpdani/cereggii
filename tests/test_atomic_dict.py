@@ -1080,7 +1080,7 @@ def test_single_referent_after_resize():
 
     @TestingThreadSet.repeat(1)
     def pin_old_metadata():
-        assert d["payload"] is payload
+        assert d["payload"] is payload  # noqa: F821
 
     pin_old_metadata.start_and_join()
     gc_was_enabled = gc.isenabled()
