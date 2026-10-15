@@ -9,17 +9,15 @@
 
 
 PyObject *
-AtomicRef_new(PyTypeObject *Py_UNUSED(type), PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
+AtomicRef_new(PyTypeObject *type, PyObject *Py_UNUSED(args), PyObject *Py_UNUSED(kwds))
 {
     AtomicRef *self;
-    self = PyObject_GC_New(AtomicRef, &AtomicRef_Type);
+    self = (AtomicRef *) type->tp_alloc(type, 0);
 
     if (self == NULL)
         return NULL;
 
     atomic_store_explicit(&self->reference, Py_NewRef(Py_None), memory_order_release);
-
-    PyObject_GC_Track(self);
 
     return (PyObject *) self;
 }

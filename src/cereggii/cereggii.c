@@ -125,7 +125,7 @@ PyTypeObject AtomicRef_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "cereggii.AtomicRef",
     .tp_doc = PyDoc_STR("An object reference that may be updated atomically."),
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
     .tp_basicsize = sizeof(AtomicRef),
     .tp_itemsize = 0,
     .tp_new = AtomicRef_new,

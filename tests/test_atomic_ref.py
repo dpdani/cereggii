@@ -113,3 +113,17 @@ def test_get_handle():
     h = d.get_handle()
     assert isinstance(h, cereggii.ThreadHandle)
     assert isinstance(h.get_handle(), cereggii.ThreadHandle)
+
+
+def test_subclass():
+    class Ref(AtomicRef):
+        def __init__(self, value):
+            super().__init__(value)
+            self.label = 'subclass'
+
+    value = object()
+    ref = Ref(value)
+    assert ref.label == 'subclass'
+    assert ref.get() is value
+    assert ref.compare_and_set(value, 42)
+    assert ref.get_and_set(None) == 42
