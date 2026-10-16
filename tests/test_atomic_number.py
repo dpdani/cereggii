@@ -26,8 +26,9 @@ def test_cas():
     assert number == 0
     old = Decimal('1.25')
     number.set(old)
-    assert not number.compare_and_set(Decimal('1.25'), 9)
-    assert number.compare_and_set(old, 2**100)
+    assert not number.compare_and_set(Decimal('9.99'), 9)
+    assert number.get() is old
+    assert number.compare_and_set(Decimal('1.25'), 2**100)
     assert number.get_and_set(0) == 2**100
 
 

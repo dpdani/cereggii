@@ -32,12 +32,27 @@ class AtomicNumber(AtomicRef):
         else:
             return operation(current, operand)
 
+    """
+    `_inplace` and `compare_and_set` follow a similar flow: 
+    first read the current value, then perform the comparison or operation, 
+    and finally use the parent class's `compare_and_set` to atomically write the new value. 
+    If that fails, the current value has been changed concurrently, so the process need to be repeated.
+    """
+
     def _inplace(self, other, operation):
         while True:
             current, operand = self._resolve_operands(other)
             desired = operation(current, operand)
-            if self.compare_and_set(current, desired):
+            if super().compare_and_set(current, desired):
                 return self
+
+    def compare_and_set(self, expected, desired):
+        while True:
+            current = self.get()
+            if current != expected:
+                return False
+            if super().compare_and_set(current, desired):
+                return True
 
     ##################### Binary operators #########################################
     def __add__(self, other):
