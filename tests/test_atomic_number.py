@@ -32,6 +32,34 @@ def test_cas():
     assert number.get_and_set(0) == 2**100
 
 
+def test_get_and_update():
+    number = AtomicNumber(0)
+    values = []
+
+    @TestingThreadSet.repeat(4)
+    def workers():
+        for _ in range(100):
+            values.append(number.get_and_update(lambda value: value + 1))
+
+    workers.start_and_join()
+    assert number.get() == 400
+    assert sorted(values) == list(range(400))
+
+
+def test_update_and_get():
+    number = AtomicNumber(0)
+    values = []
+
+    @TestingThreadSet.repeat(4)
+    def workers():
+        for _ in range(100):
+            values.append(number.update_and_get(lambda value: value + 1))
+
+    workers.start_and_join()
+    assert number.get() == 400
+    assert sorted(values) == list(range(1, 401))
+
+
 def test_add():
     number = AtomicNumber(14.0)
     assert number + 3 == 17.0
