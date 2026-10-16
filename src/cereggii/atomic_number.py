@@ -68,6 +68,18 @@ class AtomicNumber(AtomicRef):
             if super().compare_and_set(current, desired):
                 return desired
 
+    def increment_and_get(self, amount=1):
+        return self.update_and_get(lambda current: current + amount)
+
+    def get_and_increment(self, amount=1):
+        return self.get_and_update(lambda current: current + amount)
+
+    def decrement_and_get(self, amount=1):
+        return self.update_and_get(lambda current: current - amount)
+
+    def get_and_decrement(self, amount=1):
+        return self.get_and_update(lambda current: current - amount)
+
     ##################### Binary operators #########################################
     def __add__(self, other):
         return self._binary(other, operator.add)
