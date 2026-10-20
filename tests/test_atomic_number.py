@@ -2,6 +2,7 @@ import math
 import operator
 from decimal import Decimal
 from fractions import Fraction
+from threading import Barrier
 
 import pytest
 import cereggii
@@ -32,32 +33,43 @@ def test_cas():
     assert number.get_and_set(0) == 2**100
 
 
+num_threads = 4
+num_iterations = 1_000
+total_iterations = num_threads * num_iterations
+
+
 def test_get_and_update():
     number = AtomicNumber(0)
     values = []
 
-    @TestingThreadSet.repeat(4)
+    barrier = Barrier(num_threads)
+
+    @TestingThreadSet.repeat(num_threads)
     def workers():
-        for _ in range(100):
+        barrier.wait()
+        for _ in range(num_iterations):
             values.append(number.get_and_update(lambda value: value + 1))
 
     workers.start_and_join()
-    assert number.get() == 400
-    assert sorted(values) == list(range(400))
+    assert number.get() == total_iterations
+    assert sorted(values) == list(range(total_iterations))
 
 
 def test_update_and_get():
     number = AtomicNumber(0)
     values = []
 
-    @TestingThreadSet.repeat(4)
+    barrier = Barrier(num_threads)
+
+    @TestingThreadSet.repeat(num_threads)
     def workers():
-        for _ in range(100):
+        barrier.wait()
+        for _ in range(num_iterations):
             values.append(number.update_and_get(lambda value: value + 1))
 
     workers.start_and_join()
-    assert number.get() == 400
-    assert sorted(values) == list(range(1, 401))
+    assert number.get() == total_iterations
+    assert sorted(values) == list(range(1, total_iterations + 1))
 
 
 def test_add():
@@ -189,24 +201,30 @@ def test_mixed_numeric_values(left, right, expected):
 def test_concurrent_increment():
     number = AtomicNumber(0)
 
-    @TestingThreadSet.repeat(4)
+    barrier = Barrier(num_threads)
+
+    @TestingThreadSet.repeat(num_threads)
     def workers():
         nonlocal number
-        for _ in range(1000):
+        barrier.wait()
+        for _ in range(num_iterations):
             number += 1
 
     workers.start_and_join()
-    assert number == 4000
+    assert number == total_iterations
 
 
 def test_concurrent_self_add():
     number = AtomicNumber(1)
 
-    @TestingThreadSet.repeat(4)
+    barrier = Barrier(num_threads)
+
+    @TestingThreadSet.repeat(num_threads)
     def workers():
         nonlocal number
-        for _ in range(1000):
+        barrier.wait()
+        for _ in range(num_iterations):
             number += number
 
     workers.start_and_join()
-    assert number == 2**4000
+    assert number == 2**total_iterations

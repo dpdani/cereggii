@@ -14,10 +14,10 @@ class AtomicNumber(AtomicRef):
         return object.__hash__(self)
 
     def _resolve_operands(self, other):
-        # A self-operand must use the same current value instead of calling another get(), in case
-        # that it has been changed between the two get() calls.
         current = self.get()
         if other is self:
+            # A self-operand must use the same current value instead of calling another get(), in case
+            # that it has been changed between the two get() calls.
             operand = current
         elif isinstance(other, AtomicNumber):
             operand = other.get()
@@ -32,12 +32,10 @@ class AtomicNumber(AtomicRef):
         else:
             return operation(current, operand)
 
-    """
-    The 4 func below follow a similar flow: 
-    first read the current value, then perform the comparison or operation, 
-    and finally use the parent class's `compare_and_set` to atomically write the new value. 
-    If that fails, the current value has been changed concurrently, so the process need to be repeated.
-    """
+    # The 4 func below follow a similar flow:
+    # first read the current value, then perform the comparison or operation,
+    # and finally use the parent class's `compare_and_set` to atomically write the new value.
+    # If that fails, the current value has been changed concurrently, so the process needs to be repeated.
 
     def _inplace(self, other, operation):
         while True:
@@ -68,19 +66,26 @@ class AtomicNumber(AtomicRef):
             if super().compare_and_set(current, desired):
                 return desired
 
+    def _inc_dec_internal(self, amount, operation, return_current):
+        while True:
+            current = self.get()
+            desired = operation(current, amount)
+            if super().compare_and_set(current, desired):
+                return current if return_current else desired
+
     def increment_and_get(self, amount=1):
-        return self.update_and_get(lambda current: current + amount)
+        return self._inc_dec_internal(amount, operator.add, return_current=False)
 
     def get_and_increment(self, amount=1):
-        return self.get_and_update(lambda current: current + amount)
+        return self._inc_dec_internal(amount, operator.add, return_current=True)
 
     def decrement_and_get(self, amount=1):
-        return self.update_and_get(lambda current: current - amount)
+        return self._inc_dec_internal(amount, operator.sub, return_current=False)
 
     def get_and_decrement(self, amount=1):
-        return self.get_and_update(lambda current: current - amount)
+        return self._inc_dec_internal(amount, operator.sub, return_current=True)
 
-    ##################### Binary operators #########################################
+    # Binary operators
     def __add__(self, other):
         return self._binary(other, operator.add)
 
@@ -222,7 +227,7 @@ class AtomicNumber(AtomicRef):
         else:
             return round(self.get(), ndigits)
 
-    ##################### Unary operators #########################################
+    # Unary operators
 
     def __neg__(self):
         return operator.neg(self.get())
@@ -260,11 +265,10 @@ class AtomicNumber(AtomicRef):
     def __ceil__(self):
         return math.ceil(self.get())
 
-    ##################### Ternary operators #########################################
+    # Ternary operators
 
-    def __pow__(self, other, modulo=None):
+    def _resolve_power_operands(self, other, modulo):
         current = self.get()
-
         if other is self:
             other = current
         elif isinstance(other, AtomicNumber):
@@ -275,19 +279,12 @@ class AtomicNumber(AtomicRef):
         elif isinstance(modulo, AtomicNumber):
             modulo = modulo.get()
 
+        return current, other, modulo
+
+    def __pow__(self, other, modulo=None):
+        current, other, modulo = self._resolve_power_operands(other, modulo)
         return pow(current, other, modulo)
 
     def __rpow__(self, other, modulo=None):
-        current = self.get()
-
-        if other is self:
-            other = current
-        elif isinstance(other, AtomicNumber):
-            other = other.get()
-
-        if modulo is self:
-            modulo = current
-        elif isinstance(modulo, AtomicNumber):
-            modulo = modulo.get()
-
+        current, other, modulo = self._resolve_power_operands(other, modulo)
         return pow(other, current, modulo)
