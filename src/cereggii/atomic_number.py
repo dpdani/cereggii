@@ -66,26 +66,31 @@ class AtomicNumber(AtomicRef):
             if super().compare_and_set(current, desired):
                 return desired
 
-    def _inc_dec_internal(self, amount, operation, return_current):
+    def _inc_dec_internal(self, amount, operation):
         while True:
             current = self.get()
             desired = operation(current, amount)
             if super().compare_and_set(current, desired):
-                return current if return_current else desired
+                return current, desired
 
     def increment_and_get(self, amount=1):
-        return self._inc_dec_internal(amount, operator.add, return_current=False)
+        _, desired = self._inc_dec_internal(amount, operator.add)
+        return desired
 
     def get_and_increment(self, amount=1):
-        return self._inc_dec_internal(amount, operator.add, return_current=True)
+        current, _ = self._inc_dec_internal(amount, operator.add)
+        return current
 
     def decrement_and_get(self, amount=1):
-        return self._inc_dec_internal(amount, operator.sub, return_current=False)
+        _, desired = self._inc_dec_internal(amount, operator.sub)
+        return desired
 
     def get_and_decrement(self, amount=1):
-        return self._inc_dec_internal(amount, operator.sub, return_current=True)
+        current, _ = self._inc_dec_internal(amount, operator.sub)
+        return current
 
     # Binary operators
+
     def __add__(self, other):
         return self._binary(other, operator.add)
 
