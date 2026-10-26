@@ -5,7 +5,7 @@
 import warnings
 
 try:
-    from cereggii import _cereggii
+    from cereggii import _cereggii  # noqa: F401
 except ImportError as exc:  # building sdist (without compiled modules)
 
     class AtomicRef:
@@ -15,4 +15,4 @@ except ImportError as exc:  # building sdist (without compiled modules)
     warnings.warn(str(exc), stacklevel=1)  # "UserWarning: No module named 'cereggii'" is expected during sdist build
 
 else:
-    AtomicRef = _cereggii.AtomicRef
+    from ._cereggii import AtomicRef  # noqa: F401

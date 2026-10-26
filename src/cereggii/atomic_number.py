@@ -6,6 +6,42 @@ from .atomic_ref import AtomicRef
 
 
 class AtomicNumber(AtomicRef):
+    """A numeric value that may be updated atomically.
+
+    `AtomicNumber` can hold Python integers, floats, complex numbers, and other numeric objects
+    such as `Decimal` and `Fraction`. Supported operations depend on the stored type.
+
+    !!! example "Basic Usage"
+
+        ```python
+        from cereggii import AtomicNumber
+
+        number = AtomicNumber(1)
+
+        # Use it like a regular number
+        number += 1
+        another = number * 2
+
+        # Use the AtomicNumber API
+        number.increment_and_get()
+        number.compare_and_set(2, 2.5)
+        ```
+
+    !!! note
+
+        The hash is based on object identity, not the stored value. Two
+        `AtomicNumber` objects that compare equal can have different hashes.
+         Use `hash(number.get())` to hash the current value.
+
+    !!! note
+
+        Each read or update is atomic. However, an operation
+        involving two distinct `AtomicNumber` objects (e.g. `AtomicNumber(a) + AtomicNumber(b)`)
+        reads them separately and doesn't provide a simultaneous snapshot of their values.
+
+        When the same object occurs on both sides (e.g. `AtomicNumber(a) + AtomicNumber(a)`),
+        that operation reuses one read of its value.
+    """
 
     def __init__(self, initial_value: Any = 0):
         super().__init__(initial_value)
@@ -45,6 +81,12 @@ class AtomicNumber(AtomicRef):
                 return self
 
     def compare_and_set(self, expected, desired):
+        """
+        Atomically read the current value of this `AtomicNumber`:
+
+          - if it is `expected`, then replace it with `desired` and return `True`
+          - else, don't change it and return `False`.
+        """
         while True:
             current = self.get()
             if current != expected:
@@ -53,6 +95,10 @@ class AtomicNumber(AtomicRef):
                 return True
 
     def get_and_update(self, update):
+        """
+        Like [`update_and_get`][cereggii.atomic_number.AtomicNumber.update_and_get], but returns the
+        value that was stored before applying this operation.
+        """
         while True:
             current = self.get()
             desired = update(current)
@@ -60,6 +106,21 @@ class AtomicNumber(AtomicRef):
                 return current
 
     def update_and_get(self, update):
+        """
+        Atomically update the value currently stored in this `AtomicNumber` by applying
+        `update` and return the updated value.
+
+        `update` should be a function that takes the current numeric value and
+        returns a new numeric value.
+
+        !!! warning
+
+            The `update` function must be **stateless**: it will be called at least
+            once but there is no upper bound to the number of times it will be
+            called within one invocation of this method.
+
+            If the stored value is mutable, `update` must not mutate it in place.
+        """
         while True:
             current = self.get()
             desired = update(current)
@@ -74,18 +135,34 @@ class AtomicNumber(AtomicRef):
                 return current, desired
 
     def increment_and_get(self, amount=1):
+        """
+        Atomically increment this `AtomicNumber` by `amount` and return the
+        incremented value.
+        """
         _, desired = self._inc_dec_internal(amount, operator.add)
         return desired
 
     def get_and_increment(self, amount=1):
+        """
+        Like [`increment_and_get`][cereggii.atomic_number.AtomicNumber.increment_and_get], but returns the
+        value that was stored before applying this operation.
+        """
         current, _ = self._inc_dec_internal(amount, operator.add)
         return current
 
     def decrement_and_get(self, amount=1):
+        """
+        Atomically decrement this `AtomicNumber` by `amount` and return the
+        decremented value.
+        """
         _, desired = self._inc_dec_internal(amount, operator.sub)
         return desired
 
     def get_and_decrement(self, amount=1):
+        """
+        Like [`decrement_and_get`][cereggii.atomic_number.AtomicNumber.decrement_and_get], but returns the
+        value that was stored before applying this operation.
+        """
         current, _ = self._inc_dec_internal(amount, operator.sub)
         return current
 
