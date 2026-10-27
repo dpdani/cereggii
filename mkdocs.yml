@@ -169,7 +169,6 @@ extra_javascript:
   - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
 
 watch:
-  - ./src/cereggii/atomic_ref.py
   - ./src/cereggii/atomic_number.py
   - ./src/cereggii/_cereggii.pyi
   - ./src/cereggii/count_down_latch.py
