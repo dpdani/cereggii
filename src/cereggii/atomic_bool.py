@@ -2,7 +2,7 @@ from .atomic_ref import AtomicRef
 from .constants import ExpectationFailed
 
 
-class AtomicBool:
+class AtomicBool(AtomicRef):
     """
     A thread-safe boolean value.
 
@@ -32,8 +32,11 @@ class AtomicBool:
         Initialize an `AtomicBool` with the given value.
 
         :param initial_value: The initial boolean value. Defaults to `False`.
+        :raises TypeError: If initial_value is not a bool.
         """
-        self._value = AtomicRef[bool](initial_value)
+        if type(initial_value) is not bool:
+            raise TypeError(f"{initial_value=!r} must be a bool")
+        super().__init__(initial_value)
 
     def compare_and_set(self, expected: bool, desired: bool) -> bool:
         """
@@ -48,13 +51,7 @@ class AtomicBool:
             raise TypeError(f"{expected=!r} must be a bool")
         if type(desired) is not bool:
             raise TypeError(f"{desired=!r} must be a bool")
-        return self._value.compare_and_set(expected, desired)
-
-    def get(self) -> bool:
-        """
-        Atomically read the current value of this `AtomicBool`.
-        """
-        return self._value.get()
+        return super().compare_and_set(expected, desired)
 
     def get_and_set(self, desired: bool) -> bool:
         """
@@ -67,21 +64,7 @@ class AtomicBool:
         """
         if type(desired) is not bool:
             raise TypeError(f"{desired=!r} must be a bool")
-        return self._value.get_and_set(desired)
-
-    def get_handle(self):
-        """
-        Get a thread-local handle for this `AtomicBool`.
-
-        When using a thread-local handle, you can improve the performance of
-        your application.
-
-        See [`ThreadHandle`][cereggii._cereggii.ThreadHandle] for more
-        information on thread-local object handles.
-        """
-        b = AtomicBool()
-        b._value = self._value.get_handle()
-        return b
+        return super().get_and_set(desired)
 
     def set_or_raise(self):
         """
@@ -122,4 +105,4 @@ class AtomicBool:
         """
         if type(desired) is not bool:
             raise TypeError(f"{desired=!r} must be a bool")
-        self._value.set(desired)
+        super().set(desired)

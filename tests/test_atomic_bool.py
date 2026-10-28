@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from cereggii import AtomicBool, ExpectationFailed
+from cereggii import AtomicBool, AtomicRef, ExpectationFailed, ThreadHandle
 from threading import Barrier
 
 from .utils import TestingThreadSet
@@ -11,6 +11,7 @@ from .utils import TestingThreadSet
 
 def test_init():
     b = AtomicBool()
+    assert isinstance(b, AtomicRef)
     assert b.get() is False
     b = AtomicBool(True)
     assert b.get() is True
@@ -18,6 +19,12 @@ def test_init():
     assert b.get() is False
     b = AtomicBool(initial_value=True)
     assert b.get() is True
+
+
+@pytest.mark.parametrize("initial_value", [0, 1, None, "true"])
+def test_init_type_error(initial_value):
+    with pytest.raises(TypeError, match="initial_value=.* must be a bool"):
+        AtomicBool(initial_value)
 
 
 def test_set():
@@ -125,9 +132,11 @@ def test_get_and_set_type_error():
 def test_get_handle():
     b = AtomicBool(True)
     h = b.get_handle()
-    assert isinstance(h, AtomicBool)
+    assert isinstance(h, ThreadHandle)
     assert h.get() is True
-    assert isinstance(h.get_handle(), AtomicBool)
+    assert isinstance(h.get_handle(), ThreadHandle)
+    with pytest.raises(TypeError, match="must be a bool"):
+        h.set(1)
 
 
 def test_set_or_raise_success():
