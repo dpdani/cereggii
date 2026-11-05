@@ -60,7 +60,9 @@ typedef struct AtomicDictNode {
 #define ATOMIC_DICT_LOG_ENTRIES_IN_PAGE (ATOMIC_DICT_MIN_LOG_SIZE)
 #define ATOMIC_DICT_ENTRIES_IN_PAGE (1 << ATOMIC_DICT_LOG_ENTRIES_IN_PAGE)
 
-CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
+// Would like each entry to be cache line-aligned, but PyObject_New does not
+// guarantee that. The padding still prevents false sharing.
+// CEREGGII_ALIGNED(LEVEL1_DCACHE_LINESIZE)
 typedef struct AtomicDictPaddedEntry {
     AtomicDictEntry entry;
     int8_t _padding[LEVEL1_DCACHE_LINESIZE - sizeof(AtomicDictEntry)];
