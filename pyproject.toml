@@ -1,5 +1,5 @@
 [build-system]
-requires = ["py-build-cmake>=0.4.3"]
+requires = ["py-build-cmake>=0.5.1"]
 build-backend = "py_build_cmake.build"
 
 
@@ -68,7 +68,7 @@ include = [
 ]
 
 [tool.py-build-cmake.cmake]
-minimum_version = "3.18"
+minimum_version = "3.30"
 build_type = "RelWithDebInfo"
 source_path = "src"
 args = ["-L"]
