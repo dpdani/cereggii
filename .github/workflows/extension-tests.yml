@@ -66,6 +66,8 @@ jobs:
       image: ghcr.io/nascheme/cpython-tsan:3.14t
     steps:
       - uses: actions/checkout@v7
+      - name: Adjust ASLR entropy for TSan
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
       - name: install dependencies & cereggii
         env:
           PIP_ROOT_USER_ACTION: ignore
