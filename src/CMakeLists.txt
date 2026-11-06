@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 4.4)
 project(cereggii)
 
 set(PY_BUILD_CMAKE_MODULE_NAME "cereggii")
