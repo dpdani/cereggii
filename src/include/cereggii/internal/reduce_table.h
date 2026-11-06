@@ -151,7 +151,6 @@ reduce_table_resize(ReduceTable *table)
     return 0;
 }
 
-
 // Lookup key in table. Returns pointer to entry if found, NULL otherwise.
 // Sets *entry_ix to the entry index if found.
 static inline ReduceTableEntry *
