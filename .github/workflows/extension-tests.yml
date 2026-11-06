@@ -63,7 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     name: sanitizers / TSan
     container:
-      image: ghcr.io/nascheme/cpython-tsan:3.14t
+      image: ghcr.io/nascheme/cpython-tsan:3.15t
+      options: --security-opt seccomp=unconfined
     steps:
       - uses: actions/checkout@v7
       - name: install dependencies & cereggii
@@ -71,17 +72,17 @@ jobs:
           PIP_ROOT_USER_ACTION: ignore
         run: |
           CEREGGII_TSAN=enabled \
-          pip install ".[dev]"
+          python -m pip install ".[dev]"
       - name: Test
         run: |
           TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/tsan/suppressions.txt" \
-          pytest -sv
+          python -m pytest -sv
 
   asan:
     runs-on: ubuntu-latest
     name: sanitizers / ASan
     container:
-      image: ghcr.io/nascheme/cpython-asan:3.14t
+      image: ghcr.io/nascheme/cpython-asan:3.15t
     steps:
       - uses: actions/checkout@v7
       - name: install dependencies & cereggii
@@ -89,7 +90,7 @@ jobs:
           PIP_ROOT_USER_ACTION: ignore
         run: |
           CEREGGII_ASAN=enabled \
-          pip install ".[dev]"
+          python -m pip install ".[dev]"
       - name: Test
         run: |
-          pytest -sv
+          python -m pytest -sv
