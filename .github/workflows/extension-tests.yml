@@ -72,11 +72,11 @@ jobs:
           PIP_ROOT_USER_ACTION: ignore
         run: |
           CEREGGII_TSAN=enabled \
-          pip install ".[dev]"
+          python -m pip install ".[dev]"
       - name: Test
         run: |
           TSAN_OPTIONS="suppressions=$GITHUB_WORKSPACE/tools/tsan/suppressions.txt" \
-          pytest -sv
+          python -m pytest -sv
 
   asan:
     runs-on: ubuntu-latest
@@ -90,7 +90,7 @@ jobs:
           PIP_ROOT_USER_ACTION: ignore
         run: |
           CEREGGII_ASAN=enabled \
-          pip install ".[dev]"
+          python -m pip install ".[dev]"
       - name: Test
         run: |
-          pytest -sv
+          python -m pytest -sv
