@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
     name: sanitizers / TSan
     container:
-      image: ghcr.io/nascheme/cpython-tsan:3.14t
+      image: ghcr.io/nascheme/cpython-tsan:3.15t
       options: --security-opt seccomp=unconfined
     steps:
       - uses: actions/checkout@v7
@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     name: sanitizers / ASan
     container:
-      image: ghcr.io/nascheme/cpython-asan:3.14t
+      image: ghcr.io/nascheme/cpython-asan:3.15t
     steps:
       - uses: actions/checkout@v7
       - name: install dependencies & cereggii
