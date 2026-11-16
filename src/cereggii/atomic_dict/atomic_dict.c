@@ -281,6 +281,9 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
                 }
 
                 if (n > 0) {
+                    if (location % self->reservation_buffer_size == 0) {
+                        get_entry_at(location, meta)->flags |= ENTRY_FLAGS_RESERVED;
+                    }
                     reservation_buffer_put(&storage->reservation_buffer, location, n, meta);
                 }
             }
@@ -289,7 +292,10 @@ AtomicDict_init(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     if (self->len == 0) {
         get_entry_at(0, meta)->flags |= ENTRY_FLAGS_RESERVED;
-        reservation_buffer_put(&storage->reservation_buffer, 1, self->reservation_buffer_size - 1, meta);
+        uint8_t n = self->reservation_buffer_size - 1;
+        if (n > 0) {
+            reservation_buffer_put(&storage->reservation_buffer, 1, n, meta);
+        }
     }
     assert(get_entry_at(0, meta)->flags & ENTRY_FLAGS_RESERVED);
     // entry 0 must always be reserved: tombstones are pointers

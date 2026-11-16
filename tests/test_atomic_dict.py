@@ -1124,3 +1124,18 @@ def test_single_referent_after_resize():
     finally:
         if gc_was_enabled:
             gc.enable()
+
+
+def test_reservation_buffer():
+    d = AtomicDict(buffer_size=1)
+
+    d = AtomicDict({"a": 1}, buffer_size=1)
+    d[0] = 1
+    d[1] = 2
+
+    d = AtomicDict({"a": 1, "b": 2, "c": 3}, buffer_size=4)
+    d[0] = 10
+    d[1] = 11
+    d[2] = 12
+    d[3] = 13
+    d[4] = 14
