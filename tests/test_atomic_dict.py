@@ -4,9 +4,6 @@
 import gc
 import itertools
 import random
-import subprocess
-import sys
-import textwrap
 import threading
 import weakref
 from collections import Counter
@@ -668,33 +665,15 @@ def test_batch_getitem():
 
 
 def test_batch_getitem_release_critical_section():
-    # A leaked critical section can hang other tests, so we use subprocess here.
-    script = textwrap.dedent("""
-        from cereggii import AtomicDict
+    # See https://github.com/dpdani/cereggii/pull/188
+    d = AtomicDict()
+    key = HostileKey("bad")
+    batch = {key: None}
+    key.hash_error = True
 
-        fail = False
-
-        class Key:
-            def __hash__(self):
-                if fail:
-                    raise RuntimeError("hash failed")
-                return 42
-
-        d = AtomicDict({})
-        batch = {Key(): None}
-        fail = True
-
-        for _ in range(2):
-            try:
-                d.batch_getitem(batch)
-            except RuntimeError as exc:
-                assert str(exc) == "hash failed"
-    """)
-    subprocess.run(
-        [sys.executable, "-c", script],
-        check=True,
-        timeout=10,
-    )
+    for _ in range(2):
+        with pytest.raises(HashError, match="bad"):
+            d.batch_getitem(batch)
 
 
 class DictSubclass(dict):
