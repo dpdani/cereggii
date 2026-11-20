@@ -664,6 +664,18 @@ def test_batch_getitem():
         assert d.get(k, cereggii.NOT_FOUND) == batch[k]
 
 
+def test_batch_getitem_release_critical_section():
+    # See https://github.com/dpdani/cereggii/pull/188
+    d = AtomicDict()
+    key = HostileKey("bad")
+    batch = {key: None}
+    key.hash_error = True
+
+    for _ in range(2):
+        with pytest.raises(HashError, match="bad"):
+            d.batch_getitem(batch)
+
+
 class DictSubclass(dict):
     pass
 

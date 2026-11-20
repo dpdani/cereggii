@@ -207,6 +207,7 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
     Py_ssize_t chunk_start = 0, chunk_end = 0;
     Py_ssize_t pos = 0;
+    int critical_failed = 0;
 
     Py_BEGIN_CRITICAL_SECTION(batch);
 
@@ -214,8 +215,10 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
     while (PyDict_Next(batch, &pos, &key, &value)) {
         chunk_end++;
         hash = PyObject_Hash(key);
-        if (hash == -1)
-            goto fail;
+        if (hash == -1) {
+            critical_failed = 1;
+            goto end_critical_section;
+        }
 
         hashes[(chunk_end - 1) % chunk_size] = hash;
         keys[(chunk_end - 1) % chunk_size] = key;
@@ -251,16 +254,22 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
 
         result.found = 0;
         lookup(meta, key, hash, &result);
-        if (result.error)
-            goto fail;
+        if (result.error) {
+            critical_failed = 1;
+            goto end_critical_section;
+        }
 
         assert(_PyDict_GetItem_KnownHash(batch, key, hash) != NULL); // returns a borrowed reference
         if (result.found) {
-            if (PyDict_SetItem(batch, key, result.entry.value) < 0)
-                goto fail;
+            if (PyDict_SetItem(batch, key, result.entry.value) < 0) {
+                critical_failed = 1;
+                goto end_critical_section;
+            }
         } else {
-            if (PyDict_SetItem(batch, key, NOT_FOUND) < 0)
-                goto fail;
+            if (PyDict_SetItem(batch, key, NOT_FOUND) < 0) {
+                critical_failed = 1;
+                goto end_critical_section;
+            }
         }
     }
 
@@ -269,7 +278,12 @@ AtomicDict_BatchGetItem(AtomicDict *self, PyObject *args, PyObject *kwargs)
         goto next_chunk;
     }
 
+    end_critical_section:
+    ;  // The C standard requires a label to be followed by a statement.
     Py_END_CRITICAL_SECTION();
+
+    if (critical_failed)
+        goto fail;
 
     if (get_meta(self, storage) != meta)
         goto retry;
